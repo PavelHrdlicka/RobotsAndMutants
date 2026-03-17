@@ -18,9 +18,6 @@ public class UnitFactory : MonoBehaviour
     public List<UnitData> robotUnits = new();
     public List<UnitData> mutantUnits = new();
 
-    private static readonly Color RobotUnitColor  = new Color(0.1f, 0.3f, 0.9f);
-    private static readonly Color MutantUnitColor = new Color(0.2f, 0.8f, 0.1f);
-
     private IEnumerator Start()
     {
         // Wait one frame so HexGrid.Start() finishes generating the board.
@@ -90,47 +87,39 @@ public class UnitFactory : MonoBehaviour
 
     private GameObject CreateUnitPrimitive(Team team, int index)
     {
-        PrimitiveType shape = team == Team.Robot ? PrimitiveType.Capsule : PrimitiveType.Cube;
         string unitName = team == Team.Robot ? $"Robot_{index}" : $"Mutant_{index}";
 
-        GameObject go = GameObject.CreatePrimitive(shape);
-        go.name = unitName;
+        var go = new GameObject(unitName);
 
-        // Scale down to fit on a hex.
-        float scale = team == Team.Robot ? 0.2f : 0.15f;
-        float height = team == Team.Robot ? 0.4f : 0.2f;
-        go.transform.localScale = new Vector3(scale, height, scale);
-
-        // Set team color.
-        var renderer = go.GetComponent<Renderer>();
-        var mat = new Material(renderer.sharedMaterial);
-        Color unitColor = team == Team.Robot ? RobotUnitColor : MutantUnitColor;
-        mat.color = unitColor;
-        // Try URP property too.
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", unitColor);
-        renderer.material = mat;
-
-        // Remove default collider (we handle collision via hex logic).
-        var collider = go.GetComponent<Collider>();
-        if (collider != null) Destroy(collider);
-
-        // Add unit components.
+        // Core unit components.
         go.AddComponent<UnitData>();
         go.AddComponent<HexMovement>();
-        go.AddComponent<UnitActionIndicator>();
 
-        // Add ML-Agents components.
-        // BehaviorParameters must be configured BEFORE adding HexAgent,
-        // because Agent.OnEnable reads BP settings immediately.
+        // 3D model.
+        if (team == Team.Robot)
+        {
+            var builder = go.AddComponent<RobotModelBuilder>();
+            builder.Build();
+        }
+        else
+        {
+            var builder = go.AddComponent<MutantModelBuilder>();
+            builder.Build();
+        }
+
+        // 3D visuals (health bar, action indicators, attack effects).
+        go.AddComponent<UnitHealthBar3D>();
+        go.AddComponent<UnitActionIndicator3D>();
+        go.AddComponent<AttackEffects>();
+
+        // ML-Agents components.
         var bp = go.AddComponent<BehaviorParameters>();
         bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
         bp.BrainParameters.VectorObservationSize = 56;
-        bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(8); // 0=idle,1-6=dir,7=build
+        bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(8);
         bp.TeamId = team == Team.Robot ? 0 : 1;
 
         go.AddComponent<HexAgent>();
-        // DecisionRequester intentionally omitted — GameManager drives turns manually.
 
         return go;
     }

@@ -134,7 +134,7 @@ public class HexMovement : MonoBehaviour
         moveQueue.Enqueue(grid.HexToWorld(target) + Vector3.up * 0.3f);
 
         // Notify arrow indicator.
-        GetComponent<UnitActionIndicator>()?.OnMoveStarted(target);
+        GetComponent<UnitActionIndicator3D>()?.OnMoveStarted(target);
         return true;
     }
 
