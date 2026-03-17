@@ -1,0 +1,54 @@
+# Unity recommended .gitattributes
+
+* text=auto eol=lf
+
+# Unity YAML files as text
+*.unity    text eol=lf merge=unityyamlmerge diff=unity
+*.prefab   text eol=lf merge=unityyamlmerge diff=unity
+*.asset    text eol=lf merge=unityyamlmerge diff=unity
+*.meta     text eol=lf
+*.mat      text eol=lf
+*.anim     text eol=lf
+*.controller text eol=lf
+*.overrideController text eol=lf
+*.physicMaterial text eol=lf
+*.physicsMaterial2D text eol=lf
+*.playable text eol=lf
+*.mask     text eol=lf
+*.brush    text eol=lf
+*.flare    text eol=lf
+*.fontsettings text eol=lf
+*.giparams text eol=lf
+*.renderTexture text eol=lf
+*.spriteatlas text eol=lf
+*.terrainlayer text eol=lf
+*.mixer    text eol=lf
+*.shadervariants text eol=lf
+
+# Source
+*.cs  text eol=lf
+*.js  text eol=lf
+*.ts  text eol=lf
+*.py  text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.md  text eol=lf
+*.txt text eol=lf
+
+# Binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.psd  binary
+*.dll  binary
+*.so   binary
+*.a    binary
+*.lib  binary
+*.exe  binary
+*.wav  binary
+*.mp3  binary
+*.ogg  binary
+*.fbx  binary
+*.obj  binary
