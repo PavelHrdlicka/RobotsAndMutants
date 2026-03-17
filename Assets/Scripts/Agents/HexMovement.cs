@@ -57,7 +57,7 @@ public class HexMovement : MonoBehaviour
     {
         if (moveQueue.Count == 0) return;
 
-        float speed = baseSpeed * (unitData != null ? unitData.speedMultiplier : 1f);
+        float speed = baseSpeed;
 
         // Skip stale hops when simulation outruns the renderer (training mode).
         while (moveQueue.Count > MaxQueueDepth)
@@ -94,6 +94,8 @@ public class HexMovement : MonoBehaviour
     /// <summary>
     /// Attempt to move to a specific adjacent hex coordinate.
     /// Only succeeds if the target hex is empty (no unit of any team).
+    /// Moving onto an enemy tile neutralizes it (Owner → None, TileType → Empty).
+    /// Fortified enemy tiles resist: unit must stand adjacent for Fortification+1 turns first.
     /// Returns true if the move was executed.
     /// </summary>
     public bool TryMoveTo(HexCoord target)
@@ -101,7 +103,7 @@ public class HexMovement : MonoBehaviour
         if (!unitData.isAlive || grid == null)                     return false;
         if (!grid.IsValidCoord(target))                            return false;
         if (HexCoord.Distance(unitData.currentHex, target) != 1)  return false;
-        if (IsOccupied(target))                                    return false;  // any live unit blocks
+        if (IsOccupied(target))                                    return false;
 
         // Update logical state instantly (game logic reads currentHex).
         unitData.moveFrom   = unitData.currentHex;
@@ -109,10 +111,29 @@ public class HexMovement : MonoBehaviour
         unitData.currentHex = target;
         unitData.lastAction = UnitAction.Move;
 
+        // Neutralize enemy tile on arrival.
+        // Fortified tiles resist: each move chips 1 fortification level.
+        // Only neutralized once fortification reaches 0.
+        var tile = grid.GetTile(target);
+        if (tile != null && !tile.isBase && tile.Owner != Team.None && tile.Owner != unitData.team)
+        {
+            if (tile.Fortification > 0)
+            {
+                tile.Fortification--;
+                // Tile weakened but stays enemy-owned.
+            }
+            else
+            {
+                tile.Owner         = Team.None;
+                tile.TileType      = TileType.Empty;
+                unitData.lastAction = UnitAction.Capture;
+            }
+        }
+
         // Enqueue visual hop — animation plays it out in sequence.
         moveQueue.Enqueue(grid.HexToWorld(target) + Vector3.up * 0.3f);
 
-        // Notify arrow indicator before territory system overwrites lastAction.
+        // Notify arrow indicator.
         GetComponent<UnitActionIndicator>()?.OnMoveStarted(target);
         return true;
     }
@@ -131,9 +152,9 @@ public class HexMovement : MonoBehaviour
         UnitData enemy = FindEnemyAt(targetCoord);
         if (enemy == null) return false;
 
-        // Both units take 1 damage (shield negates incoming damage).
-        int damageToSelf  = enemy.hasShield ? 0 : 1;
-        int damageToEnemy = unitData.hasShield ? 0 : 1;
+        // Attacker deals 2 damage, defender deals 1. Shield negates incoming damage to its holder.
+        int damageToSelf  = unitData.hasShield ? 0 : 1;   // defender hits back for 1
+        int damageToEnemy = enemy.hasShield    ? 0 : 2;    // attacker hits for 2
 
         unitData.Health -= damageToSelf;
         enemy.Health    -= damageToEnemy;
@@ -142,10 +163,10 @@ public class HexMovement : MonoBehaviour
         if (enemy.isAlive) enemy.lastAction = UnitAction.Attack;
 
         if (enemy.Health <= 0)
-            enemy.Die(30);
+            enemy.Die(12);
 
         if (unitData.Health <= 0)
-            unitData.Die(30);
+            unitData.Die(12);
 
         return true;
     }
@@ -187,7 +208,7 @@ public class HexMovement : MonoBehaviour
                 if (neighbor.isBase) continue;
                 if (neighbor.Owner == Team.None && neighbor.TileType == TileType.Empty)
                 {
-                    if (Random.value < 0.2f)
+                    if (Random.value < 0.12f)
                     {
                         neighbor.Owner    = Team.Mutant;
                         neighbor.TileType = TileType.Slime;

@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 
 /// <summary>
-/// Applies per-team passive abilities each step:
-/// - Robot shield: +1 defense on own territory
-/// - Mutant speed: can move 2 hexes on slime (speedMultiplier = 2)
-/// - Adjacency bonus: allied neighbors grant fortification (up to 3)
+/// Applies per-team passive abilities each round (called at round start):
+///
+/// Robot  — Shield: takes 0 incoming damage while standing on own territory.
+/// Mutant — Regeneration: heals 1 energy when standing on own slime.
+/// Both   — Adjacency fortification: allied neighbours strengthen owned tiles (0-3).
 /// </summary>
 public class AbilitySystem
 {
@@ -16,7 +17,7 @@ public class AbilitySystem
     }
 
     /// <summary>
-    /// Recalculate all unit buffs and tile fortification. Call once per step.
+    /// Recalculate all unit buffs and tile fortification. Call once per round.
     /// </summary>
     public void UpdateAbilities(List<UnitData> allUnits)
     {
@@ -30,10 +31,14 @@ public class AbilitySystem
             // Robot shield: active when standing on own territory.
             unit.hasShield = (unit.team == Team.Robot && tile.Owner == Team.Robot);
 
-            // Mutant speed: doubled when standing on slime.
-            unit.speedMultiplier = (unit.team == Team.Mutant && tile.TileType == TileType.Slime) ? 2f : 1f;
+            // Mutant regeneration: heal 1 energy when standing on own slime.
+            if (unit.team == Team.Mutant && tile.Owner == Team.Mutant
+                && tile.TileType == TileType.Slime && unit.Health < unit.maxHealth)
+            {
+                unit.Health += 1;
+            }
 
-            // Adjacency fortification: count allied neighbors.
+            // Adjacency fortification: count allied neighbours.
             if (tile.Owner == unit.team && !tile.isBase)
             {
                 int allyNeighborCount = CountAllyNeighbors(unit, allUnits);

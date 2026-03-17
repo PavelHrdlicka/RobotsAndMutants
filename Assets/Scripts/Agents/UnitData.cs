@@ -10,8 +10,8 @@ public class UnitData : MonoBehaviour
     public int unitIndex;
 
     [Header("Stats")]
-    public int maxHealth = 3;
-    [SerializeField] private int health = 3;
+    public int maxHealth = 5;
+    [SerializeField] private int health = 5;
 
     [Header("Position")]
     public HexCoord currentHex;
@@ -22,7 +22,6 @@ public class UnitData : MonoBehaviour
 
     [Header("Buffs")]
     public bool hasShield;
-    public float speedMultiplier = 1f;
 
     [Header("Action")]
     public UnitAction lastAction = UnitAction.Move; // Move = "no indicator" — idle spinner shown only on explicit idle choice
@@ -43,7 +42,7 @@ public class UnitData : MonoBehaviour
     }
 
     /// <summary>Kill this unit: hide it, start respawn cooldown.</summary>
-    public void Die(int cooldownSteps = 30)
+    public void Die(int cooldownSteps = 12)
     {
         isAlive = false;
         health = 0;
@@ -78,7 +77,6 @@ public class UnitData : MonoBehaviour
         isAlive = true;
         respawnCooldown = 0;
         hasShield = false;
-        speedMultiplier = 1f;
         gameObject.SetActive(true);
     }
 }

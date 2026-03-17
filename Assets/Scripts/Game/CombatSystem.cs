@@ -8,7 +8,7 @@ using UnityEngine;
 /// </summary>
 public class CombatSystem
 {
-    public int respawnCooldown = 30;
+    public int respawnCooldown = 12;
 
     /// <summary>Number of kills by Robots this step.</summary>
     public int robotKills { get; private set; }

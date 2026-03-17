@@ -13,13 +13,13 @@ public class GameMechanicsTests
         var go = new GameObject("TestUnit");
         var unit = go.AddComponent<UnitData>();
         unit.isAlive = true;
-        unit.Health = 3;
+        unit.Health = 5;
 
-        unit.Die(30);
+        unit.Die(12);
 
         Assert.IsFalse(unit.isAlive);
         Assert.AreEqual(0, unit.Health);
-        Assert.AreEqual(30, unit.respawnCooldown);
+        Assert.AreEqual(12, unit.respawnCooldown);
         Assert.IsFalse(go.activeSelf);
 
         Object.DestroyImmediate(go);
@@ -44,13 +44,13 @@ public class GameMechanicsTests
     {
         var go = new GameObject("TestUnit");
         var unit = go.AddComponent<UnitData>();
-        unit.Die(30);
+        unit.Die(12);
 
         var hex = new HexCoord(1, -1);
         unit.Respawn(hex, Vector3.zero);
 
         Assert.IsTrue(unit.isAlive);
-        Assert.AreEqual(3, unit.Health);
+        Assert.AreEqual(5, unit.Health);
         Assert.AreEqual(0, unit.respawnCooldown);
         Assert.AreEqual(hex, unit.currentHex);
         Assert.IsTrue(go.activeSelf);
@@ -65,13 +65,11 @@ public class GameMechanicsTests
         var unit = go.AddComponent<UnitData>();
         unit.Health = 1;
         unit.hasShield = true;
-        unit.speedMultiplier = 2f;
 
         unit.ResetUnit();
 
-        Assert.AreEqual(3, unit.Health);
+        Assert.AreEqual(5, unit.Health);
         Assert.IsFalse(unit.hasShield);
-        Assert.AreEqual(1f, unit.speedMultiplier);
 
         Object.DestroyImmediate(go);
     }
