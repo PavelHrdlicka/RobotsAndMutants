@@ -151,19 +151,24 @@ public class HexMovement : MonoBehaviour
     }
 
     /// <summary>
-    /// Build on the unit's current tile (must be own non-base empty tile).
-    /// Robot → builds a Crate.
-    /// Mutant → converts tile to Slime and randomly spreads to neutral neighbors.
+    /// Build on the unit's current tile (neutral or own, non-base, empty).
+    /// Cannot build on an enemy-owned tile.
+    /// Robot → builds a Crate and claims the tile.
+    /// Mutant → converts tile to Slime, claims it, and randomly spreads to neutral neighbors.
     /// Returns true if build succeeded.
     /// </summary>
     public bool TryBuild()
     {
         if (!unitData.isAlive || grid == null) return false;
 
-        var tile = grid.GetTile(unitData.currentHex);
-        if (tile == null || tile.isBase)            return false;
-        if (tile.Owner    != unitData.team)          return false;
-        if (tile.TileType != TileType.Empty)         return false;
+        var tile  = grid.GetTile(unitData.currentHex);
+        Team enemy = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
+        if (tile == null || tile.isBase)   return false;
+        if (tile.Owner    == enemy)        return false;  // can't build on enemy tile
+        if (tile.TileType != TileType.Empty) return false;
+
+        // Claim the tile for this team when building.
+        tile.Owner = unitData.team;
 
         if (unitData.team == Team.Robot)
         {
@@ -216,14 +221,15 @@ public class HexMovement : MonoBehaviour
         return grid.IsValidCoord(target) && FindEnemyAt(target) != null;
     }
 
-    /// <summary>Returns true if the build action is valid (own non-base empty tile).</summary>
+    /// <summary>Returns true if the build action is valid (neutral or own non-base empty tile).</summary>
     public bool IsValidBuild()
     {
         if (!unitData.isAlive || grid == null) return false;
 
-        var tile = grid.GetTile(unitData.currentHex);
+        var  tile  = grid.GetTile(unitData.currentHex);
+        Team enemy = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
         return tile != null && !tile.isBase
-            && tile.Owner    == unitData.team
+            && tile.Owner    != enemy           // neutral or own — not enemy
             && tile.TileType == TileType.Empty;
     }
 

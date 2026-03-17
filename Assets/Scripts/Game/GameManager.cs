@@ -204,9 +204,8 @@ public class GameManager : MonoBehaviour
 
     private void PostTurnProcessing(UnitData unit)
     {
-        // Capture territory only on successful moves.
-        if (unit.isAlive && unit.lastAction == UnitAction.Move)
-            territorySystem.ProcessCaptureForUnit(unit);
+        // Territory is claimed only through explicit BUILD actions (TryBuild in HexMovement).
+        // Moving does NOT colour / claim a tile — no territory processing on Move.
 
         CheckWinCondition();
     }
