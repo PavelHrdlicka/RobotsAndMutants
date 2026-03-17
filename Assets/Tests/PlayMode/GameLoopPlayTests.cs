@@ -17,6 +17,9 @@ public class GameLoopPlayTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
+        // Ignore background errors from scene objects (GameManager, ML-Agents Academy,
+        // ProjectToolsWindow) that run during Play Mode tests but aren't part of the test.
+        LogAssert.ignoreFailingMessages = true;
         Time.timeScale = 1f;
 
         var prefab = new GameObject("HexPrefab");

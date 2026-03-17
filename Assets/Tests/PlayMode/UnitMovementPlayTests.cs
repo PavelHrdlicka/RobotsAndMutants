@@ -2,6 +2,7 @@ using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEngine.TestTools.Utils;
 
 /// <summary>
 /// PlayMode integration tests for unit spawning, movement, attack, and build.
@@ -17,6 +18,9 @@ public class UnitMovementPlayTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
+        // Ignore background errors from scene objects (GameManager, ML-Agents Academy,
+        // ProjectToolsWindow) that run during Play Mode tests but aren't part of the test.
+        LogAssert.ignoreFailingMessages = true;
         Time.timeScale = 1f;
 
         var prefab = new GameObject("HexPrefab");
