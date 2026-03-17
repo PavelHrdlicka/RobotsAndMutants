@@ -81,10 +81,13 @@ public class UnitMovementPlayTests
     public IEnumerator Unit_MoveOffBoard_Fails()
     {
         yield return null;
-        movement.PlaceAt(new HexCoord(2, 0));
+        // Use actual board edge (boardSide may be overridden by GameConfig).
+        int edge = grid.boardSide - 1;
+        var edgeHex = new HexCoord(edge, 0);
+        movement.PlaceAt(edgeHex);
         bool moved = movement.TryMove(0); // East — goes off board.
-        Assert.IsFalse(moved, "Move off board should fail.");
-        Assert.AreEqual(new HexCoord(2, 0), unitData.currentHex, "Position should not change.");
+        Assert.IsFalse(moved, $"Move off board from ({edge},0) should fail.");
+        Assert.AreEqual(edgeHex, unitData.currentHex, "Position should not change.");
     }
 
     [UnityTest]
@@ -144,7 +147,9 @@ public class UnitMovementPlayTests
     public IEnumerator TryMove_Fails_DoesNotChangeMoveFromOrMoveTo()
     {
         yield return null;
-        movement.PlaceAt(new HexCoord(2, 0));
+        // Use actual board edge (boardSide may be overridden by GameConfig).
+        int edge = grid.boardSide - 1;
+        movement.PlaceAt(new HexCoord(edge, 0));
         var beforeFrom = unitData.moveFrom;
         var beforeTo   = unitData.moveTo;
 

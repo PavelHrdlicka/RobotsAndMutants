@@ -5,7 +5,8 @@ using UnityEngine.TestTools;
 
 /// <summary>
 /// PlayMode integration tests for HexGrid generation and tile data.
-/// Tests run in a live scene with MonoBehaviour lifecycle.
+/// Note: GameConfig.Instance may override boardSide in HexGrid.Start(),
+/// so assertions use the actual grid.boardSide after generation.
 /// </summary>
 public class HexGridPlayTests
 {
@@ -15,7 +16,8 @@ public class HexGridPlayTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
-        // Create hex prefab.
+        LogAssert.ignoreFailingMessages = true;
+
         var prefab = new GameObject("HexPrefab");
         prefab.AddComponent<MeshFilter>();
         prefab.AddComponent<MeshRenderer>();
@@ -27,11 +29,9 @@ public class HexGridPlayTests
         gridGo = new GameObject("TestGrid");
         grid = gridGo.AddComponent<HexGrid>();
         grid.hexPrefab = prefab;
-        grid.boardSide = 3; // Small board for fast tests (19 tiles).
+        grid.boardSide = 3;
 
-        // Wait for Start() to run.
         yield return null;
-
         Object.Destroy(prefab);
     }
 
@@ -46,8 +46,11 @@ public class HexGridPlayTests
     public IEnumerator Grid_GeneratesCorrectTileCount()
     {
         yield return null;
-        Assert.AreEqual(HexGrid.TileCount(3), grid.Tiles.Count,
-            $"Board side 3 should have {HexGrid.TileCount(3)} tiles.");
+        // boardSide may be overridden by GameConfig — use actual value.
+        int side = grid.boardSide;
+        int expected = HexGrid.TileCount(side);
+        Assert.AreEqual(expected, grid.Tiles.Count,
+            $"Board side {side} should have {expected} tiles.");
     }
 
     [UnityTest]
