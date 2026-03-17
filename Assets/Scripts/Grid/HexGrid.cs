@@ -213,22 +213,26 @@ public class HexGrid : MonoBehaviour
         Camera cam = targetCamera != null ? targetCamera : Camera.main;
         if (cam == null) return;
 
-        // The board is centred at origin (q=0, r=0 maps to world 0,0,0).
-        // Compute the bounding radius: the farthest hex center is at distance (side-1) hops.
         float boardRadius = outerRadius * Mathf.Sqrt(3f) * (boardSide - 1);
-        float padding = outerRadius * 2f;
+        float padding = outerRadius * 3f;
 
+        // Isometric view: 45° down, 45° rotated — shows hex board in 3D perspective.
         cam.orthographic = true;
+        cam.transform.rotation = Quaternion.Euler(45f, 45f, 0f);
+
+        // Position camera along the view direction, centred on the board.
+        cam.transform.position = -cam.transform.forward * 50f;
+
+        // Ortho size must compensate for the angled view (board takes less screen height).
+        float isoScale = 1.35f;
         float aspect = cam.aspect;
-        float sizeForHeight = boardRadius + padding;
-        float sizeForWidth = (boardRadius + padding) / aspect;
+        float sizeForHeight = (boardRadius + padding) * isoScale;
+        float sizeForWidth  = (boardRadius + padding) * isoScale / aspect;
         cam.orthographicSize = Mathf.Max(sizeForHeight, sizeForWidth);
 
-        cam.transform.position = Vector3.up * 50f;
-        cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         cam.nearClipPlane = 0.1f;
-        cam.farClipPlane = 100f;
-        cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.15f, 0.15f, 0.2f, 1f);
+        cam.farClipPlane  = 200f;
+        cam.clearFlags    = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.12f, 0.12f, 0.18f, 1f);
     }
 }
