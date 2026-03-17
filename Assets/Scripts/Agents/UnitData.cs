@@ -29,6 +29,13 @@ public class UnitData : MonoBehaviour
     public HexCoord moveFrom;
     public HexCoord moveTo;
 
+    /// <summary>
+    /// Set by HexAgent.OnActionReceived to signal GameManager that this unit's
+    /// turn action has been executed and post-turn processing can proceed.
+    /// </summary>
+    [HideInInspector]
+    public bool hasPendingTurnResult;
+
     public int Health
     {
         get => health;

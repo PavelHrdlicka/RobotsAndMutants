@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Policies;
 using UnityEngine;
@@ -127,13 +126,11 @@ public class UnitFactory : MonoBehaviour
         var bp = go.AddComponent<BehaviorParameters>();
         bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
         bp.BrainParameters.VectorObservationSize = 56;
-        bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(7);
+        bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(8); // 0=idle,1-6=dir,7=build
         bp.TeamId = team == Team.Robot ? 0 : 1;
 
         go.AddComponent<HexAgent>();
-
-        var dr = go.AddComponent<DecisionRequester>();
-        dr.DecisionPeriod = 1;
+        // DecisionRequester intentionally omitted — GameManager drives turns manually.
 
         return go;
     }

@@ -3,8 +3,8 @@
 /// </summary>
 public readonly struct GameState
 {
-    public readonly int currentStep;
-    public readonly int maxSteps;
+    public readonly int currentRound;
+    public readonly int maxRounds;
     public readonly int robotTiles;
     public readonly int mutantTiles;
     public readonly int robotAlive;
@@ -12,19 +12,19 @@ public readonly struct GameState
     public readonly bool gameOver;
     public readonly Team winner;
 
-    public GameState(int currentStep, int maxSteps, int robotTiles, int mutantTiles,
+    public GameState(int currentRound, int maxRounds, int robotTiles, int mutantTiles,
                      int robotAlive, int mutantAlive, bool gameOver, Team winner)
     {
-        this.currentStep = currentStep;
-        this.maxSteps = maxSteps;
-        this.robotTiles = robotTiles;
-        this.mutantTiles = mutantTiles;
-        this.robotAlive = robotAlive;
-        this.mutantAlive = mutantAlive;
-        this.gameOver = gameOver;
-        this.winner = winner;
+        this.currentRound = currentRound;
+        this.maxRounds    = maxRounds;
+        this.robotTiles   = robotTiles;
+        this.mutantTiles  = mutantTiles;
+        this.robotAlive   = robotAlive;
+        this.mutantAlive  = mutantAlive;
+        this.gameOver     = gameOver;
+        this.winner       = winner;
     }
 
-    public float StepProgress => maxSteps > 0 ? (float)currentStep / maxSteps : 0f;
-    public int TotalContested => robotTiles + mutantTiles;
+    public float RoundProgress => maxRounds > 0 ? (float)currentRound / maxRounds : 0f;
+    public int TotalContested  => robotTiles + mutantTiles;
 }

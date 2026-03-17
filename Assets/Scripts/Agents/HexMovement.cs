@@ -2,26 +2,24 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Handles discrete hex-to-hex movement for a unit.
+/// Handles discrete hex-to-hex movement, combat, and building for a unit.
 ///
-/// Logical position (currentHex) updates instantly every tick.
-/// Visual position (transform.position) works through a Queue of waypoints,
-/// completing each hop before starting the next — guaranteeing smooth animation
-/// regardless of tick rate or frame rate.
+/// Sequential turn model:
+///   TryMove   — moves to an empty adjacent hex (no unit of any team there).
+///   TryAttack — fights the enemy on an adjacent hex; attacker stays in place.
+///   TryBuild  — builds a Crate (Robot) or spreads Slime (Mutant) on the
+///               unit's current tile.
 ///
-/// Speed is auto-computed so each hop completes in AnimTickFraction of one physics
-/// tick: speed = hexDist / (fixedDeltaTime × AnimTickFraction).
-/// This ratio holds at any timeScale, so the animation is always done before the
-/// next logical move arrives.
-///
-/// When the simulation runs faster than the renderer can display (training mode),
-/// entries older than MaxQueueDepth are skipped so the visual never falls far behind.
+/// Visual position works through a Queue of waypoints so each hop animation
+/// completes before the next one starts, regardless of tick rate.
+/// Speed is auto-computed so each hop finishes in AnimTickFraction of one
+/// physics tick.
 /// </summary>
 [RequireComponent(typeof(UnitData))]
 public class HexMovement : MonoBehaviour
 {
     /// <summary>
-    /// Fraction of one physics tick used for a single hop animation (0 < f ≤ 1).
+    /// Fraction of one physics tick used for a single hop animation (0 &lt; f ≤ 1).
     /// 0.7 → finishes in 70 % of a tick, leaving headroom before the next move.
     /// </summary>
     public const float AnimTickFraction = 0.7f;
@@ -82,6 +80,7 @@ public class HexMovement : MonoBehaviour
 
     /// <summary>
     /// Attempt to move one step in the given direction (0-5).
+    /// Only succeeds if the target hex is empty (no unit of any team).
     /// Returns true if the move was executed.
     /// </summary>
     public bool TryMove(int direction)
@@ -94,6 +93,7 @@ public class HexMovement : MonoBehaviour
 
     /// <summary>
     /// Attempt to move to a specific adjacent hex coordinate.
+    /// Only succeeds if the target hex is empty (no unit of any team).
     /// Returns true if the move was executed.
     /// </summary>
     public bool TryMoveTo(HexCoord target)
@@ -101,7 +101,7 @@ public class HexMovement : MonoBehaviour
         if (!unitData.isAlive || grid == null)                     return false;
         if (!grid.IsValidCoord(target))                            return false;
         if (HexCoord.Distance(unitData.currentHex, target) != 1)  return false;
-        if (IsOccupiedByAlly(target))                              return false;
+        if (IsOccupied(target))                                    return false;  // any live unit blocks
 
         // Update logical state instantly (game logic reads currentHex).
         unitData.moveFrom   = unitData.currentHex;
@@ -117,14 +117,114 @@ public class HexMovement : MonoBehaviour
         return true;
     }
 
-    /// <summary>Returns true if the given direction is a valid move from the current hex.</summary>
+    /// <summary>
+    /// Attack the enemy unit on the adjacent hex in the given direction.
+    /// Attacker stays in place; both units take 1 damage.
+    /// Returns true if an attack was executed.
+    /// </summary>
+    public bool TryAttack(int direction)
+    {
+        if (!unitData.isAlive || grid == null) return false;
+        if (direction < 0 || direction > 5)    return false;
+
+        HexCoord targetCoord = unitData.currentHex.Neighbor(direction);
+        UnitData enemy = FindEnemyAt(targetCoord);
+        if (enemy == null) return false;
+
+        // Both units take 1 damage (shield negates incoming damage).
+        int damageToSelf  = enemy.hasShield ? 0 : 1;
+        int damageToEnemy = unitData.hasShield ? 0 : 1;
+
+        unitData.Health -= damageToSelf;
+        enemy.Health    -= damageToEnemy;
+
+        unitData.lastAction = UnitAction.Attack;
+        if (enemy.isAlive) enemy.lastAction = UnitAction.Attack;
+
+        if (enemy.Health <= 0)
+            enemy.Die(30);
+
+        if (unitData.Health <= 0)
+            unitData.Die(30);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Build on the unit's current tile (must be own non-base empty tile).
+    /// Robot → builds a Crate.
+    /// Mutant → converts tile to Slime and randomly spreads to neutral neighbors.
+    /// Returns true if build succeeded.
+    /// </summary>
+    public bool TryBuild()
+    {
+        if (!unitData.isAlive || grid == null) return false;
+
+        var tile = grid.GetTile(unitData.currentHex);
+        if (tile == null || tile.isBase)            return false;
+        if (tile.Owner    != unitData.team)          return false;
+        if (tile.TileType != TileType.Empty)         return false;
+
+        if (unitData.team == Team.Robot)
+        {
+            tile.TileType       = TileType.Crate;
+            unitData.lastAction = UnitAction.BuildCrate;
+        }
+        else
+        {
+            tile.TileType       = TileType.Slime;
+            unitData.lastAction = UnitAction.SpreadSlime;
+
+            // Spread slime to adjacent neutral empty tiles.
+            var neighbors = grid.GetNeighbors(unitData.currentHex);
+            foreach (var neighbor in neighbors)
+            {
+                if (neighbor.isBase) continue;
+                if (neighbor.Owner == Team.None && neighbor.TileType == TileType.Empty)
+                {
+                    if (Random.value < 0.2f)
+                    {
+                        neighbor.Owner    = Team.Mutant;
+                        neighbor.TileType = TileType.Slime;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    // ── Validity queries (used by HexAgent for action masking) ────────────
+
+    /// <summary>Returns true if moving in this direction is valid (target hex is empty).</summary>
     public bool IsValidMove(int direction)
     {
         if (!unitData.isAlive || grid == null) return false;
         if (direction < 0 || direction > 5)    return false;
 
         HexCoord target = unitData.currentHex.Neighbor(direction);
-        return grid.IsValidCoord(target) && !IsOccupiedByAlly(target);
+        return grid.IsValidCoord(target) && !IsOccupied(target);
+    }
+
+    /// <summary>Returns true if attacking in this direction is valid (adjacent enemy present).</summary>
+    public bool IsValidAttack(int direction)
+    {
+        if (!unitData.isAlive || grid == null) return false;
+        if (direction < 0 || direction > 5)    return false;
+
+        HexCoord target = unitData.currentHex.Neighbor(direction);
+        return grid.IsValidCoord(target) && FindEnemyAt(target) != null;
+    }
+
+    /// <summary>Returns true if the build action is valid (own non-base empty tile).</summary>
+    public bool IsValidBuild()
+    {
+        if (!unitData.isAlive || grid == null) return false;
+
+        var tile = grid.GetTile(unitData.currentHex);
+        return tile != null && !tile.isBase
+            && tile.Owner    == unitData.team
+            && tile.TileType == TileType.Empty;
     }
 
     /// <summary>
@@ -144,16 +244,29 @@ public class HexMovement : MonoBehaviour
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    private bool IsOccupiedByAlly(HexCoord coord)
+    /// <summary>Returns true if any alive unit (ally or enemy) occupies this hex.</summary>
+    private bool IsOccupied(HexCoord coord)
     {
         var allUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
         foreach (var unit in allUnits)
         {
             if (unit == unitData) continue;
             if (!unit.isAlive)    continue;
-            if (unit.team == unitData.team && unit.currentHex == coord)
-                return true;
+            if (unit.currentHex == coord) return true;
         }
         return false;
+    }
+
+    /// <summary>Returns the enemy unit at the given coord, or null if none.</summary>
+    private UnitData FindEnemyAt(HexCoord coord)
+    {
+        var allUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
+        foreach (var unit in allUnits)
+        {
+            if (!unit.isAlive)             continue;
+            if (unit.team == unitData.team) continue;
+            if (unit.currentHex == coord)  return unit;
+        }
+        return null;
     }
 }
