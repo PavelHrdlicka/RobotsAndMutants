@@ -174,7 +174,8 @@ public class HexAgent : Agent
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        actionsOut.DiscreteActions.Array[0] = Random.Range(0, 8);
+        var da = actionsOut.DiscreteActions;
+        da[0] = Random.Range(0, 8);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────

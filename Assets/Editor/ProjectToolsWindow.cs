@@ -417,19 +417,8 @@ public class ProjectToolsWindow : EditorWindow
         {
             if (gm.gameOver) break;
 
-            var allUnits = Object.FindFirstObjectByType<UnitFactory>()?.AllUnits;
-            if (allUnits != null)
-            {
-                foreach (var unit in allUnits)
-                {
-                    if (!unit.isAlive) continue;
-                    var movement = unit.GetComponent<HexMovement>();
-                    if (movement != null)
-                        movement.TryMove(Random.Range(0, 6));
-                }
-            }
-
-            gm.Step();
+            // Sequential turn mode: turns advance automatically via FixedUpdate.
+            // Manual step not applicable; ResetGame is available below.
         }
     }
 

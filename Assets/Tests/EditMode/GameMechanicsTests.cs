@@ -77,10 +77,10 @@ public class GameMechanicsTests
     }
 
     [Test]
-    public void GameState_StepProgress_IsCorrect()
+    public void GameState_RoundProgress_IsCorrect()
     {
         var state = new GameState(500, 2000, 10, 5, 6, 6, false, Team.None);
-        Assert.AreEqual(0.25f, state.StepProgress, 0.001f);
+        Assert.AreEqual(0.25f, state.RoundProgress, 0.001f);
     }
 
     [Test]
