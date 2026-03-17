@@ -25,7 +25,7 @@ public class UnitData : MonoBehaviour
     public float speedMultiplier = 1f;
 
     [Header("Action")]
-    public UnitAction lastAction = UnitAction.Idle;
+    public UnitAction lastAction = UnitAction.Move; // Move = "no indicator" — idle spinner shown only on explicit idle choice
     public HexCoord moveFrom;
     public HexCoord moveTo;
 
