@@ -3,11 +3,12 @@
 /// </summary>
 public enum UnitAction
 {
-    Idle,       // Stayed in place
+    Idle,       // Stayed in place (own turn choice)
     Move,       // Moved to a neighbor hex
-    Attack,     // Engaged in combat
+    Attack,     // Initiated combat with adjacent enemy (costs a turn)
+    Defend,     // Being attacked by an enemy (does NOT cost a turn)
     BuildCrate, // Robot built a crate
     SpreadSlime,// Mutant spread slime
-    Capture,    // Captured neutral/enemy territory
+    Capture,    // Neutralized enemy territory by moving onto it
     Dead        // Unit is dead
 }

@@ -159,8 +159,8 @@ public class HexMovement : MonoBehaviour
         unitData.Health -= damageToSelf;
         enemy.Health    -= damageToEnemy;
 
-        unitData.lastAction = UnitAction.Attack;
-        if (enemy.isAlive) enemy.lastAction = UnitAction.Attack;
+        unitData.lastAction = UnitAction.Attack;   // attacker: crossed swords
+        if (enemy.isAlive) enemy.lastAction = UnitAction.Defend;  // defender: shield icon
 
         if (enemy.Health <= 0)
             enemy.Die(12);

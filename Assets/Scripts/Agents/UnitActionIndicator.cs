@@ -3,9 +3,13 @@ using UnityEngine;
 /// <summary>
 /// Visual indicator showing the current action of a unit.
 ///
-/// Move:  no pill/symbol — the smooth visual animation + yellow directional arrow is enough.
-/// Idle:  a grey circular arrow orbiting above the unit's head (animated, spinning).
-/// Other: coloured pill with symbol + label (Attack, BuildCrate, SpreadSlime, Capture).
+/// Move:    yellow directional arrow (fading).
+/// Idle:    grey circular arrow orbiting above the unit's head — only during own turn,
+///          auto-clears after IdleDisplaySeconds.
+/// Attack:  red pill with crossed swords symbol.
+/// Defend:  blue pill with shield symbol (set on the unit being attacked).
+/// Build:   coloured pill with symbol + label (crate / slime).
+/// Capture: blue pill with "+" symbol.
 ///
 /// HP bar always drawn below the indicator.
 /// </summary>
@@ -21,6 +25,11 @@ public class UnitActionIndicator : MonoBehaviour
     private HexCoord arrowTo;
     private const float ArrowDisplaySeconds = 1.2f;
 
+    // Idle spinner: auto-clear timer so it only shows briefly during the unit's turn.
+    private float idleTimeLeft;
+    private const float IdleDisplaySeconds = 1.0f;
+    private UnitAction prevAction;
+
     private static GUIStyle symbolStyle;
     private static GUIStyle labelStyle;
     private static Texture2D bgTex;
@@ -35,6 +44,7 @@ public class UnitActionIndicator : MonoBehaviour
     {
         cam = Camera.main;
         grid = Object.FindFirstObjectByType<HexGrid>();
+        prevAction = unitData != null ? unitData.lastAction : UnitAction.Move;
     }
 
     private void Update()
@@ -44,6 +54,22 @@ public class UnitActionIndicator : MonoBehaviour
 
         if (arrowTimeLeft > 0f)
             arrowTimeLeft -= Time.unscaledDeltaTime;
+
+        // Detect when lastAction changes to Idle → start idle timer.
+        if (unitData != null)
+        {
+            if (unitData.lastAction == UnitAction.Idle && prevAction != UnitAction.Idle)
+                idleTimeLeft = IdleDisplaySeconds;
+
+            if (idleTimeLeft > 0f)
+                idleTimeLeft -= Time.unscaledDeltaTime;
+
+            // Auto-clear Idle after timer expires → revert to Move (no indicator).
+            if (unitData.lastAction == UnitAction.Idle && idleTimeLeft <= 0f)
+                unitData.lastAction = UnitAction.Move;
+
+            prevAction = unitData.lastAction;
+        }
     }
 
     /// <summary>
@@ -103,16 +129,17 @@ public class UnitActionIndicator : MonoBehaviour
 
         if (action == UnitAction.Idle)
         {
-            // Spinning circular arrow (no pill).
-            DrawIdleOrbit(x, y);
+            // Spinning circular arrow — only while idleTimeLeft > 0.
+            if (idleTimeLeft > 0f)
+                DrawIdleOrbit(x, y);
         }
         else if (action != UnitAction.Move && action != UnitAction.Dead)
         {
-            // Pill + symbol for Attack, BuildCrate, SpreadSlime, Capture.
+            // Pill + symbol for Attack, Defend, BuildCrate, SpreadSlime, Capture.
             GetActionVisuals(action, out string symbol, out Color color, out string label);
             DrawPill(x, y, symbol, color, label);
         }
-        // Move & Dead: no pill drawn (move has the directional arrow, dead is hidden).
+        // Move & Dead: no pill drawn.
 
         // ── HP bar (always) ──────────────────────────────────────────
         DrawHpBar(x, y);
@@ -160,23 +187,16 @@ public class UnitActionIndicator : MonoBehaviour
 
     // ─── Idle: spinning circular arrow ───────────────────────────────
 
-    /// <summary>
-    /// Draw a circular arrow orbiting above the unit (same visual style as the move
-    /// arrow — overlapping squares — but arranged in a circle, with an arrowhead at
-    /// the leading end). The whole thing rotates continuously via Time.unscaledTime.
-    /// </summary>
     private void DrawIdleOrbit(float cx, float cy)
     {
         float radius    = 12f;
         float thickness = 3f;
-        float centerY   = cy - 22f; // above HP bar
+        float centerY   = cy - 22f;
 
         Color idleColor = new Color(0.55f, 0.55f, 0.55f, 0.65f);
 
-        // Spin: one full revolution per 2 real-seconds.
-        float spin = Time.unscaledTime * Mathf.PI; // rad/s — full circle in 2 s
+        float spin = Time.unscaledTime * Mathf.PI;
 
-        // Draw an arc of ~270 degrees (leave a gap for the arrowhead to stand out).
         const float arcDeg   = 270f;
         const int   segments = 24;
         float arcRad  = arcDeg * Mathf.Deg2Rad;
@@ -184,8 +204,6 @@ public class UnitActionIndicator : MonoBehaviour
         float half    = thickness * 0.5f;
 
         GUI.color = idleColor;
-        Vector2 prev = Vector2.zero;
-        Vector2 first = Vector2.zero;
 
         for (int i = 0; i <= segments; i++)
         {
@@ -194,21 +212,18 @@ public class UnitActionIndicator : MonoBehaviour
                 cx + Mathf.Cos(angle) * radius,
                 centerY + Mathf.Sin(angle) * radius);
 
-            if (i == 0) { first = p; prev = p; continue; }
+            if (i == 0) continue;
 
-            // Draw small square at each sample point along the arc.
             GUI.DrawTexture(new Rect(p.x - half, p.y - half, thickness, thickness),
                             Texture2D.whiteTexture);
-            prev = p;
         }
 
-        // Arrowhead at the leading end (last point of the arc).
+        // Arrowhead at the leading end.
         float headAngle = spin + arcRad;
         Vector2 tip = new Vector2(
             cx + Mathf.Cos(headAngle) * radius,
             centerY + Mathf.Sin(headAngle) * radius);
 
-        // Tangent direction at the tip (perpendicular to radius, pointing along arc).
         Vector2 tangent = new Vector2(
             -Mathf.Sin(headAngle),
              Mathf.Cos(headAngle));
@@ -288,6 +303,8 @@ public class UnitActionIndicator : MonoBehaviour
         {
             case UnitAction.Attack:
                 symbol = "X"; color = new Color(1f, 0.25f, 0.2f); label = "fight"; break;
+            case UnitAction.Defend:
+                symbol = "O"; color = new Color(0.3f, 0.6f, 1f); label = "guard"; break;
             case UnitAction.BuildCrate:
                 symbol = "#"; color = new Color(1f, 0.7f, 0.2f); label = "crate"; break;
             case UnitAction.SpreadSlime:
