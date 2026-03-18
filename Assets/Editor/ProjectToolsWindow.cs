@@ -60,15 +60,17 @@ public class ProjectToolsWindow : EditorWindow
         window.minSize = new Vector2(250, 500);
     }
 
-    /// <summary>Auto-open on editor launch.</summary>
+    /// <summary>Auto-open on editor launch + keep running in background.</summary>
     [InitializeOnLoadMethod]
     private static void AutoOpen()
     {
-        // Delay to let editor finish loading.
         EditorApplication.delayCall += () =>
         {
             if (!HasOpenInstances<ProjectToolsWindow>())
                 ShowWindow();
+
+            // Run simulation even when Unity editor is not focused.
+            Application.runInBackground = true;
         };
     }
 
