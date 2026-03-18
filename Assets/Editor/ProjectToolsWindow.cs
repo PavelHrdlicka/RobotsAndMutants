@@ -237,12 +237,34 @@ public class ProjectToolsWindow : EditorWindow
 
             // Start / Stop training.
             bool processExited = trainingProcess != null && trainingProcess.HasExited;
+            string prevRunId = EditorPrefs.GetString(ModelRunIdKey, "");
             if (!trainingRunning)
             {
+                // -- Force (new run) --
                 GUI.backgroundColor = new Color(0.3f, 0.7f, 1f);
-                if (GUILayout.Button("Start Training", GUILayout.Height(35)))
+                if (GUILayout.Button("Start Training (new)", GUILayout.Height(35)))
                     StartTraining();
                 GUI.backgroundColor = Color.white;
+
+                // -- Resume (continue same run) --
+                GUI.backgroundColor = new Color(0.5f, 0.8f, 1f);
+                if (GUILayout.Button($"Resume Training ({runId})", GUILayout.Height(28)))
+                    StartTraining(TrainingMode.Resume);
+                GUI.backgroundColor = Color.white;
+
+                // -- Init from previous trained weights --
+                if (!string.IsNullOrEmpty(prevRunId))
+                {
+                    GUI.backgroundColor = new Color(0.8f, 0.6f, 1f);
+                    if (GUILayout.Button($"New run (init from {prevRunId})", GUILayout.Height(28)))
+                    {
+                        int next = RunCounter;
+                        RunCounter = next + 1;
+                        runId = $"run{next}";
+                        StartTraining(TrainingMode.InitFrom, prevRunId);
+                    }
+                    GUI.backgroundColor = Color.white;
+                }
 
                 if (processExited)
                 {
@@ -392,7 +414,9 @@ public class ProjectToolsWindow : EditorWindow
 
     // ─── ML Training ──────────────────────────────────────
 
-    private static void StartTraining()
+    private enum TrainingMode { Force, Resume, InitFrom }
+
+    private static void StartTraining(TrainingMode mode = TrainingMode.Force, string initFromRunId = null)
     {
         StopTraining();
 
@@ -407,10 +431,17 @@ public class ProjectToolsWindow : EditorWindow
             return;
         }
 
+        string modeFlag = mode switch
+        {
+            TrainingMode.Resume  => "--resume",
+            TrainingMode.InitFrom => $"--initialize-from={initFromRunId}",
+            _                    => "--force",
+        };
+
         var psi = new ProcessStartInfo
         {
             FileName = PythonExe,
-            Arguments = $"-m mlagents.trainers.learn \"{ConfigPath}\" --run-id={runId} --force",
+            Arguments = $"-m mlagents.trainers.learn \"{ConfigPath}\" --run-id={runId} {modeFlag}",
             WorkingDirectory = System.IO.Path.GetFullPath("."),
             UseShellExecute = false,
             RedirectStandardOutput = true,
