@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityEditor.TestTools.TestRunner.Api;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -289,13 +290,16 @@ public class ProjectToolsWindow : EditorWindow
             if (GUILayout.Button("Open Test Runner"))
                 EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
 
-            if (EditorApplication.isPlaying)
+            // Safe PlayMode test runner — stops game first if needed.
+            if (GUILayout.Button(
+                    EditorApplication.isPlaying ? "STOP GAME + Run PlayMode Tests" : "Run PlayMode Tests",
+                    GUILayout.Height(32)))
             {
-                EditorGUILayout.HelpBox(
-                    "EXIT Play mode before running PlayMode tests!\n" +
-                    "Test Runner fails with 'cannot be used during play mode' if game is running.",
-                    MessageType.Warning);
+                RunPlayModeTestsSafely();
             }
+
+            if (EditorApplication.isPlaying)
+                EditorGUILayout.HelpBox("Game is running — use button above, NOT 'Run All' in Test Runner!", MessageType.Error);
 
             EditorGUILayout.Space(4);
             bool autoTest = AutoTestRunner.Enabled;
@@ -601,5 +605,46 @@ public class ProjectToolsWindow : EditorWindow
             return;
         }
         gm.ResetGame();
+    }
+
+    /// <summary>
+    /// Run PlayMode tests safely: stops the game first if needed, then executes tests via API.
+    /// Direct "Run All" in Test Runner window fails when game is playing because
+    /// EditorSceneManager.GetSceneManagerSetup() cannot be called during play mode.
+    /// </summary>
+    private static void RunPlayModeTestsSafely()
+    {
+        EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
+
+        if (EditorApplication.isPlaying)
+        {
+            Debug.Log("[ProjectTools] Stopping game before running PlayMode tests...");
+            EditorApplication.isPlaying = false;
+
+            // Schedule test execution after play mode has fully exited.
+            EditorApplication.playModeStateChanged -= OnPlayModeExitedForTests;
+            EditorApplication.playModeStateChanged += OnPlayModeExitedForTests;
+        }
+        else
+        {
+            ExecutePlayModeTests();
+        }
+    }
+
+    private static void OnPlayModeExitedForTests(PlayModeStateChange state)
+    {
+        if (state == PlayModeStateChange.EnteredEditMode)
+        {
+            EditorApplication.playModeStateChanged -= OnPlayModeExitedForTests;
+            // Small delay so Unity finishes cleanup.
+            EditorApplication.delayCall += ExecutePlayModeTests;
+        }
+    }
+
+    private static void ExecutePlayModeTests()
+    {
+        Debug.Log("[ProjectTools] Starting PlayMode tests via TestRunnerApi...");
+        var api = ScriptableObject.CreateInstance<TestRunnerApi>();
+        api.Execute(new ExecutionSettings(new Filter { testMode = TestMode.PlayMode }));
     }
 }
