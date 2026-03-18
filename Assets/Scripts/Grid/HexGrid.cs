@@ -32,7 +32,8 @@ public class HexGrid : MonoBehaviour
 
     private void Start()
     {
-        // Apply GameConfig if available.
+        Debug.Log("[HexGrid] Start() BEGIN");
+
         var config = GameConfig.Instance;
         if (config != null)
             boardSide = config.boardSide;
@@ -43,8 +44,11 @@ public class HexGrid : MonoBehaviour
             return;
         }
         GenerateGrid();
+        Debug.Log($"[HexGrid] GenerateGrid done: {tiles.Count} tiles");
         SetupBases();
+        Debug.Log("[HexGrid] SetupBases done");
         CenterCamera();
+        Debug.Log("[HexGrid] CenterCamera done — Start() END");
     }
 
     private void GenerateGrid()
