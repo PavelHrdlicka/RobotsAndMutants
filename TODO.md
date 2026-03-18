@@ -19,8 +19,8 @@
 ### Architektura
 - [x] Smazat mrtvý kód: TerritorySystem (nikdy nevolán z GameManageru)
 - [x] Smazat mrtvý kód: CombatSystem (nikdy nevolán, combat řeší HexMovement)
-- [ ] Rozdělit GameManager (988 řádek) → GameLoop + GameHUD + EpisodeManager + GameStats
-- [ ] Extrahovat `TestModeDetector` utility (duplicitní kód ve 3 souborech)
+- [x] Rozdělit GameManager (988 řádek) → GameManager.cs + GameManager.Episode.cs + GameManager.HUD.cs (partial classes)
+- [x] Extrahovat `TestModeDetector` utility (duplicitní kód ve 3 souborech)
 
 ## Střední priorita
 
@@ -41,7 +41,7 @@
 - [ ] Zvýšit respawn cooldown 12 → 20-30 kroků
 - [ ] Slime spread: zvýšit 12% → 25% nebo deterministic
 - [ ] Robot shield: přidat cooldown nebo HP threshold
-- [ ] Přesunout reward shaping konstanty z HexAgent do GameConfig
+- [x] Přesunout reward shaping konstanty z HexAgent do GameConfig
 
 ### YouTube / Divák
 - [ ] Replay/highlight systém — zpomalení na klíčové momenty
