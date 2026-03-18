@@ -9,6 +9,7 @@
 - [feedback_no_confirmation.md](feedback_no_confirmation.md) — Provádět akce bez ptaní, rovnou implementovat
 
 - [feedback_read_unity_log.md](feedback_read_unity_log.md) — Při chybách v Unity automaticky číst Editor.log, neptat se na screenshot
+- [feedback_read_all_logs.md](feedback_read_all_logs.md) — Při jakékoliv chybě automaticky číst VŠECHNY relevantní logy (Unity, ML-Agents, TensorBoard, nové nástroje)
 
 - [feedback_playmode_tests.md](feedback_playmode_tests.md) — Vždy vytvářet i PlayMode testy vedle EditMode testů
 - [feedback_all_from_unity.md](feedback_all_from_unity.md) — Vše ovládat z Unity UI, žádný terminál. Platí pro všechny Unity projekty
