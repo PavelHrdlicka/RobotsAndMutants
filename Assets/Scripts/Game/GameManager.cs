@@ -245,10 +245,11 @@ public class GameManager : MonoBehaviour
             {
                 case UnitAction.Attack:
                     if (isRobot) robotAttacks++; else mutantAttacks++;
-                    // Check if the defender died → count as kill.
-                    foreach (var u in unitFactory.AllUnits)
+                    // Check if the defender died → count as kill (scan enemy team only).
+                    var enemies = isRobot ? unitFactory.mutantUnits : unitFactory.robotUnits;
+                    foreach (var u in enemies)
                     {
-                        if (u.team != unit.team && !u.isAlive && u.lastAction == UnitAction.Dead
+                        if (!u.isAlive && u.lastAction == UnitAction.Dead
                             && HexCoord.Distance(unit.currentHex, u.currentHex) <= 1)
                         {
                             if (isRobot) robotKills++; else mutantKills++;
@@ -665,17 +666,36 @@ public class GameManager : MonoBehaviour
         return tex;
     }
 
+    // ── HUD cache (avoid recomputing every OnGUI call) ──────────────────
+
+    private float hudCacheTime;
+    private const float HudCacheInterval = 0.15f; // refresh 6-7 times/sec
+    private GameState cachedState;
+    private float cachedRobotPct, cachedMutantPct;
+
+    private void RefreshHudCache()
+    {
+        if (Time.unscaledTime - hudCacheTime < HudCacheInterval) return;
+        hudCacheTime = Time.unscaledTime;
+
+        cachedState = State;
+        float total = contestableTileCount > 0 ? contestableTileCount : 1;
+        cachedRobotPct  = cachedState.robotTiles  / total * 100f;
+        cachedMutantPct = cachedState.mutantTiles / total * 100f;
+        RefreshStatsStrings();
+    }
+
     // ── Main HUD ──────────────────────────────────────────────────────
 
     private void OnGUI()
     {
         if (grid == null) return;
         InitStyles();
+        RefreshHudCache();
 
-        var state = State;
-        float totalTiles = contestableTileCount > 0 ? contestableTileCount : 1;
-        float robotPct  = state.robotTiles  / totalTiles * 100f;
-        float mutantPct = state.mutantTiles / totalTiles * 100f;
+        var state = cachedState;
+        float robotPct  = cachedRobotPct;
+        float mutantPct = cachedMutantPct;
 
         const float panelW = 210f;
         const float panelH = 120f;
@@ -763,6 +783,26 @@ public class GameManager : MonoBehaviour
 
     private Texture2D statsBg;
 
+    // Cached stats strings (rebuilt in RefreshHudCache).
+    private string statsLine1 = "", statsLine2 = "", statsLine3 = "";
+
+    private void RefreshStatsStrings()
+    {
+        float elapsed = Time.realtimeSinceStartup - sessionStartTime;
+        string timeStr = elapsed < 60f ? $"{elapsed:F0}s"
+                       : elapsed < 3600 ? $"{elapsed / 60f:F1}m"
+                       : $"{elapsed / 3600f:F1}h";
+        float tps = elapsed > 1f ? totalTurns / elapsed : 0f;
+
+        statsLine1 = $"Session  |  {matchCounter} games   {totalTurns:N0} turns   {timeStr}";
+        statsLine2 = $"Speed: {tps:F0} turns/s   Avg: {(matchCounter > 0 ? totalTurns / matchCounter : 0):N0} turns/game";
+
+        long allGames  = PlayerPrefs.GetInt("TotalGames", 0);
+        long allRounds = (long)PlayerPrefs.GetInt("TotalTurnsHi", 0) << 32
+                       | (uint)PlayerPrefs.GetInt("TotalTurnsLo", 0);
+        statsLine3 = $"ALL TIME: {allGames:N0} games   {allRounds:N0} rounds";
+    }
+
     private void DrawSessionStats()
     {
         InitHistoryStyles();
@@ -774,41 +814,19 @@ public class GameManager : MonoBehaviour
         const float panelH = 74f;
         const float margin = 10f;
 
-        // Position: just above match history panel.
         float historyH = matchHistory.Count > 0
-            ? 24f + 20f + matchHistory.Count * 18f + 12f + 4
-            : 0f;
+            ? 24f + 20f + matchHistory.Count * 18f + 12f + 4 : 0f;
         float panelX = margin;
         float panelY = Screen.height - historyH - panelH - margin - 4f;
 
         GUI.DrawTexture(new Rect(panelX, panelY, panelW, panelH), statsBg);
 
-        float elapsed = Time.realtimeSinceStartup - sessionStartTime;
-        string timeStr;
-        if (elapsed < 60f)      timeStr = $"{elapsed:F0}s";
-        else if (elapsed < 3600) timeStr = $"{elapsed / 60f:F1}m";
-        else                     timeStr = $"{elapsed / 3600f:F1}h";
-
-        float turnsPerSec = elapsed > 1f ? totalTurns / elapsed : 0f;
-
         float y = panelY + 4f;
-        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18),
-            $"Session  |  {matchCounter} games   {totalTurns:N0} turns   {timeStr}",
-            historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine1, historyHeaderStyle);
         y += 20f;
-
-        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18),
-            $"Speed: {turnsPerSec:F0} turns/s   Avg: {(matchCounter > 0 ? totalTurns / matchCounter : 0):N0} turns/game",
-            historyRowStyle);
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine2, historyRowStyle);
         y += 20f;
-
-        // Total training stats (all sessions combined, persisted in PlayerPrefs).
-        long allTimeGames = PlayerPrefs.GetInt("TotalGames", 0);
-        long allTimeRounds = (long)PlayerPrefs.GetInt("TotalTurnsHi", 0) << 32
-                           | (uint)PlayerPrefs.GetInt("TotalTurnsLo", 0);
-        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18),
-            $"ALL TIME: {allTimeGames:N0} games   {allTimeRounds:N0} rounds",
-            historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine3, historyHeaderStyle);
     }
 
     private void DrawMatchHistory()
