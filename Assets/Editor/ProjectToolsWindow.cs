@@ -32,9 +32,13 @@ public class ProjectToolsWindow : EditorWindow
     private static string runId = "run1";
 
     // SessionState keys — survive domain reload within the same Unity session.
-    private const string k_TrainingPidKey      = "ProjectTools_TrainingPID";
-    private const string k_PythonReadyKey      = "ProjectTools_PythonReady";
-    private const string k_AutoPlayPending     = "ProjectTools_AutoPlayPending";
+    private const string k_TrainingPidKey       = "ProjectTools_TrainingPID";
+    private const string k_PythonReadyKey       = "ProjectTools_PythonReady";
+    private const string k_AutoPlayPending      = "ProjectTools_AutoPlayPending";
+    // Set just before EditorApplication.isPlaying=true. Prevents a second isPlaying=true
+    // call from TryResumeAutoPlay() during the domain reload that Play mode entry triggers.
+    // Cleared only when playModeStateChanged fires (EnteredPlayMode or EnteredEditMode).
+    private const string k_IsEnteringPlayMode   = "ProjectTools_IsEnteringPlayMode";
     // Set before Reset/SetupScene so a domain reload mid-DoStartTrainingAndPlay
     // can be detected in OnEnable and the training start can be resumed.
     private const string k_StartTrainingPending = "ProjectTools_StartTrainingPending";
@@ -89,6 +93,11 @@ public class ProjectToolsWindow : EditorWindow
     [InitializeOnLoadMethod]
     private static void AutoOpen()
     {
+        // Register playModeStateChanged here (InitializeOnLoadMethod) so it survives
+        // every domain reload — including the one triggered by entering Play mode.
+        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+
         EditorApplication.delayCall += () =>
         {
             if (!HasOpenInstances<ProjectToolsWindow>())
@@ -97,6 +106,24 @@ public class ProjectToolsWindow : EditorWindow
             // Run simulation even when Unity editor is not focused.
             Application.runInBackground = true;
         };
+    }
+
+    /// <summary>
+    /// Clears Play mode entry flags once Unity has actually entered or exited Play mode.
+    /// This is the authoritative signal used by TryResumeAutoPlay to avoid double-entry.
+    /// </summary>
+    private static void OnPlayModeStateChanged(PlayModeStateChange state)
+    {
+        if (state == PlayModeStateChange.EnteredPlayMode)
+        {
+            SessionState.EraseBool(k_AutoPlayPending);
+            SessionState.EraseBool(k_IsEnteringPlayMode);
+        }
+        else if (state == PlayModeStateChange.EnteredEditMode)
+        {
+            // Play mode exit (normal exit or failed entry).
+            SessionState.EraseBool(k_IsEnteringPlayMode);
+        }
     }
 
     private void OnEnable()
@@ -147,22 +174,28 @@ public class ProjectToolsWindow : EditorWindow
     {
         if (!SessionState.GetBool(k_AutoPlayPending, false)) return;
 
-        // isPlayingOrWillChangePlaymode is true both when already playing AND
-        // when a domain reload is happening as part of entering Play mode.
-        // In that case Unity will finish entering Play mode on its own — do nothing.
-        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        // k_IsEnteringPlayMode is set just before we call isPlaying=true (in
+        // RegisterWaitForPython). If it's still set, this domain reload is the one
+        // triggered BY our Play mode entry — Unity will finish entering Play mode on its
+        // own. Do NOT call isPlaying=true again (that would cause a double-entry and a
+        // NullReferenceException in ML-Agents' RpcCommunicator.Initialize).
+        // k_IsEnteringPlayMode is cleared by OnPlayModeStateChanged once Play mode is
+        // confirmed entered or exited.
+        if (SessionState.GetBool(k_IsEnteringPlayMode, false))
         {
-            SessionState.EraseBool(k_AutoPlayPending);
+            // Keep k_AutoPlayPending — OnPlayModeStateChanged will erase it on success.
+            Debug.Log("[ML-Train] Domain reload is part of Play mode entry — waiting for play mode.");
             return;
         }
 
-        // We are truly in Edit mode (e.g. domain reload happened due to script
-        // compilation mid-wait, not due to Play mode entry). Re-enter Play mode.
+        // k_IsEnteringPlayMode not set: this is a script-compile domain reload that
+        // happened while waiting for Python (before isPlaying=true was called).
+        // Python is ready; re-trigger Play mode entry.
         bool trainingAlive = trainingProcess != null && !trainingProcess.HasExited;
         if (trainingAlive)
         {
             Debug.Log("[ML-Train] Resuming auto-Play after script-compile domain reload.");
-            SessionState.EraseBool(k_AutoPlayPending);
+            SessionState.SetBool(k_IsEnteringPlayMode, true);
             EditorApplication.delayCall += () => EditorApplication.isPlaying = true;
         }
         else
@@ -214,9 +247,14 @@ public class ProjectToolsWindow : EditorWindow
 
     private void OnEditorUpdate()
     {
-        // Once Play mode is confirmed running, clear the pending flag.
-        if (EditorApplication.isPlaying && SessionState.GetBool(k_AutoPlayPending, false))
-            SessionState.EraseBool(k_AutoPlayPending);
+        // Once Play mode is confirmed running, clear all pending flags.
+        if (EditorApplication.isPlaying)
+        {
+            if (SessionState.GetBool(k_AutoPlayPending, false))
+                SessionState.EraseBool(k_AutoPlayPending);
+            if (SessionState.GetBool(k_IsEnteringPlayMode, false))
+                SessionState.EraseBool(k_IsEnteringPlayMode);
+        }
 
         // Monitor training process — log when it exits.
         if (trainingProcess != null && trainingProcess.HasExited && !trainingExitLogged)
@@ -698,9 +736,10 @@ public class ProjectToolsWindow : EditorWindow
                     Debug.LogWarning("[ML-Train] Timed out waiting for Python. Starting Play anyway.");
                 else
                     Debug.Log("[ML-Train] Python ready — auto-starting Play mode.");
-                // Persist "auto-play pending" so a domain reload during Play mode
-                // entry doesn't swallow the isPlaying=true call.
+                // Persist flags so domain reload during Play mode entry is recognized
+                // as part of entry (not a script-compile reload), preventing double-entry.
                 SessionState.SetBool(k_AutoPlayPending, true);
+                SessionState.SetBool(k_IsEnteringPlayMode, true);
                 EditorApplication.isPlaying = true;
             }
         };
@@ -718,6 +757,7 @@ public class ProjectToolsWindow : EditorWindow
         trainingProcess = null;
         SessionState.EraseInt(k_TrainingPidKey);
         SessionState.EraseBool(k_AutoPlayPending);
+        SessionState.EraseBool(k_IsEnteringPlayMode);
         SessionState.EraseBool(k_StartTrainingPending);
 
         // Kill any orphaned mlagents processes still holding port 5004.
@@ -906,7 +946,16 @@ public class ProjectToolsWindow : EditorWindow
         EditorGUILayout.Space(8);
         EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
         EditorGUILayout.BeginVertical("box");
-        content();
+        try
+        {
+            content();
+        }
+        catch (System.Exception ex) when (Event.current?.type != EventType.Layout)
+        {
+            // Don't let exceptions in content break the BeginVertical/EndVertical pairing.
+            // Log only during Repaint so Layout and Repaint stay in sync.
+            Debug.LogException(ex);
+        }
         EditorGUILayout.EndVertical();
     }
 
