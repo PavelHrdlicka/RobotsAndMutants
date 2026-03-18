@@ -1,0 +1,521 @@
+using UnityEngine;
+
+/// <summary>
+/// OnGUI HUD: team panels, round counter, session stats, match history.
+/// All pixel-art icon generators live here.
+/// </summary>
+public partial class GameManager
+{
+    // ── GUI styles ─────────────────────────────────────────────────────────
+
+    private GUIStyle panelStyle;
+    private GUIStyle teamTitleStyle;
+    private GUIStyle statStyle;
+    private GUIStyle statNumStyle;
+    private GUIStyle roundStyle;
+    private GUIStyle roundSubStyle;
+    private GUIStyle gameOverStyle;
+    private Texture2D robotBg, mutantBg, darkBg;
+
+    // Pixel-art icons (16×16).
+    private Texture2D iconRobot, iconMutant, iconSwords, iconSkull, iconHammer, iconTiles;
+    private bool stylesInitialized;
+
+    private GUIStyle historyHeaderStyle;
+    private GUIStyle historyRowStyle;
+    private Texture2D robotRowBg;
+    private Texture2D mutantRowBg;
+    private Texture2D drawRowBg;
+    private Texture2D historyPanelBg;
+    private bool historyStylesInit;
+
+    private Texture2D statsBg;
+
+    // ── HUD data cache ─────────────────────────────────────────────────────
+
+    private float hudCacheTime;
+    private const float HudCacheInterval = 0.15f;
+    private GameState cachedState;
+    private float cachedRobotPct, cachedMutantPct;
+    private int cachedRobotAlive, cachedMutantAlive;
+    private int cachedRobotTotal, cachedMutantTotal;
+
+    // Cached stats strings (rebuilt every HudCacheInterval).
+    private string statsLine1 = "", statsLine2 = "", statsLine3 = "", statsLine4 = "";
+
+    // ── Style initialisation ───────────────────────────────────────────────
+
+    private void InitStyles()
+    {
+        if (stylesInitialized) return;
+        stylesInitialized = true;
+
+        robotBg  = MakeTex(1, 1, new Color(0.08f, 0.15f, 0.40f, 0.90f));
+        mutantBg = MakeTex(1, 1, new Color(0.08f, 0.28f, 0.08f, 0.90f));
+        darkBg   = MakeTex(1, 1, new Color(0.04f, 0.04f, 0.08f, 0.85f));
+
+        panelStyle = new GUIStyle(GUI.skin.box) { padding = new RectOffset(8, 8, 6, 6) };
+
+        teamTitleStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 18, fontStyle = FontStyle.Bold,
+            normal = { textColor = Color.white },
+            alignment = TextAnchor.MiddleCenter
+        };
+
+        statStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 12,
+            normal = { textColor = new Color(0.75f, 0.75f, 0.7f) },
+            alignment = TextAnchor.MiddleLeft
+        };
+
+        statNumStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 14, fontStyle = FontStyle.Bold,
+            normal = { textColor = new Color(1f, 1f, 0.95f) },
+            alignment = TextAnchor.MiddleLeft
+        };
+
+        roundStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 18, fontStyle = FontStyle.Bold,
+            normal = { textColor = Color.white },
+            alignment = TextAnchor.MiddleCenter
+        };
+
+        roundSubStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 10,
+            normal = { textColor = new Color(0.65f, 0.65f, 0.55f) },
+            alignment = TextAnchor.MiddleCenter
+        };
+
+        gameOverStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 24, fontStyle = FontStyle.Bold,
+            normal = { textColor = new Color(1f, 0.85f, 0.2f) },
+            alignment = TextAnchor.MiddleCenter
+        };
+
+        iconRobot  = MakeIconRobot();
+        iconMutant = MakeIconMutant();
+        iconSwords = MakeIconSwords();
+        iconSkull  = MakeIconSkull();
+        iconHammer = MakeIconHammer();
+        iconTiles  = MakeIconTiles();
+    }
+
+    private void InitHistoryStyles()
+    {
+        if (historyStylesInit) return;
+        historyStylesInit = true;
+
+        robotRowBg     = MakeTex(1, 1, new Color(0.12f, 0.22f, 0.50f, 0.70f));
+        mutantRowBg    = MakeTex(1, 1, new Color(0.12f, 0.38f, 0.12f, 0.70f));
+        drawRowBg      = MakeTex(1, 1, new Color(0.30f, 0.30f, 0.15f, 0.70f));
+        historyPanelBg = MakeTex(1, 1, new Color(0.04f, 0.04f, 0.08f, 0.85f));
+
+        historyHeaderStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 11, fontStyle = FontStyle.Bold,
+            normal = { textColor = new Color(0.8f, 0.8f, 0.6f) },
+            alignment = TextAnchor.MiddleLeft
+        };
+
+        historyRowStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 11,
+            normal = { textColor = new Color(0.95f, 0.95f, 0.95f) },
+            alignment = TextAnchor.MiddleLeft
+        };
+    }
+
+    // ── HUD cache refresh ──────────────────────────────────────────────────
+
+    private void RefreshHudCache()
+    {
+        if (Time.unscaledTime - hudCacheTime < HudCacheInterval) return;
+        hudCacheTime = Time.unscaledTime;
+
+        cachedState = State;
+        float total = grid != null && grid.ContestableTileCount > 0 ? grid.ContestableTileCount : 1f;
+        cachedRobotPct  = cachedState.robotTiles  / total * 100f;
+        cachedMutantPct = cachedState.mutantTiles / total * 100f;
+
+        cachedRobotAlive  = cachedState.robotAlive;
+        cachedMutantAlive = cachedState.mutantAlive;
+        cachedRobotTotal  = unitFactory != null ? unitFactory.robotUnits.Count  : 0;
+        cachedMutantTotal = unitFactory != null ? unitFactory.mutantUnits.Count : 0;
+
+        RefreshStatsStrings();
+    }
+
+    private void RefreshStatsStrings()
+    {
+        float elapsed = Time.realtimeSinceStartup - sessionStartTime;
+        string timeStr = elapsed < 60f ? $"{elapsed:F0}s"
+                       : elapsed < 3600 ? $"{elapsed / 60f:F1}m"
+                       : $"{elapsed / 3600f:F1}h";
+        float tps = elapsed > 1f ? totalTurns / elapsed : 0f;
+
+        statsLine1 = $"Session  |  {matchCounter} games   {totalTurns:N0} turns   {timeStr}";
+        statsLine2 = $"Speed: {tps:F0} turns/s   Avg: {(matchCounter > 0 ? totalTurns / matchCounter : 0):N0} turns/game";
+
+        long allGames  = PlayerPrefs.GetInt("TotalGames", 0);
+        long allRounds = (long)PlayerPrefs.GetInt("TotalTurnsHi", 0) << 32
+                       | (uint)PlayerPrefs.GetInt("TotalTurnsLo", 0);
+        statsLine3 = $"ALL TIME: {allGames:N0} games   {allRounds:N0} rounds";
+
+        string trainRunId = PlayerPrefs.GetString("TrainedRunId", "");
+        int trainGames    = PlayerPrefs.GetInt("TrainedOnGames", 0);
+        int trainRounds   = PlayerPrefs.GetInt("TrainedOnRounds", 0);
+        int trainSteps    = PlayerPrefs.GetInt("TrainedSteps", 0);
+        statsLine4 = !string.IsNullOrEmpty(trainRunId)
+            ? $"MODEL ({trainRunId}): {trainSteps:N0} steps  |  {trainGames:N0} games  {trainRounds:N0} rounds"
+            : "";
+    }
+
+    // ── Main HUD ───────────────────────────────────────────────────────────
+
+    private void OnGUI()
+    {
+        if (grid == null) return;
+
+        InitStyles();
+        RefreshHudCache();
+
+        var state = cachedState;
+        float robotPct  = cachedRobotPct;
+        float mutantPct = cachedMutantPct;
+
+        const float panelW  = 210f;
+        const float panelH  = 120f;
+        const float centerW = 240f;
+        const float centerH = 52f;
+        const float margin  = 8f;
+
+        float centerX = (Screen.width - centerW) * 0.5f;
+
+        // Round counter (top center).
+        panelStyle.normal.background = darkBg;
+        GUI.Box(new Rect(centerX, margin, centerW, centerH), "", panelStyle);
+        GUI.Label(new Rect(centerX, margin + 4, centerW, 26),
+                  $"Round {state.currentRound} / {state.maxRounds}", roundStyle);
+        GUI.Label(new Rect(centerX, margin + 30, centerW, 16), GetModelInfo(), roundSubStyle);
+
+        // Robot panel (left of center).
+        float robotX = centerX - panelW - margin;
+        DrawTeamPanel(robotX, margin, panelW, panelH,
+            "ROBOTS", robotBg, iconRobot,
+            new Color(0.3f, 0.5f, 0.95f),
+            cachedRobotTotal, cachedRobotAlive, state.robotTiles, robotPct,
+            robotAttacks, robotKills, robotBuilds);
+
+        // Mutant panel (right of center).
+        float mutantX = centerX + centerW + margin;
+        DrawTeamPanel(mutantX, margin, panelW, panelH,
+            "MUTANTS", mutantBg, iconMutant,
+            new Color(0.35f, 0.85f, 0.25f),
+            cachedMutantTotal, cachedMutantAlive, state.mutantTiles, mutantPct,
+            mutantAttacks, mutantKills, mutantBuilds);
+
+        // Game over banner.
+        if (state.gameOver)
+        {
+            float bannerW = 400f;
+            float bannerX = (Screen.width - bannerW) * 0.5f;
+            panelStyle.normal.background = darkBg;
+            GUI.Box(new Rect(bannerX, Screen.height * 0.4f, bannerW, 50), "", panelStyle);
+
+            string winText = state.winner == Team.None
+                ? "DRAW!"
+                : $"{state.winner.ToString().ToUpper()}S WIN!";
+            GUI.Label(new Rect(bannerX, Screen.height * 0.4f + 8, bannerW, 34), winText, gameOverStyle);
+        }
+
+        DrawSessionStats();
+        DrawMatchHistory();
+    }
+
+    // ── Team panel ─────────────────────────────────────────────────────────
+
+    private void DrawTeamPanel(float px, float py, float pw, float ph,
+        string title, Texture2D bg, Texture2D unitIcon, Color teamColor,
+        int unitTotal, int aliveCount, int tiles, float tilePct,
+        int attacks, int kills, int builds)
+    {
+        const float iconS = 16f;
+        const float gap   = 3f;
+
+        panelStyle.normal.background = bg;
+        GUI.Box(new Rect(px, py, pw, ph), "", panelStyle);
+
+        GUI.Label(new Rect(px, py + 2, pw, 24), title, teamTitleStyle);
+
+        float rowX = px + 10;
+        float rowY = py + 28;
+        for (int i = 0; i < unitTotal; i++)
+        {
+            GUI.color = i < aliveCount ? Color.white : new Color(1, 1, 1, 0.2f);
+            GUI.DrawTexture(new Rect(rowX + i * (iconS + gap), rowY, iconS, iconS), unitIcon);
+        }
+        GUI.color = Color.white;
+
+        float sy1 = py + 50;
+        GUI.DrawTexture(new Rect(px + 10, sy1, iconS, iconS), iconSwords);
+        GUI.Label(new Rect(px + 30, sy1, 40, iconS), $"{attacks}", statNumStyle);
+        GUI.DrawTexture(new Rect(px + 75, sy1, iconS, iconS), iconSkull);
+        GUI.Label(new Rect(px + 95, sy1, 40, iconS), $"{kills}", statNumStyle);
+
+        float sy2 = py + 72;
+        GUI.DrawTexture(new Rect(px + 10, sy2, iconS, iconS), iconHammer);
+        GUI.Label(new Rect(px + 30, sy2, 40, iconS), $"{builds}", statNumStyle);
+        GUI.DrawTexture(new Rect(px + 75, sy2, iconS, iconS), iconTiles);
+        GUI.Label(new Rect(px + 95, sy2, 100, iconS), $"{tiles} ({tilePct:F0}%)", statNumStyle);
+
+        DrawBar(new Rect(px + 10, py + 96, pw - 20, 6), tilePct / 100f, teamColor);
+    }
+
+    private static void DrawBar(Rect rect, float fill, Color color)
+    {
+        GUI.color = new Color(0.2f, 0.2f, 0.2f, 0.6f);
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = color;
+        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width * Mathf.Clamp01(fill), rect.height),
+                        Texture2D.whiteTexture);
+        GUI.color = Color.white;
+    }
+
+    // ── Session stats ──────────────────────────────────────────────────────
+
+    private void DrawSessionStats()
+    {
+        InitHistoryStyles();
+
+        if (statsBg == null)
+            statsBg = MakeTex(1, 1, new Color(0.06f, 0.06f, 0.14f, 0.85f));
+
+        const float panelW = 340f;
+        const float margin = 10f;
+        bool hasModelLine = !string.IsNullOrEmpty(statsLine4);
+        float panelH = hasModelLine ? 94f : 74f;
+
+        float historyH = matchHistory.Count > 0
+            ? 24f + 20f + matchHistory.Count * 18f + 12f + 4 : 0f;
+        float panelX = margin;
+        float panelY = Screen.height - historyH - panelH - margin - 4f;
+
+        GUI.DrawTexture(new Rect(panelX, panelY, panelW, panelH), statsBg);
+
+        float y = panelY + 4f;
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine1, historyHeaderStyle);
+        y += 20f;
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine2, historyRowStyle);
+        y += 20f;
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine3, historyHeaderStyle);
+        if (hasModelLine)
+        {
+            y += 20f;
+            GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine4, historyRowStyle);
+        }
+    }
+
+    // ── Match history ──────────────────────────────────────────────────────
+
+    private void DrawMatchHistory()
+    {
+        if (matchHistory.Count == 0) return;
+        InitHistoryStyles();
+
+        const float rowH    = 18f;
+        const float panelW  = 340f;
+        const float titleH  = 24f;
+        const float headerH = 20f;
+        const float pad     = 6f;
+        const float margin  = 10f;
+        float panelH  = titleH + headerH + matchHistory.Count * rowH + pad * 2 + 4;
+        float panelX  = margin;
+        float panelY  = Screen.height - panelH - margin;
+
+        GUI.DrawTexture(new Rect(panelX, panelY, panelW, panelH), historyPanelBg);
+
+        float y        = panelY + pad;
+        int robotWins  = 0, mutantWins = 0, draws = 0;
+        foreach (var m in matchHistory)
+        {
+            if      (m.winner == Team.Robot)  robotWins++;
+            else if (m.winner == Team.Mutant) mutantWins++;
+            else                              draws++;
+        }
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, titleH),
+            $"Match History  ({matchCounter} total)   R:{robotWins}  M:{mutantWins}  D:{draws}",
+            historyHeaderStyle);
+        y += titleH;
+
+        GUI.Label(new Rect(panelX +   8, y,  30, headerH), "#",      historyHeaderStyle);
+        GUI.Label(new Rect(panelX +  38, y,  90, headerH), "Winner", historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 130, y,  60, headerH), "Rounds", historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 195, y, 140, headerH), "Score",  historyHeaderStyle);
+        y += headerH;
+
+        GUI.color = new Color(0.5f, 0.5f, 0.4f, 0.5f);
+        GUI.DrawTexture(new Rect(panelX + 6, y - 1, panelW - 12, 1), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        for (int i = matchHistory.Count - 1; i >= 0; i--)
+        {
+            var m        = matchHistory[i];
+            Rect rowRect = new Rect(panelX + 4, y, panelW - 8, rowH);
+
+            Texture2D rowBg = m.winner switch
+            {
+                Team.Robot  => robotRowBg,
+                Team.Mutant => mutantRowBg,
+                _           => drawRowBg
+            };
+            GUI.DrawTexture(rowRect, rowBg);
+
+            Color dotColor = m.winner switch
+            {
+                Team.Robot  => new Color(0.3f, 0.55f, 1f),
+                Team.Mutant => new Color(0.3f, 0.85f, 0.25f),
+                _           => new Color(0.8f, 0.8f, 0.3f)
+            };
+            GUI.color = dotColor;
+            GUI.DrawTexture(new Rect(panelX + 30, y + 6, 6, 6), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+
+            string winnerText = m.winner switch
+            {
+                Team.Robot  => "Robots",
+                Team.Mutant => "Mutants",
+                _           => "Draw"
+            };
+
+            GUI.Label(new Rect(panelX +   8, y,  30, rowH), $"{m.matchNumber}", historyRowStyle);
+            GUI.Label(new Rect(panelX +  38, y,  90, rowH), winnerText,          historyRowStyle);
+            GUI.Label(new Rect(panelX + 130, y,  60, rowH), $"{m.rounds}",       historyRowStyle);
+            GUI.Label(new Rect(panelX + 195, y, 140, rowH),
+                      $"R:{m.robotTiles}  vs  M:{m.mutantTiles}",                historyRowStyle);
+
+            y += rowH;
+        }
+    }
+
+    // ── Pixel-art icon generators (16×16) ──────────────────────────────────
+
+    private static Texture2D MakeIcon(int size, System.Action<Color[], int> draw)
+    {
+        var tex = new Texture2D(size, size) { filterMode = FilterMode.Point };
+        var px  = new Color[size * size];
+        draw(px, size);
+        tex.SetPixels(px);
+        tex.Apply();
+        return tex;
+    }
+
+    private static void Set(Color[] px, int s, int x, int y, Color c)
+    {
+        if (x >= 0 && x < s && y >= 0 && y < s) px[y * s + x] = c;
+    }
+
+    private static Texture2D MakeTex(int w, int h, Color col)
+    {
+        var tex    = new Texture2D(w, h);
+        var pixels = new Color[w * h];
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = col;
+        tex.SetPixels(pixels);
+        tex.Apply();
+        return tex;
+    }
+
+    private static Texture2D MakeIconRobot()
+    {
+        return MakeIcon(16, (px, s) =>
+        {
+            Color b = new Color(0.2f, 0.45f, 1f), d = new Color(0.12f, 0.25f, 0.6f),
+                  e = new Color(1f, 0.95f, 0.3f);
+            for (int x = 5; x <= 10; x++) for (int y = 11; y <= 14; y++) Set(px, s, x, y, b);
+            Set(px, s, 6, 13, e); Set(px, s, 9, 13, e);
+            for (int x = 4; x <= 11; x++) for (int y = 5; y <= 10; y++) Set(px, s, x, y, d);
+            for (int y = 1; y <= 4; y++) { Set(px, s, 5, y, b); Set(px, s, 6, y, b); Set(px, s, 9, y, b); Set(px, s, 10, y, b); }
+            for (int y = 6; y <= 9; y++) { Set(px, s, 3, y, b); Set(px, s, 12, y, b); }
+        });
+    }
+
+    private static Texture2D MakeIconMutant()
+    {
+        return MakeIcon(16, (px, s) =>
+        {
+            Color g = new Color(0.3f, 0.85f, 0.2f), d = new Color(0.2f, 0.6f, 0.12f),
+                  e = new Color(1f, 0.2f, 0.1f);
+            for (int x = 3; x <= 12; x++) for (int y = 2; y <= 9; y++)
+            {
+                float dx = x - 7.5f, dy = y - 5.5f;
+                if (dx * dx + dy * dy < 22) Set(px, s, x, y, g);
+            }
+            for (int x = 5; x <= 10; x++) for (int y = 10; y <= 14; y++)
+            {
+                float dx = x - 7.5f, dy = y - 12f;
+                if (dx * dx + dy * dy < 10) Set(px, s, x, y, d);
+            }
+            Set(px, s, 6, 13, e); Set(px, s, 9, 13, e);
+            for (int y = 3; y <= 6; y++) { Set(px, s, 1, y, g); Set(px, s, 2, y, g); Set(px, s, 13, y, g); Set(px, s, 14, y, g); }
+        });
+    }
+
+    private static Texture2D MakeIconSwords()
+    {
+        return MakeIcon(16, (px, s) =>
+        {
+            Color r = new Color(1f, 0.3f, 0.2f), h = new Color(0.6f, 0.4f, 0.2f);
+            for (int i = 2; i <= 13; i++)
+            {
+                Set(px, s, i, i, r); Set(px, s, i + 1, i, r);
+                Set(px, s, 15 - i, i, r); Set(px, s, 14 - i, i, r);
+            }
+            Set(px, s, 2, 2, h); Set(px, s, 3, 3, h); Set(px, s, 13, 2, h); Set(px, s, 12, 3, h);
+        });
+    }
+
+    private static Texture2D MakeIconSkull()
+    {
+        return MakeIcon(16, (px, s) =>
+        {
+            Color w = new Color(0.9f, 0.9f, 0.85f), d = new Color(0.15f, 0.15f, 0.15f);
+            for (int x = 3; x <= 12; x++) for (int y = 6; y <= 14; y++)
+            {
+                float dx = x - 7.5f, dy = y - 10f;
+                if (dx * dx + dy * dy < 20) Set(px, s, x, y, w);
+            }
+            for (int x = 5; x <= 6; x++) for (int y = 10; y <= 11; y++) Set(px, s, x, y, d);
+            for (int x = 9; x <= 10; x++) for (int y = 10; y <= 11; y++) Set(px, s, x, y, d);
+            Set(px, s, 7, 9, d); Set(px, s, 8, 9, d);
+            for (int x = 5; x <= 10; x++) for (int y = 5; y <= 6; y++) Set(px, s, x, y, w);
+            for (int x = 5; x <= 10; x++) Set(px, s, x, 4, d);
+        });
+    }
+
+    private static Texture2D MakeIconHammer()
+    {
+        return MakeIcon(16, (px, s) =>
+        {
+            Color o = new Color(1f, 0.65f, 0.15f), h = new Color(0.55f, 0.35f, 0.15f);
+            for (int y = 1; y <= 10; y++) { Set(px, s, 7, y, h); Set(px, s, 8, y, h); }
+            for (int x = 3; x <= 12; x++) for (int y = 11; y <= 14; y++) Set(px, s, x, y, o);
+        });
+    }
+
+    private static Texture2D MakeIconTiles()
+    {
+        return MakeIcon(16, (px, s) =>
+        {
+            Color c = new Color(0.3f, 0.8f, 1f), d = new Color(0.15f, 0.4f, 0.5f);
+            for (int x = 2; x <= 6; x++) for (int y = 9; y <= 13; y++) Set(px, s, x, y, c);
+            for (int x = 9; x <= 13; x++) for (int y = 9; y <= 13; y++) Set(px, s, x, y, d);
+            for (int x = 2; x <= 6; x++) for (int y = 2; y <= 6; y++) Set(px, s, x, y, d);
+            for (int x = 9; x <= 13; x++) for (int y = 2; y <= 6; y++) Set(px, s, x, y, c);
+        });
+    }
+}

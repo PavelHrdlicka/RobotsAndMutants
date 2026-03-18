@@ -30,28 +30,11 @@ public class HexAgent : Agent
     private int prevTeamTiles;
     private int prevEnemyTiles;
 
-    // Cached one-time detection of whether tests are running.
-    private static bool? s_testMode;
-
     private new void Awake()
     {
         // Awake fires before OnEnable. Academy.LazyInitialize() is called in OnEnable,
         // which blocks ~60s when BehaviorType=Default and no Python trainer is running.
-        // Detect test runner by checking if the NUnit/TestRunner assembly is loaded.
-        if (!s_testMode.HasValue)
-        {
-            s_testMode = false;
-            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (asm.FullName.Contains("UnityEngine.TestRunner"))
-                {
-                    s_testMode = true;
-                    break;
-                }
-            }
-        }
-
-        if (s_testMode.Value)
+        if (TestModeDetector.IsTestMode())
         {
             var bp = GetComponent<BehaviorParameters>();
             if (bp != null)
@@ -169,7 +152,7 @@ public class HexAgent : Agent
                     {
                         if (u.team != unitData.team && u.currentHex == targetCoord && !u.isAlive)
                         {
-                            AddReward(0.5f);
+                            AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
                             break;
                         }
                     }
@@ -182,21 +165,22 @@ public class HexAgent : Agent
             else if (action == 7)
             {
                 if (movement.TryBuild())
-                    AddReward(0.05f);
+                    AddReward(GameConfig.Instance?.buildReward ?? 0.05f);
             }
 
             // Reward shaping.
+            var cfg = GameConfig.Instance;
             int ownTiles   = grid.CountTiles(unitData.team);
             Team enemyTeam = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
             int enemyTiles = grid.CountTiles(enemyTeam);
 
             int tilesGained = ownTiles - prevTeamTiles;
-            if (tilesGained > 0) AddReward(0.1f * tilesGained);
+            if (tilesGained > 0) AddReward((cfg?.captureRewardPerTile ?? 0.1f) * tilesGained);
 
             int enemyLost = prevEnemyTiles - enemyTiles;
-            if (enemyLost > 0) AddReward(0.1f * enemyLost);
+            if (enemyLost > 0) AddReward((cfg?.enemyLossRewardPerTile ?? 0.1f) * enemyLost);
 
-            AddReward(-0.001f);
+            AddReward(cfg?.stepPenalty ?? -0.001f);
 
             prevTeamTiles  = ownTiles;
             prevEnemyTiles = enemyTiles;

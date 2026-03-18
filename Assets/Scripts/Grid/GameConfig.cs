@@ -47,6 +47,34 @@ public class GameConfig : ScriptableObject
 
     private int MaxBaseSize => boardSide >= 3 ? 4 : 1; // Corner + 3 neighbors max
 
+    [Header("Reward Shaping")]
+    [Tooltip("Reward for killing an enemy unit.")]
+    public float killBonus = 0.5f;
+
+    [Tooltip("Reward for a successful build action (crate / slime spread).")]
+    public float buildReward = 0.05f;
+
+    [Tooltip("Reward per tile gained in a single turn (territory capture).")]
+    public float captureRewardPerTile = 0.1f;
+
+    [Tooltip("Reward per enemy tile lost in a single turn (opponent lost territory).")]
+    public float enemyLossRewardPerTile = 0.1f;
+
+    [Tooltip("Small negative reward each step to encourage speed (should be negative).")]
+    public float stepPenalty = -0.001f;
+
+    [Tooltip("Group reward for winning team at end of episode.")]
+    public float winReward = 1f;
+
+    [Tooltip("Group reward for losing team at end of episode.")]
+    public float loseReward = -1f;
+
+    [Tooltip("Group reward for the leading team when episode ends by timeout.")]
+    public float timeoutWinReward = 0.5f;
+
+    [Tooltip("Group reward for the trailing team when episode ends by timeout.")]
+    public float timeoutLoseReward = -0.5f;
+
     // --- Singleton ---
 
     private static GameConfig _instance;
