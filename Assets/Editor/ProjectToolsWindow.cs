@@ -23,6 +23,9 @@ public class ProjectToolsWindow : EditorWindow
     private static Process tensorboardProcess;
     private static string runId = "run1";
 
+    // SessionState key — survives domain reload within the same Unity session.
+    private const string k_TrainingPidKey = "ProjectTools_TrainingPID";
+
     private static int RunCounter
     {
         get => EditorPrefs.GetInt("MLTrain_RunCounter", DetectNextRunId());
@@ -83,6 +86,39 @@ public class ProjectToolsWindow : EditorWindow
     {
         EditorApplication.update += OnEditorUpdate;
         runId = $"run{RunCounter}";
+        TryRestoreTrainingProcess();
+    }
+
+    /// <summary>
+    /// After a domain reload the static trainingProcess reference is lost.
+    /// Restore it from the saved PID so the status indicator keeps working.
+    /// </summary>
+    private static void TryRestoreTrainingProcess()
+    {
+        if (trainingProcess != null && !trainingProcess.HasExited) return;
+
+        int savedPid = SessionState.GetInt(k_TrainingPidKey, -1);
+        if (savedPid < 0) return;
+
+        try
+        {
+            var proc = Process.GetProcessById(savedPid);
+            if (!proc.HasExited)
+            {
+                trainingProcess = proc;
+                trainingExitLogged = false;
+                Debug.Log($"[ML-Train] Reattached to training process PID {savedPid} after domain reload.");
+            }
+            else
+            {
+                SessionState.EraseInt(k_TrainingPidKey);
+            }
+        }
+        catch
+        {
+            // Process no longer exists.
+            SessionState.EraseInt(k_TrainingPidKey);
+        }
     }
 
     private void OnDisable()
@@ -407,6 +443,7 @@ public class ProjectToolsWindow : EditorWindow
             trainingProcess.Start();
             trainingProcess.BeginOutputReadLine();
             trainingProcess.BeginErrorReadLine();
+            SessionState.SetInt(k_TrainingPidKey, trainingProcess.Id);
             Debug.Log($"[ML-Train] Started training (run-id: {runId}, PID: {trainingProcess.Id}). Python is loading — wait for 'Listening on port 5004'...");
         }
         catch (System.Exception ex)
@@ -486,6 +523,7 @@ public class ProjectToolsWindow : EditorWindow
             Debug.Log("[ML-Train] Training stopped.");
         }
         trainingProcess = null;
+        SessionState.EraseInt(k_TrainingPidKey);
 
         // Kill any orphaned mlagents processes still holding port 5004.
         // This happens when domain reload (script recompile) clears the static
