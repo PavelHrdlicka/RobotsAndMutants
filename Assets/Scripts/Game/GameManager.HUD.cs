@@ -363,10 +363,10 @@ public partial class GameManager
         y += titleH;
 
         // Group header row (top line).
-        GUI.Label(new Rect(panelX +   8, y, 174, 16), "",        historyHeaderStyle);  // spacer
-        GUI.Label(new Rect(panelX + 176, y,  56, 16), "Attack",  historyHeaderStyle);
-        GUI.Label(new Rect(panelX + 234, y,  56, 16), "Death",   historyHeaderStyle);
-        GUI.Label(new Rect(panelX + 292, y,  56, 16), "Build",   historyHeaderStyle);
+        GUI.Label(new Rect(panelX +   8, y, 174, 16), "",            historyHeaderStyle);  // spacer
+        GUI.Label(new Rect(panelX + 176, y,  56, 16), "Atk/rnd",    historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 234, y,  56, 16), "Dth/rnd",    historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 292, y,  56, 16), "Bld/rnd",    historyHeaderStyle);
         y += 16f;
 
         // Sub-header row (bottom line).
@@ -417,16 +417,17 @@ public partial class GameManager
             };
             string scoreText = m.winner == Team.None ? "-" : $"{m.winnerPct:F0}%";
 
-            GUI.Label(new Rect(panelX +   8, y,  20, rowH), $"{m.matchNumber}",     historyRowStyle);
-            GUI.Label(new Rect(panelX +  28, y,  58, rowH), winnerText,             historyRowStyle);
-            GUI.Label(new Rect(panelX +  88, y,  38, rowH), $"{m.rounds}",          historyRowStyle);
-            GUI.Label(new Rect(panelX + 128, y,  46, rowH), scoreText,              historyRowStyle);
-            GUI.Label(new Rect(panelX + 176, y,  26, rowH), $"{m.robotAttacks}",    historyRowStyle);
-            GUI.Label(new Rect(panelX + 204, y,  26, rowH), $"{m.mutantAttacks}",   historyRowStyle);
-            GUI.Label(new Rect(panelX + 234, y,  26, rowH), $"{m.robotDeaths}",     historyRowStyle);
-            GUI.Label(new Rect(panelX + 262, y,  26, rowH), $"{m.mutantDeaths}",    historyRowStyle);
-            GUI.Label(new Rect(panelX + 292, y,  26, rowH), $"{m.robotBuilds}",     historyRowStyle);
-            GUI.Label(new Rect(panelX + 320, y,  26, rowH), $"{m.mutantBuilds}",    historyRowStyle);
+            float r = Mathf.Max(m.rounds, 1);
+            GUI.Label(new Rect(panelX +   8, y,  20, rowH), $"{m.matchNumber}",                historyRowStyle);
+            GUI.Label(new Rect(panelX +  28, y,  58, rowH), winnerText,                        historyRowStyle);
+            GUI.Label(new Rect(panelX +  88, y,  38, rowH), $"{m.rounds}",                     historyRowStyle);
+            GUI.Label(new Rect(panelX + 128, y,  46, rowH), scoreText,                         historyRowStyle);
+            GUI.Label(new Rect(panelX + 176, y,  26, rowH), $"{m.robotAttacks  / r:F1}",       historyRowStyle);
+            GUI.Label(new Rect(panelX + 204, y,  26, rowH), $"{m.mutantAttacks / r:F1}",       historyRowStyle);
+            GUI.Label(new Rect(panelX + 234, y,  26, rowH), $"{m.robotDeaths   / r:F1}",       historyRowStyle);
+            GUI.Label(new Rect(panelX + 262, y,  26, rowH), $"{m.mutantDeaths  / r:F1}",       historyRowStyle);
+            GUI.Label(new Rect(panelX + 292, y,  26, rowH), $"{m.robotBuilds   / r:F1}",       historyRowStyle);
+            GUI.Label(new Rect(panelX + 320, y,  26, rowH), $"{m.mutantBuilds  / r:F1}",       historyRowStyle);
 
             y += rowH;
         }
