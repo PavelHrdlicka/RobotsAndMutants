@@ -701,12 +701,11 @@ public class GameManager : MonoBehaviour
     {
         if (grid == null) return;
 
-        // Throttle full HUD repaint to ~10 FPS to save CPU for simulation.
-        if (Event.current.type == EventType.Repaint)
-        {
-            if (Time.unscaledTime - lastGuiRepaintTime < 0.1f) return;
-            lastGuiRepaintTime = Time.unscaledTime;
-        }
+        // Throttle entire OnGUI (Layout + Repaint) to ~10 FPS.
+        // Both passes must be skipped together to stay in sync.
+        float now = Time.unscaledTime;
+        if (now - lastGuiRepaintTime < 0.1f) return;
+        if (Event.current.type == EventType.Repaint) lastGuiRepaintTime = now;
 
         InitStyles();
         RefreshHudCache();
