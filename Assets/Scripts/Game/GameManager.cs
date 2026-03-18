@@ -669,9 +669,12 @@ public class GameManager : MonoBehaviour
     // ── HUD cache (avoid recomputing every OnGUI call) ──────────────────
 
     private float hudCacheTime;
-    private const float HudCacheInterval = 0.15f; // refresh 6-7 times/sec
+    private const float HudCacheInterval = 0.15f;
     private GameState cachedState;
     private float cachedRobotPct, cachedMutantPct;
+    private int cachedRobotAlive, cachedMutantAlive;
+    private int cachedRobotTotal, cachedMutantTotal;
+    private float lastGuiRepaintTime;
 
     private void RefreshHudCache()
     {
@@ -682,6 +685,13 @@ public class GameManager : MonoBehaviour
         float total = contestableTileCount > 0 ? contestableTileCount : 1;
         cachedRobotPct  = cachedState.robotTiles  / total * 100f;
         cachedMutantPct = cachedState.mutantTiles / total * 100f;
+
+        // Cache alive counts to avoid iterating units in OnGUI.
+        cachedRobotAlive  = cachedState.robotAlive;
+        cachedMutantAlive = cachedState.mutantAlive;
+        cachedRobotTotal  = unitFactory != null ? unitFactory.robotUnits.Count  : 0;
+        cachedMutantTotal = unitFactory != null ? unitFactory.mutantUnits.Count : 0;
+
         RefreshStatsStrings();
     }
 
@@ -690,6 +700,14 @@ public class GameManager : MonoBehaviour
     private void OnGUI()
     {
         if (grid == null) return;
+
+        // Throttle full HUD repaint to ~10 FPS to save CPU for simulation.
+        if (Event.current.type == EventType.Repaint)
+        {
+            if (Time.unscaledTime - lastGuiRepaintTime < 0.1f) return;
+            lastGuiRepaintTime = Time.unscaledTime;
+        }
+
         InitStyles();
         RefreshHudCache();
 
@@ -718,7 +736,7 @@ public class GameManager : MonoBehaviour
         DrawTeamPanel(robotX, margin, panelW, panelH,
             "ROBOTS", robotBg, iconRobot,
             new Color(0.3f, 0.5f, 0.95f),
-            unitFactory.robotUnits, state.robotTiles, robotPct,
+            cachedRobotTotal, cachedRobotAlive, state.robotTiles, robotPct,
             robotAttacks, robotKills, robotBuilds);
 
         // --- Mutant panel (right of center) ---
@@ -726,7 +744,7 @@ public class GameManager : MonoBehaviour
         DrawTeamPanel(mutantX, margin, panelW, panelH,
             "MUTANTS", mutantBg, iconMutant,
             new Color(0.35f, 0.85f, 0.25f),
-            unitFactory.mutantUnits, state.mutantTiles, mutantPct,
+            cachedMutantTotal, cachedMutantAlive, state.mutantTiles, mutantPct,
             mutantAttacks, mutantKills, mutantBuilds);
 
         // --- Game over banner ---
@@ -910,7 +928,7 @@ public class GameManager : MonoBehaviour
 
     private void DrawTeamPanel(float px, float py, float pw, float ph,
         string title, Texture2D bg, Texture2D unitIcon, Color teamColor,
-        List<UnitData> units, int tiles, float tilePct,
+        int unitTotal, int aliveCount, int tiles, float tilePct,
         int attacks, int kills, int builds)
     {
         const float iconS = 16f;
@@ -922,22 +940,15 @@ public class GameManager : MonoBehaviour
         // Team title.
         GUI.Label(new Rect(px, py + 2, pw, 24), title, teamTitleStyle);
 
-        // Alive row: bright icons for alive count (left), dim for dead (right).
+        // Alive row: bright icons (left = alive), dim (right = dead).
         float rowX = px + 10;
         float rowY = py + 28;
-        if (units != null)
+        for (int i = 0; i < unitTotal; i++)
         {
-            int aliveCount = 0;
-            foreach (var u in units) if (u != null && u.isAlive) aliveCount++;
-
-            for (int i = 0; i < units.Count; i++)
-            {
-                bool lit = i < aliveCount;
-                GUI.color = lit ? Color.white : new Color(1, 1, 1, 0.2f);
-                GUI.DrawTexture(new Rect(rowX + i * (iconS + gap), rowY, iconS, iconS), unitIcon);
-            }
-            GUI.color = Color.white;
+            GUI.color = i < aliveCount ? Color.white : new Color(1, 1, 1, 0.2f);
+            GUI.DrawTexture(new Rect(rowX + i * (iconS + gap), rowY, iconS, iconS), unitIcon);
         }
+        GUI.color = Color.white;
 
         // Stats row 1: Swords + attacks,  Skull + kills
         float sy1 = py + 50;
