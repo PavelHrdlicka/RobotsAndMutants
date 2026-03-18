@@ -17,6 +17,15 @@ public class AttackEffects : MonoBehaviour
     private UnitAction prevAction;
     private bool wasAlive;
 
+    // Tile flash state.
+    private HexTileData flashedAttackerTile;
+    private HexTileData flashedDefenderTile;
+    private Color savedAttackerColor;
+    private Color savedDefenderColor;
+
+    private static readonly Color AttackerFlashColor = new Color(0.9f, 0.15f, 0.1f);  // red
+    private static readonly Color DefenderFlashColor = new Color(1f, 0.55f, 0.1f);     // orange
+
     // Particle system references (created once, reused).
     private ParticleSystem sparkPS;
     private ParticleSystem slimePS;
@@ -46,13 +55,20 @@ public class AttackEffects : MonoBehaviour
     {
         if (unitData == null) return;
 
-        // Detect attack.
+        // Detect attack start.
         if (unitData.lastAction == UnitAction.Attack && prevAction != UnitAction.Attack)
             OnAttack();
 
+        // Detect attack end → restore tile colors.
+        if (unitData.lastAction != UnitAction.Attack && prevAction == UnitAction.Attack)
+            UnflashTiles();
+
         // Detect death.
         if (wasAlive && !unitData.isAlive)
+        {
+            UnflashTiles();
             OnDeath();
+        }
 
         // Detect respawn.
         if (!wasAlive && unitData.isAlive)
@@ -105,6 +121,74 @@ public class AttackEffects : MonoBehaviour
                 slimePS.Play();
             }
         }
+
+        // Flash tiles: red under attacker, orange under defender.
+        FlashTiles();
+    }
+
+    private void FlashTiles()
+    {
+        if (grid == null) return;
+
+        // Attacker tile → red.
+        var aTile = grid.GetTile(unitData.currentHex);
+        if (aTile != null)
+        {
+            var meshGen = aTile.GetComponent<HexMeshGenerator>();
+            if (meshGen != null)
+            {
+                savedAttackerColor = GetCurrentColor(aTile);
+                meshGen.SetColor(AttackerFlashColor);
+                flashedAttackerTile = aTile;
+            }
+        }
+
+        // Defender tile → orange (find adjacent enemy with Defend state).
+        var allUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
+        foreach (var u in allUnits)
+        {
+            if (u == unitData || u.team == unitData.team) continue;
+            if (u.lastAction == UnitAction.Defend &&
+                HexCoord.Distance(unitData.currentHex, u.currentHex) == 1)
+            {
+                var dTile = grid.GetTile(u.currentHex);
+                if (dTile != null)
+                {
+                    var meshGen2 = dTile.GetComponent<HexMeshGenerator>();
+                    if (meshGen2 != null)
+                    {
+                        savedDefenderColor = GetCurrentColor(dTile);
+                        meshGen2.SetColor(DefenderFlashColor);
+                        flashedDefenderTile = dTile;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    private void UnflashTiles()
+    {
+        if (flashedAttackerTile != null)
+        {
+            var meshGen = flashedAttackerTile.GetComponent<HexMeshGenerator>();
+            if (meshGen != null) meshGen.SetColor(savedAttackerColor);
+            flashedAttackerTile = null;
+        }
+        if (flashedDefenderTile != null)
+        {
+            var meshGen = flashedDefenderTile.GetComponent<HexMeshGenerator>();
+            if (meshGen != null) meshGen.SetColor(savedDefenderColor);
+            flashedDefenderTile = null;
+        }
+    }
+
+    private static Color GetCurrentColor(HexTileData tile)
+    {
+        var visuals = tile.GetComponent<HexVisuals>();
+        if (visuals != null)
+            return HexVisuals.GetColorForState(tile.Owner, tile.TileType, tile.isBase, tile.baseTeam, tile.Fortification);
+        return Color.grey;
     }
 
     private void OnDeath()
