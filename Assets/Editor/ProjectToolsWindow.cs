@@ -246,10 +246,14 @@ public class ProjectToolsWindow : EditorWindow
                     StartTraining();
                 GUI.backgroundColor = Color.white;
 
-                // -- Resume (continue same run) --
-                GUI.backgroundColor = new Color(0.5f, 0.8f, 1f);
-                if (GUILayout.Button($"Resume Training ({runId})", GUILayout.Height(28)))
+                // -- Resume (continue same run) — only if checkpoint exists --
+                bool hasCheckpoint = Directory.Exists(Path.GetFullPath($"results/{runId}"));
+                GUI.backgroundColor = hasCheckpoint ? new Color(0.5f, 0.8f, 1f) : Color.white;
+                GUI.enabled = hasCheckpoint;
+                string resumeLabel = hasCheckpoint ? $"Resume Training ({runId})" : $"Resume ({runId}) — no checkpoint";
+                if (GUILayout.Button(resumeLabel, GUILayout.Height(28)))
                     StartTraining(TrainingMode.Resume);
+                GUI.enabled = true;
                 GUI.backgroundColor = Color.white;
 
                 // -- Init from previous trained weights --
@@ -430,6 +434,27 @@ public class ProjectToolsWindow : EditorWindow
         {
             Debug.LogError($"[ML-Train] Config not found at: {ConfigPath}");
             return;
+        }
+
+        // Guard: validate prerequisites before launching Python.
+        if (mode == TrainingMode.Resume && !Directory.Exists(Path.GetFullPath($"results/{runId}")))
+        {
+            Debug.LogError($"[ML-Train] Cannot resume: results/{runId}/ not found. Use 'Start Training (new)' first.");
+            return;
+        }
+        if (mode == TrainingMode.InitFrom)
+        {
+            if (string.IsNullOrEmpty(initFromRunId))
+            {
+                Debug.LogError("[ML-Train] Cannot init-from: no source run ID specified.");
+                return;
+            }
+            string onnxPath = Path.GetFullPath($"results/{initFromRunId}/HexRobot.onnx");
+            if (!File.Exists(onnxPath))
+            {
+                Debug.LogError($"[ML-Train] Cannot init-from: results/{initFromRunId}/HexRobot.onnx not found.");
+                return;
+            }
         }
 
         string modeFlag = mode switch

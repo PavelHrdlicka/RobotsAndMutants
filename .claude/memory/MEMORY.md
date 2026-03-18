@@ -23,6 +23,8 @@
 - [feedback_mlagents_obs_size.md](feedback_mlagents_obs_size.md) — Při změně počtu observací synchronizovat VectorObservationSize ve stejném commitu
 - [feedback_post_fix_rules.md](feedback_post_fix_rules.md) — Po každé opravě chyby/warningu (testy OK) odvodit a uložit obecné pravidlo
 - [feedback_isready_guard.md](feedback_isready_guard.md) — IsReady guard musí explicitně kontrolovat všechny závislosti; proxy-field smazání může skrytě rozbít garanci
+- [feedback_ongui_stable_controls.md](feedback_ongui_stable_controls.md) — OnGUI: nikdy podmíněně přidávat/odebírat controls; použít GUI.enabled=false místo if/skip
+- [feedback_mlagents_training_guards.md](feedback_mlagents_training_guards.md) — Před --resume/--initialize-from vždy validovat prerekvizity (checkpoint/ONNX existence)
 
 ## Reference
 - [reference_unity_log.md](reference_unity_log.md) — Unity Editor log: C:\Users\mail\AppData\Local\Unity\Editor\Editor.log
