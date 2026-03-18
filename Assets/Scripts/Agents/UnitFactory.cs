@@ -130,14 +130,11 @@ public class UnitFactory : MonoBehaviour
             string modelName = team == Team.Robot ? "HexRobot" : "HexMutant";
             var model = Resources.Load<ModelAsset>(modelName);
             if (model != null)
-            {
                 bp.Model = model;
-                bp.BehaviorType = BehaviorType.InferenceOnly;
-            }
-            else
-            {
-                bp.BehaviorType = BehaviorType.HeuristicOnly;
-            }
+
+            // Default: connects to Python trainer when running; falls back to
+            // inference (if model loaded) or heuristic when no trainer present.
+            bp.BehaviorType = BehaviorType.Default;
 
             go.AddComponent<HexAgent>();
 
