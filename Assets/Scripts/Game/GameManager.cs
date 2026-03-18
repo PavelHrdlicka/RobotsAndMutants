@@ -119,7 +119,7 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] Ready. {grid.ContestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
     }
 
-    public bool IsReady => grid != null && unitFactory != null;
+    public bool IsReady => grid != null && unitFactory != null && abilitySystem != null;
 
     // ── Sequential turn loop ───────────────────────────────────────────────
 
