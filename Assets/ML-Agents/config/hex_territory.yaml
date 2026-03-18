@@ -19,6 +19,7 @@ behaviors:
     max_steps: 10000000
     time_horizon: 128
     summary_freq: 10000
+    checkpoint_interval: 50000
 
   HexMutant:
     trainer_type: poca
@@ -40,3 +41,4 @@ behaviors:
     max_steps: 10000000
     time_horizon: 128
     summary_freq: 10000
+    checkpoint_interval: 50000
