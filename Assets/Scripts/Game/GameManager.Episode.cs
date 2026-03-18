@@ -12,11 +12,14 @@ public partial class GameManager
 
     private struct MatchResult
     {
-        public Team winner;
-        public int  rounds;
-        public int  robotTiles;
-        public int  mutantTiles;
-        public int  matchNumber;
+        public Team  winner;
+        public int   rounds;
+        public float winnerPct;   // winning team's territory %
+        public int   matchNumber;
+        // Per-team action stats for this episode.
+        public int robotAttacks,  mutantAttacks;
+        public int robotDeaths,   mutantDeaths;   // deaths = kills by opponent
+        public int robotBuilds,   mutantBuilds;
     }
 
     private static readonly List<MatchResult> matchHistory = new();
@@ -49,14 +52,19 @@ public partial class GameManager
 
     private void RecordMatch(Team matchWinner, int rounds, int rTiles, int mTiles)
     {
+        float total      = grid != null && grid.ContestableTileCount > 0 ? grid.ContestableTileCount : 1f;
+        float winnerTiles = matchWinner == Team.Robot ? rTiles : matchWinner == Team.Mutant ? mTiles : 0;
         matchCounter++;
         matchHistory.Add(new MatchResult
         {
-            winner      = matchWinner,
-            rounds      = rounds,
-            robotTiles  = rTiles,
-            mutantTiles = mTiles,
-            matchNumber = matchCounter
+            winner         = matchWinner,
+            rounds         = rounds,
+            winnerPct      = winnerTiles / total * 100f,
+            matchNumber    = matchCounter,
+            // robotKills = mutant deaths, mutantKills = robot deaths
+            robotAttacks   = robotAttacks,   mutantAttacks  = mutantAttacks,
+            robotDeaths    = mutantKills,    mutantDeaths   = robotKills,
+            robotBuilds    = robotBuilds,    mutantBuilds   = mutantBuilds,
         });
         while (matchHistory.Count > 20) matchHistory.RemoveAt(0);
     }

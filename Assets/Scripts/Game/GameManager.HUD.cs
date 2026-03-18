@@ -296,7 +296,7 @@ public partial class GameManager
         if (statsBg == null)
             statsBg = MakeTex(1, 1, new Color(0.06f, 0.06f, 0.14f, 0.85f));
 
-        const float panelW = 340f;
+        const float panelW = 360f;
         const float margin = 10f;
         bool hasModelLine = !string.IsNullOrEmpty(statsLine4);
         float panelH = hasModelLine ? 94f : 74f;
@@ -328,10 +328,18 @@ public partial class GameManager
         if (matchHistory.Count == 0) return;
         InitHistoryStyles();
 
+        // Column layout (x offsets from panelX):
+        //  8  : # (20)
+        // 28  : Winner (58) + dot at 84
+        // 88  : Rounds (38)
+        // 128 : Score% (46)
+        // 176 : Atk-R (28)  204 : Atk-M (28)
+        // 234 : Die-R (28)  262 : Die-M (28)
+        // 292 : Bld-R (28)  320 : Bld-M (28)
+        const float panelW  = 360f;
         const float rowH    = 18f;
-        const float panelW  = 340f;
         const float titleH  = 24f;
-        const float headerH = 20f;
+        const float headerH = 36f;   // two-line header (group + sub)
         const float pad     = 6f;
         const float margin  = 10f;
         float panelH  = titleH + headerH + matchHistory.Count * rowH + pad * 2 + 4;
@@ -340,8 +348,9 @@ public partial class GameManager
 
         GUI.DrawTexture(new Rect(panelX, panelY, panelW, panelH), historyPanelBg);
 
-        float y        = panelY + pad;
-        int robotWins  = 0, mutantWins = 0, draws = 0;
+        // Title row.
+        float y       = panelY + pad;
+        int robotWins = 0, mutantWins = 0, draws = 0;
         foreach (var m in matchHistory)
         {
             if      (m.winner == Team.Robot)  robotWins++;
@@ -353,11 +362,25 @@ public partial class GameManager
             historyHeaderStyle);
         y += titleH;
 
-        GUI.Label(new Rect(panelX +   8, y,  30, headerH), "#",      historyHeaderStyle);
-        GUI.Label(new Rect(panelX +  38, y,  90, headerH), "Winner", historyHeaderStyle);
-        GUI.Label(new Rect(panelX + 130, y,  60, headerH), "Rounds", historyHeaderStyle);
-        GUI.Label(new Rect(panelX + 195, y, 140, headerH), "Score",  historyHeaderStyle);
-        y += headerH;
+        // Group header row (top line).
+        GUI.Label(new Rect(panelX +   8, y, 174, 16), "",        historyHeaderStyle);  // spacer
+        GUI.Label(new Rect(panelX + 176, y,  56, 16), "Attack",  historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 234, y,  56, 16), "Death",   historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 292, y,  56, 16), "Build",   historyHeaderStyle);
+        y += 16f;
+
+        // Sub-header row (bottom line).
+        GUI.Label(new Rect(panelX +   8, y,  20, 18), "#",       historyHeaderStyle);
+        GUI.Label(new Rect(panelX +  28, y,  58, 18), "Winner",  historyHeaderStyle);
+        GUI.Label(new Rect(panelX +  88, y,  38, 18), "Rounds",  historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 128, y,  46, 18), "Score%",  historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 176, y,  26, 18), "R",       historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 204, y,  26, 18), "M",       historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 234, y,  26, 18), "R",       historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 262, y,  26, 18), "M",       historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 292, y,  26, 18), "R",       historyHeaderStyle);
+        GUI.Label(new Rect(panelX + 320, y,  26, 18), "M",       historyHeaderStyle);
+        y += 20f;
 
         GUI.color = new Color(0.5f, 0.5f, 0.4f, 0.5f);
         GUI.DrawTexture(new Rect(panelX + 6, y - 1, panelW - 12, 1), Texture2D.whiteTexture);
@@ -383,7 +406,7 @@ public partial class GameManager
                 _           => new Color(0.8f, 0.8f, 0.3f)
             };
             GUI.color = dotColor;
-            GUI.DrawTexture(new Rect(panelX + 30, y + 6, 6, 6), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(panelX + 78, y + 6, 6, 6), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
             string winnerText = m.winner switch
@@ -392,12 +415,18 @@ public partial class GameManager
                 Team.Mutant => "Mutants",
                 _           => "Draw"
             };
+            string scoreText = m.winner == Team.None ? "-" : $"{m.winnerPct:F0}%";
 
-            GUI.Label(new Rect(panelX +   8, y,  30, rowH), $"{m.matchNumber}", historyRowStyle);
-            GUI.Label(new Rect(panelX +  38, y,  90, rowH), winnerText,          historyRowStyle);
-            GUI.Label(new Rect(panelX + 130, y,  60, rowH), $"{m.rounds}",       historyRowStyle);
-            GUI.Label(new Rect(panelX + 195, y, 140, rowH),
-                      $"R:{m.robotTiles}  vs  M:{m.mutantTiles}",                historyRowStyle);
+            GUI.Label(new Rect(panelX +   8, y,  20, rowH), $"{m.matchNumber}",     historyRowStyle);
+            GUI.Label(new Rect(panelX +  28, y,  58, rowH), winnerText,             historyRowStyle);
+            GUI.Label(new Rect(panelX +  88, y,  38, rowH), $"{m.rounds}",          historyRowStyle);
+            GUI.Label(new Rect(panelX + 128, y,  46, rowH), scoreText,              historyRowStyle);
+            GUI.Label(new Rect(panelX + 176, y,  26, rowH), $"{m.robotAttacks}",    historyRowStyle);
+            GUI.Label(new Rect(panelX + 204, y,  26, rowH), $"{m.mutantAttacks}",   historyRowStyle);
+            GUI.Label(new Rect(panelX + 234, y,  26, rowH), $"{m.robotDeaths}",     historyRowStyle);
+            GUI.Label(new Rect(panelX + 262, y,  26, rowH), $"{m.mutantDeaths}",    historyRowStyle);
+            GUI.Label(new Rect(panelX + 292, y,  26, rowH), $"{m.robotBuilds}",     historyRowStyle);
+            GUI.Label(new Rect(panelX + 320, y,  26, rowH), $"{m.mutantBuilds}",    historyRowStyle);
 
             y += rowH;
         }
