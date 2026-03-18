@@ -487,6 +487,11 @@ public class ProjectToolsWindow : EditorWindow
         }
         trainingProcess = null;
 
+        // Kill any orphaned mlagents processes still holding port 5004.
+        // This happens when domain reload (script recompile) clears the static
+        // trainingProcess reference but the OS process keeps running.
+        KillOrphanedTrainers();
+
         // Auto-load the trained models.
         LoadBestModels(runId);
 
@@ -591,6 +596,27 @@ public class ProjectToolsWindow : EditorWindow
             }
         }
         Debug.Log($"[ML-Train] Models assigned to {assigned} agents (InferenceOnly).");
+    }
+
+    /// <summary>Kill any orphaned mlagents Python processes holding port 5004.</summary>
+    private static void KillOrphanedTrainers()
+    {
+        try
+        {
+            foreach (var proc in Process.GetProcessesByName("python"))
+            {
+                try
+                {
+                    if (proc.MainModule != null && proc.MainModule.FileName == PythonExe)
+                    {
+                        Debug.Log($"[ML-Train] Killing orphaned Python process (PID {proc.Id}).");
+                        proc.Kill();
+                    }
+                }
+                catch { /* access denied or already exited — ignore */ }
+            }
+        }
+        catch { /* GetProcessesByName failed — ignore */ }
     }
 
     private static void DoResetSetupPlay()
