@@ -15,6 +15,7 @@
 - [feedback_business_md.md](feedback_business_md.md) — Po každé logické změně aktualizovat BUSINESS.md v rootu projektu
 - [feedback_git_workflow.md](feedback_git_workflow.md) — After every tested change, commit and push to GitHub (main branch)
 - [feedback_mlagents_playmode_tests.md](feedback_mlagents_playmode_tests.md) — PlayMode testy: 4 záruky — HeuristicOnly guard, skip URP camera init, skip CreatePrimitive ve vizuálech, workflow (exit play mode)
+- [feedback_ongui_throttle.md](feedback_ongui_throttle.md) — Unity OnGUI: nikdy nethrottlovat rendering přes early return, throttlovat pouze výpočty dat
 
 ## Reference
 - [reference_unity_log.md](reference_unity_log.md) — Unity Editor log: C:\Users\mail\AppData\Local\Unity\Editor\Editor.log
