@@ -26,6 +26,9 @@ public class ProjectToolsWindow : EditorWindow
     // SessionState key — survives domain reload within the same Unity session.
     private const string k_TrainingPidKey = "ProjectTools_TrainingPID";
 
+    // Set to true when Python outputs "Listening on port 5004" — triggers auto Play.
+    private static volatile bool pythonReady;
+
     private static int RunCounter
     {
         get => EditorPrefs.GetInt("MLTrain_RunCounter", DetectNextRunId());
@@ -416,11 +419,16 @@ public class ProjectToolsWindow : EditorWindow
             EnvironmentVariables = { ["PYTHONIOENCODING"] = "utf-8" }
         };
 
+        pythonReady = false;
         trainingProcess = new Process { StartInfo = psi };
         trainingProcess.OutputDataReceived += (s, e) =>
         {
             if (!string.IsNullOrEmpty(e.Data))
+            {
                 UnityEngine.Debug.Log($"[ML-Train] {e.Data}");
+                if (e.Data.Contains("Listening on port 5004"))
+                    pythonReady = true;
+            }
         };
         trainingProcess.ErrorDataReceived += (s, e) =>
         {
@@ -430,6 +438,8 @@ public class ProjectToolsWindow : EditorWindow
                 if (e.Data.Contains("UserWarning") || e.Data.Contains("pkg_resources"))
                     return;
                 UnityEngine.Debug.Log($"[ML-Train] {e.Data}");
+                if (e.Data.Contains("Listening on port 5004"))
+                    pythonReady = true;
             }
         };
 
@@ -499,16 +509,24 @@ public class ProjectToolsWindow : EditorWindow
         // Start Python training.
         StartTraining();
 
-        // Wait for Python to start listening, then press Play.
+        // Wait for Python "Listening on port 5004" before entering Play mode.
+        // Fallback: enter Play after 90s even if message never arrives.
         double startTime = EditorApplication.timeSinceStartup;
+        const double maxWaitSeconds = 90.0;
         EditorApplication.CallbackFunction waitForPython = null;
         waitForPython = () =>
         {
-            if (EditorApplication.timeSinceStartup - startTime > 3.0)
+            double elapsed = EditorApplication.timeSinceStartup - startTime;
+            bool timedOut = elapsed > maxWaitSeconds;
+
+            if (pythonReady || timedOut)
             {
                 EditorApplication.update -= waitForPython;
+                if (timedOut && !pythonReady)
+                    Debug.LogWarning("[ML-Train] Timed out waiting for Python. Starting Play anyway.");
+                else
+                    Debug.Log("[ML-Train] Python ready — auto-starting Play mode.");
                 EditorApplication.isPlaying = true;
-                Debug.Log("[ML-Train] Auto-starting Play mode.");
             }
         };
         EditorApplication.update += waitForPython;
