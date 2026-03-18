@@ -99,20 +99,25 @@ public class UnitFactory : MonoBehaviour
         go.AddComponent<UnitData>();
         go.AddComponent<HexMovement>();
 
-        if (team == Team.Robot)
+        // Skip visual components in test mode — GameObject.CreatePrimitive() triggers
+        // URP shader compilation in InitTestScene which hangs indefinitely.
+        if (!skipMLAgents)
         {
-            var builder = go.AddComponent<RobotModelBuilder>();
-            builder.Build();
-        }
-        else
-        {
-            var builder = go.AddComponent<MutantModelBuilder>();
-            builder.Build();
-        }
+            if (team == Team.Robot)
+            {
+                var builder = go.AddComponent<RobotModelBuilder>();
+                builder.Build();
+            }
+            else
+            {
+                var builder = go.AddComponent<MutantModelBuilder>();
+                builder.Build();
+            }
 
-        go.AddComponent<UnitHealthBar3D>();
-        go.AddComponent<UnitActionIndicator3D>();
-        go.AddComponent<AttackEffects>();
+            go.AddComponent<UnitHealthBar3D>();
+            go.AddComponent<UnitActionIndicator3D>();
+            go.AddComponent<AttackEffects>();
+        }
 
         if (!skipMLAgents)
         {
