@@ -65,6 +65,10 @@ public class GameManager : MonoBehaviour
     private UnitData pendingUnit = null;
     private bool     turnStarted = false;
 
+    // Per-game action counters (reset each episode).
+    private int robotAttacks, robotBuilds, robotKills;
+    private int mutantAttacks, mutantBuilds, mutantKills;
+
     // ── Initialisation ─────────────────────────────────────────────────────
 
     /// <summary>Current game state snapshot.</summary>
@@ -233,8 +237,31 @@ public class GameManager : MonoBehaviour
     {
         totalTurns++;
 
-        // Territory is claimed only through explicit BUILD actions (TryBuild in HexMovement).
-        // Moving does NOT colour / claim a tile — no territory processing on Move.
+        // Track per-team action stats.
+        if (unit.isAlive)
+        {
+            bool isRobot = unit.team == Team.Robot;
+            switch (unit.lastAction)
+            {
+                case UnitAction.Attack:
+                    if (isRobot) robotAttacks++; else mutantAttacks++;
+                    // Check if the defender died → count as kill.
+                    foreach (var u in unitFactory.AllUnits)
+                    {
+                        if (u.team != unit.team && !u.isAlive && u.lastAction == UnitAction.Dead
+                            && HexCoord.Distance(unit.currentHex, u.currentHex) <= 1)
+                        {
+                            if (isRobot) robotKills++; else mutantKills++;
+                            break;
+                        }
+                    }
+                    break;
+                case UnitAction.BuildCrate:
+                case UnitAction.SpreadSlime:
+                    if (isRobot) robotBuilds++; else mutantBuilds++;
+                    break;
+            }
+        }
 
         CheckWinCondition();
     }
@@ -298,12 +325,14 @@ public class GameManager : MonoBehaviour
 
     public void ResetGame()
     {
-        currentRound = 0;
-        gameOver     = false;
-        winner       = Team.None;
-        turnStarted  = false;
-        pendingUnit  = null;
-        turnIndex    = -1;
+        currentRound  = 0;
+        gameOver      = false;
+        winner        = Team.None;
+        turnStarted   = false;
+        pendingUnit   = null;
+        turnIndex     = -1;
+        robotAttacks  = 0; robotBuilds  = 0; robotKills  = 0;
+        mutantAttacks = 0; mutantBuilds = 0; mutantKills = 0;
         turnOrder.Clear();
 
         foreach (var tile in grid.Tiles.Values)
@@ -505,7 +534,7 @@ public class GameManager : MonoBehaviour
         float mutantPct = state.mutantTiles / totalTiles * 100f;
 
         const float panelW = 200f;
-        const float panelH = 90f;
+        const float panelH = 130f;
         const float margin = 10f;
 
         // --- Robot panel (left) ---
@@ -514,9 +543,13 @@ public class GameManager : MonoBehaviour
         GUI.Label(new Rect(margin, margin + 4, panelW, 24), "ROBOTS", titleStyle);
         GUI.Label(new Rect(margin + 12, margin + 30, panelW, 20),
                   $"Alive:  {state.robotAlive} / {unitFactory.unitsPerTeam}", valueStyle);
-        GUI.Label(new Rect(margin + 12, margin + 52, panelW, 20),
+        GUI.Label(new Rect(margin + 12, margin + 50, panelW, 20),
                   $"Tiles:  {state.robotTiles}  ({robotPct:F1}%)", valueStyle);
-        DrawBar(new Rect(margin + 12, margin + 74, panelW - 24, 6),
+        GUI.Label(new Rect(margin + 12, margin + 70, panelW, 20),
+                  $"Attacks: {robotAttacks}   Kills: {robotKills}", valueStyle);
+        GUI.Label(new Rect(margin + 12, margin + 90, panelW, 20),
+                  $"Builds:  {robotBuilds}", valueStyle);
+        DrawBar(new Rect(margin + 12, margin + 112, panelW - 24, 6),
                 robotPct / 100f, new Color(0.3f, 0.5f, 0.9f));
 
         // --- Mutant panel (right) ---
@@ -526,9 +559,13 @@ public class GameManager : MonoBehaviour
         GUI.Label(new Rect(rightX, margin + 4, panelW, 24), "MUTANTS", titleStyle);
         GUI.Label(new Rect(rightX + 12, margin + 30, panelW, 20),
                   $"Alive:  {state.mutantAlive} / {unitFactory.unitsPerTeam}", valueStyle);
-        GUI.Label(new Rect(rightX + 12, margin + 52, panelW, 20),
+        GUI.Label(new Rect(rightX + 12, margin + 50, panelW, 20),
                   $"Tiles:  {state.mutantTiles}  ({mutantPct:F1}%)", valueStyle);
-        DrawBar(new Rect(rightX + 12, margin + 74, panelW - 24, 6),
+        GUI.Label(new Rect(rightX + 12, margin + 70, panelW, 20),
+                  $"Attacks: {mutantAttacks}   Kills: {mutantKills}", valueStyle);
+        GUI.Label(new Rect(rightX + 12, margin + 90, panelW, 20),
+                  $"Builds:  {mutantBuilds}", valueStyle);
+        DrawBar(new Rect(rightX + 12, margin + 112, panelW - 24, 6),
                 mutantPct / 100f, new Color(0.3f, 0.8f, 0.2f));
 
         // --- Round counter + model info (top center) ---
