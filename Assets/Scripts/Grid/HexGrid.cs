@@ -227,6 +227,34 @@ public class HexGrid : MonoBehaviour
         tile.Owner = team;
     }
 
+    /// <summary>Count non-base tiles owned by the given team.</summary>
+    public int CountTiles(Team team)
+    {
+        int count = 0;
+        foreach (var tile in tiles.Values)
+            if (!tile.isBase && tile.Owner == team) count++;
+        return count;
+    }
+
+    private int _contestableTileCount = -1;
+
+    /// <summary>
+    /// Total number of non-base (contestable) tiles. Computed once after grid generation.
+    /// </summary>
+    public int ContestableTileCount
+    {
+        get
+        {
+            if (_contestableTileCount < 0)
+            {
+                _contestableTileCount = 0;
+                foreach (var tile in tiles.Values)
+                    if (!tile.isBase) _contestableTileCount++;
+            }
+            return _contestableTileCount;
+        }
+    }
+
     /// <summary>Get all base tiles for a given team.</summary>
     public List<HexTileData> GetBaseTiles(Team team)
     {

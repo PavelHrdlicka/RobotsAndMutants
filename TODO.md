@@ -3,22 +3,22 @@
 ## Vysoká priorita
 
 ### Rychlost
-- [ ] Sdílený `UnitCache.GetAll()` — HexAgent i HexMovement mají duplicitní static cache, 2× FindObjectsByType za frame místo 1×
-- [ ] `HexGrid.CountTiles(Team)` metoda — duplicitní iterace celého gridu v GameManager + HexAgent
+- [x] Sdílený `UnitCache.GetAll()` — HexAgent i HexMovement mají duplicitní static cache, 2× FindObjectsByType za frame místo 1×
+- [x] `HexGrid.CountTiles(Team)` metoda — duplicitní iterace celého gridu v GameManager + HexAgent
 
 ### ML-Agents trénink
-- [ ] Kill bonus (+0.5 reward za zabití nepřítele)
-- [ ] Build reward (+0.05 za úspěšný TryBuild)
+- [x] Kill bonus (+0.5 reward za zabití nepřítele)
+- [x] Build reward (+0.05 za úspěšný TryBuild)
 - [ ] Přidat fortification do observací (1 float/neighbor, celkem +6 floats → 62 obs)
 - [ ] Přidat respawn cooldown do observací (1 global float → 63 obs)
 - [ ] Zvýšit síť 256×2 → 512×2 v hex_territory.yaml
 - [ ] Zvýšit max_steps 5M → 10-15M v hex_territory.yaml
 - [ ] Zvýšit num_epoch 3 → 5 v hex_territory.yaml
-- [ ] Opravit step progress clock (Academy.StepCount / 6000f místo 2000f)
+- [x] Opravit step progress clock (Academy.StepCount / 6000f místo 2000f)
 
 ### Architektura
-- [ ] Smazat mrtvý kód: TerritorySystem (nikdy nevolán z GameManageru)
-- [ ] Smazat mrtvý kód: CombatSystem (nikdy nevolán, combat řeší HexMovement)
+- [x] Smazat mrtvý kód: TerritorySystem (nikdy nevolán z GameManageru)
+- [x] Smazat mrtvý kód: CombatSystem (nikdy nevolán, combat řeší HexMovement)
 - [ ] Rozdělit GameManager (988 řádek) → GameLoop + GameHUD + EpisodeManager + GameStats
 - [ ] Extrahovat `TestModeDetector` utility (duplicitní kód ve 3 souborech)
 

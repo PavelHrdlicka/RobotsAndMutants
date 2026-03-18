@@ -51,9 +51,6 @@ public class GameManager : MonoBehaviour
     private UnitFactory     unitFactory;
     private AbilitySystem   abilitySystem;
 
-    // Contestable tile count (non-base) for win-condition calculation.
-    private int contestableTileCount;
-
     // MA-POCA agent groups.
     private SimpleMultiAgentGroup robotGroup;
     private SimpleMultiAgentGroup mutantGroup;
@@ -73,7 +70,7 @@ public class GameManager : MonoBehaviour
     /// <summary>Current game state snapshot.</summary>
     public GameState State => new GameState(
         currentRound, maxRounds,
-        CountTiles(Team.Robot),  CountTiles(Team.Mutant),
+        grid?.CountTiles(Team.Robot) ?? 0,  grid?.CountTiles(Team.Mutant) ?? 0,
         CountAlive(Team.Robot),  CountAlive(Team.Mutant),
         gameOver, winner
     );
@@ -102,10 +99,6 @@ public class GameManager : MonoBehaviour
 
         abilitySystem = new AbilitySystem(grid);
 
-        contestableTileCount = 0;
-        foreach (var tile in grid.Tiles.Values)
-            if (!tile.isBase) contestableTileCount++;
-
         robotGroup  = new SimpleMultiAgentGroup();
         mutantGroup = new SimpleMultiAgentGroup();
 
@@ -123,7 +116,7 @@ public class GameManager : MonoBehaviour
         if (sessionStartTime == 0f)
             sessionStartTime = Time.realtimeSinceStartup;
 
-        Debug.Log($"[GameManager] Ready. {contestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
+        Debug.Log($"[GameManager] Ready. {grid.ContestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
     }
 
     public bool IsReady => grid != null && unitFactory != null;
@@ -167,8 +160,8 @@ public class GameManager : MonoBehaviour
         // Safety: force game-over if max rounds exceeded (even if no one acted).
         if (currentRound > maxRounds)
         {
-            int rTiles = CountTiles(Team.Robot);
-            int mTiles = CountTiles(Team.Mutant);
+            int rTiles = grid.CountTiles(Team.Robot);
+            int mTiles = grid.CountTiles(Team.Mutant);
             if      (rTiles > mTiles) EndGame(Team.Robot,  0.5f, -0.5f, rTiles, mTiles, "Max rounds.");
             else if (mTiles > rTiles) EndGame(Team.Mutant, 0.5f, -0.5f, rTiles, mTiles, "Max rounds.");
             else                      EndGame(Team.None,   0f,    0f,   rTiles, mTiles, "Max rounds. Draw.");
@@ -269,10 +262,11 @@ public class GameManager : MonoBehaviour
 
     private void CheckWinCondition()
     {
-        int   robotTiles  = CountTiles(Team.Robot);
-        int   mutantTiles = CountTiles(Team.Mutant);
-        float robotRatio  = (float)robotTiles  / contestableTileCount;
-        float mutantRatio = (float)mutantTiles / contestableTileCount;
+        int   robotTiles  = grid.CountTiles(Team.Robot);
+        int   mutantTiles = grid.CountTiles(Team.Mutant);
+        float total       = grid.ContestableTileCount > 0 ? grid.ContestableTileCount : 1f;
+        float robotRatio  = robotTiles  / total;
+        float mutantRatio = mutantTiles / total;
 
         if (robotRatio >= winThreshold)
         {
@@ -409,14 +403,6 @@ public class GameManager : MonoBehaviour
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
-
-    private int CountTiles(Team team)
-    {
-        int count = 0;
-        foreach (var tile in grid.Tiles.Values)
-            if (!tile.isBase && tile.Owner == team) count++;
-        return count;
-    }
 
     private int CountAlive(Team team)
     {
@@ -678,7 +664,7 @@ public class GameManager : MonoBehaviour
         hudCacheTime = Time.unscaledTime;
 
         cachedState = State;
-        float total = contestableTileCount > 0 ? contestableTileCount : 1;
+        float total = grid != null && grid.ContestableTileCount > 0 ? grid.ContestableTileCount : 1f;
         cachedRobotPct  = cachedState.robotTiles  / total * 100f;
         cachedMutantPct = cachedState.mutantTiles / total * 100f;
 

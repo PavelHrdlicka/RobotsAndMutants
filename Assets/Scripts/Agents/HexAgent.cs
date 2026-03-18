@@ -125,16 +125,15 @@ public class HexAgent : Agent
         }
 
         // Global state.
-        int  ownTiles          = CountTiles(unitData.team);
-        Team enemyTeam         = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
-        int  enemyTiles        = CountTiles(enemyTeam);
-        int  totalContestable  = GetContestableTileCount();
-        float totalF           = totalContestable > 0 ? totalContestable : 1f;
+        int  ownTiles    = grid.CountTiles(unitData.team);
+        Team enemyTeam   = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
+        int  enemyTiles  = grid.CountTiles(enemyTeam);
+        float totalF     = grid.ContestableTileCount > 0 ? grid.ContestableTileCount : 1f;
 
         sensor.AddObservation(ownTiles   / totalF);
         sensor.AddObservation(enemyTiles / totalF);
 
-        float stepProgress = Mathf.Clamp01(Academy.Instance.StepCount / 2000f);
+        float stepProgress = Mathf.Clamp01(Academy.Instance.StepCount / 6000f);
         sensor.AddObservation(stepProgress);
     }
 
@@ -155,18 +154,35 @@ public class HexAgent : Agent
             else if (action >= 1 && action <= 6)
             {
                 int dir = action - 1;
-                if (!movement.TryAttack(dir))
+                bool didAttack = movement.TryAttack(dir);
+                if (didAttack)
+                {
+                    // Kill bonus: check if the enemy at that hex just died.
+                    HexCoord targetCoord = unitData.currentHex.Neighbor(dir);
+                    foreach (var u in UnitCache.GetAll())
+                    {
+                        if (u.team != unitData.team && u.currentHex == targetCoord && !u.isAlive)
+                        {
+                            AddReward(0.5f);
+                            break;
+                        }
+                    }
+                }
+                else
+                {
                     movement.TryMove(dir);
+                }
             }
             else if (action == 7)
             {
-                movement.TryBuild();
+                if (movement.TryBuild())
+                    AddReward(0.05f);
             }
 
             // Reward shaping.
-            int ownTiles   = CountTiles(unitData.team);
+            int ownTiles   = grid.CountTiles(unitData.team);
             Team enemyTeam = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
-            int enemyTiles = CountTiles(enemyTeam);
+            int enemyTiles = grid.CountTiles(enemyTeam);
 
             int tilesGained = ownTiles - prevTeamTiles;
             if (tilesGained > 0) AddReward(0.1f * tilesGained);
@@ -215,24 +231,9 @@ public class HexAgent : Agent
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    // Cached unit list — refreshed once per CollectObservations instead of
-    // calling FindObjectsByType 12× per agent per step.
-    private static UnitData[] cachedUnits;
-    private static int cachedUnitsFrame = -1;
-
-    private static UnitData[] GetAllUnits()
-    {
-        if (Time.frameCount != cachedUnitsFrame)
-        {
-            cachedUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
-            cachedUnitsFrame = Time.frameCount;
-        }
-        return cachedUnits;
-    }
-
     private bool HasEnemyUnit(HexCoord coord)
     {
-        foreach (var u in GetAllUnits())
+        foreach (var u in UnitCache.GetAll())
         {
             if (!u.isAlive) continue;
             if (u.team != unitData.team && u.currentHex == coord) return true;
@@ -242,31 +243,11 @@ public class HexAgent : Agent
 
     private bool HasAllyUnit(HexCoord coord)
     {
-        foreach (var u in GetAllUnits())
+        foreach (var u in UnitCache.GetAll())
         {
             if (u == unitData || !u.isAlive) continue;
             if (u.team == unitData.team && u.currentHex == coord) return true;
         }
         return false;
-    }
-
-    private int CountTiles(Team team)
-    {
-        int count = 0;
-        foreach (var tile in grid.Tiles.Values)
-        {
-            if (!tile.isBase && tile.Owner == team) count++;
-        }
-        return count;
-    }
-
-    private int GetContestableTileCount()
-    {
-        int count = 0;
-        foreach (var tile in grid.Tiles.Values)
-        {
-            if (!tile.isBase) count++;
-        }
-        return count;
     }
 }

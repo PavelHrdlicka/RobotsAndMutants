@@ -271,24 +271,10 @@ public class HexMovement : MonoBehaviour
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    // Cached unit list — refreshed once per frame (shared across all HexMovement instances).
-    private static UnitData[] cachedUnits;
-    private static int cachedUnitsFrame = -1;
-
-    private static UnitData[] GetAllUnits()
-    {
-        if (Time.frameCount != cachedUnitsFrame)
-        {
-            cachedUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
-            cachedUnitsFrame = Time.frameCount;
-        }
-        return cachedUnits;
-    }
-
     /// <summary>Returns true if any alive unit (ally or enemy) occupies this hex.</summary>
     private bool IsOccupied(HexCoord coord)
     {
-        foreach (var unit in GetAllUnits())
+        foreach (var unit in UnitCache.GetAll())
         {
             if (unit == unitData) continue;
             if (!unit.isAlive)    continue;
@@ -300,7 +286,7 @@ public class HexMovement : MonoBehaviour
     /// <summary>Returns the enemy unit at the given coord, or null if none.</summary>
     private UnitData FindEnemyAt(HexCoord coord)
     {
-        foreach (var unit in GetAllUnits())
+        foreach (var unit in UnitCache.GetAll())
         {
             if (!unit.isAlive)             continue;
             if (unit.team == unitData.team) continue;
