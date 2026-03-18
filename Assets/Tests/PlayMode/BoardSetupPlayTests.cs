@@ -53,6 +53,17 @@ public class BoardSetupPlayTests
         yield return null; // UnitFactory.Start()
 
         Object.Destroy(prefab);
+
+        // Disable ML-Agents on spawned units — tests only verify board setup,
+        // not agent behaviour. Without this, DecisionRequester runs every frame
+        // and the test never finishes.
+        foreach (var u in factory.AllUnits)
+        {
+            var agent = u.GetComponent<Unity.MLAgents.Agent>();
+            if (agent != null) agent.enabled = false;
+            var dr = u.GetComponent<Unity.MLAgents.DecisionRequester>();
+            if (dr != null) dr.enabled = false;
+        }
     }
 
     [UnityTearDown]
