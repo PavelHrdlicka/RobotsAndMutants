@@ -20,6 +20,9 @@ public class UnitFactory : MonoBehaviour
     public List<UnitData> robotUnits = new();
     public List<UnitData> mutantUnits = new();
 
+    /// <summary>Skip ML-Agents components (HexAgent, DecisionRequester) — for tests.</summary>
+    [HideInInspector] public bool skipMLAgents;
+
     private IEnumerator Start()
     {
         // Wait one frame so HexGrid.Start() finishes generating the board.
@@ -111,29 +114,31 @@ public class UnitFactory : MonoBehaviour
         go.AddComponent<UnitActionIndicator3D>();
         go.AddComponent<AttackEffects>();
 
-        var bp = go.AddComponent<BehaviorParameters>();
-        bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
-        bp.BrainParameters.VectorObservationSize = 56;
-        bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(8);
-        bp.TeamId = team == Team.Robot ? 0 : 1;
-
-        // Try to load a trained model; fall back to Heuristic (random).
-        string modelName = team == Team.Robot ? "HexRobot" : "HexMutant";
-        var model = Resources.Load<ModelAsset>(modelName);
-        if (model != null)
+        if (!skipMLAgents)
         {
-            bp.Model = model;
-            bp.BehaviorType = BehaviorType.InferenceOnly;
-        }
-        else
-        {
-            bp.BehaviorType = BehaviorType.HeuristicOnly;
-        }
+            var bp = go.AddComponent<BehaviorParameters>();
+            bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
+            bp.BrainParameters.VectorObservationSize = 56;
+            bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(8);
+            bp.TeamId = team == Team.Robot ? 0 : 1;
 
-        go.AddComponent<HexAgent>();
+            string modelName = team == Team.Robot ? "HexRobot" : "HexMutant";
+            var model = Resources.Load<ModelAsset>(modelName);
+            if (model != null)
+            {
+                bp.Model = model;
+                bp.BehaviorType = BehaviorType.InferenceOnly;
+            }
+            else
+            {
+                bp.BehaviorType = BehaviorType.HeuristicOnly;
+            }
 
-        var dr = go.AddComponent<DecisionRequester>();
-        dr.DecisionPeriod = 1;
+            go.AddComponent<HexAgent>();
+
+            var dr = go.AddComponent<DecisionRequester>();
+            dr.DecisionPeriod = 1;
+        }
 
         return go;
     }
