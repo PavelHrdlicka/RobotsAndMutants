@@ -185,10 +185,24 @@ public class HexAgent : Agent
 
     // ── Private helpers ───────────────────────────────────────────────────
 
+    // Cached unit list — refreshed once per CollectObservations instead of
+    // calling FindObjectsByType 12× per agent per step.
+    private static UnitData[] cachedUnits;
+    private static int cachedUnitsFrame = -1;
+
+    private static UnitData[] GetAllUnits()
+    {
+        if (Time.frameCount != cachedUnitsFrame)
+        {
+            cachedUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
+            cachedUnitsFrame = Time.frameCount;
+        }
+        return cachedUnits;
+    }
+
     private bool HasEnemyUnit(HexCoord coord)
     {
-        var allUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
-        foreach (var u in allUnits)
+        foreach (var u in GetAllUnits())
         {
             if (!u.isAlive) continue;
             if (u.team != unitData.team && u.currentHex == coord) return true;
@@ -198,8 +212,7 @@ public class HexAgent : Agent
 
     private bool HasAllyUnit(HexCoord coord)
     {
-        var allUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
-        foreach (var u in allUnits)
+        foreach (var u in GetAllUnits())
         {
             if (u == unitData || !u.isAlive) continue;
             if (u.team == unitData.team && u.currentHex == coord) return true;

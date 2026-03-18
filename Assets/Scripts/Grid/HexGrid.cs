@@ -211,7 +211,24 @@ public class HexGrid : MonoBehaviour
     private void CenterCamera()
     {
         Camera cam = targetCamera != null ? targetCamera : Camera.main;
-        if (cam == null) return;
+
+        // Create camera if none exists (e.g. fresh scene after Reset).
+        if (cam == null)
+        {
+            var camGo = new GameObject("Main Camera");
+            camGo.tag = "MainCamera";
+            cam = camGo.AddComponent<Camera>();
+            camGo.AddComponent<AudioListener>();
+        }
+
+        // Ensure URP rendering data exists (required for camera to render in URP).
+        if (cam.GetComponent("UniversalAdditionalCameraData") == null)
+        {
+            var urpType = System.Type.GetType(
+                "UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
+            if (urpType != null)
+                cam.gameObject.AddComponent(urpType);
+        }
 
         float boardRadius = outerRadius * Mathf.Sqrt(3f) * (boardSide - 1);
         float padding = outerRadius * 3f;
