@@ -20,9 +20,10 @@ public class GameLoopPlayTests
     {
         // Ignore background errors from scene objects (GameManager, ML-Agents Academy,
         // ProjectToolsWindow) that run during Play Mode tests but aren't part of the test.
-        // Destroy all scene objects so GameManager/UnitFactory/ML-Agents don't interfere.
+        // Destroy all scene objects except the PlayMode test runner controller.
         foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects())
-            Object.Destroy(go);
+            if (go.name != "Code-based tests runner")
+                Object.Destroy(go);
         yield return null;
 
         LogAssert.ignoreFailingMessages = true;

@@ -19,3 +19,7 @@ Smrt → 30 kroků cooldown → respawn na základně.
 - ML-Agents konfigurace v Assets/ML-Agents/
 - Komentáře v kódu pouze anglicky
 - kód a proměnné pouze anglicky
+
+## Claude memory
+- Memory soubory jsou verzované v `.claude/memory/` (git)
+- Při každé aktualizaci memory souboru v `C:\Users\mail\.claude\projects\d---HERD-ROBOTI-A-MUTANTI-RobotsAndMutants\memory\` se MUSÍ aktualizovat i kopie v `.claude/memory/` a commitnout do gitu.

@@ -30,9 +30,10 @@ public class BoardSetupPlayTests
 
     private IEnumerator SetupBoard(int side, int unitsPerTeam = 3)
     {
-        // Destroy all scene objects so GameManager/UnitFactory/ML-Agents don't interfere.
+        // Destroy all scene objects except the PlayMode test runner controller.
         foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects())
-            Object.Destroy(go);
+            if (go.name != "Code-based tests runner")
+                Object.Destroy(go);
         yield return null;
 
         LogAssert.ignoreFailingMessages = true;
