@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -149,6 +150,11 @@ public class ProjectToolsWindow : EditorWindow
 
                 EditorApplication.delayCall += () =>
                 {
+                    // Always open SampleScene first — test scenes cause "No cameras rendering".
+                    var scenePath = "Assets/Scenes/SampleScene.unity";
+                    if (System.IO.File.Exists(scenePath))
+                        EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
                     HexGridSetup.Reset();
                     HexGridSetup.SetupScene();
                     EditorApplication.isPlaying = true;

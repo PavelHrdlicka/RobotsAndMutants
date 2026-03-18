@@ -30,6 +30,12 @@ public class HexGrid : MonoBehaviour
     /// <summary>All tile data indexed by axial coordinate.</summary>
     public IReadOnlyDictionary<HexCoord, HexTileData> Tiles => tiles;
 
+    private void Awake()
+    {
+        // Ensure camera exists BEFORE URP initializes its render loop.
+        EnsureCamera();
+    }
+
     private void Start()
     {
         var config = GameConfig.Instance;
@@ -44,6 +50,30 @@ public class HexGrid : MonoBehaviour
         GenerateGrid();
         SetupBases();
         CenterCamera();
+    }
+
+    /// <summary>Create a camera if none exists. Called in Awake so URP sees it early.</summary>
+    private void EnsureCamera()
+    {
+        Camera cam = targetCamera != null ? targetCamera : Camera.main;
+        if (cam == null)
+        {
+            var camGo = new GameObject("Main Camera");
+            camGo.tag = "MainCamera";
+            cam = camGo.AddComponent<Camera>();
+            camGo.AddComponent<AudioListener>();
+            camGo.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+            cam.targetDisplay = 0;
+            cam.enabled = true;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.12f, 0.12f, 0.18f, 1f);
+            Debug.Log("[HexGrid] Created camera in Awake.");
+        }
+        else if (cam.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>() == null)
+        {
+            cam.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+            Debug.Log("[HexGrid] Added URP data to existing camera.");
+        }
     }
 
     private void GenerateGrid()
