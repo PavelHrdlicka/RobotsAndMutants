@@ -33,7 +33,7 @@ public class HexAgent : Agent
     // Cached one-time detection of whether tests are running.
     private static bool? s_testMode;
 
-    private void Awake()
+    private new void Awake()
     {
         // Awake fires before OnEnable. Academy.LazyInitialize() is called in OnEnable,
         // which blocks ~60s when BehaviorType=Default and no Python trainer is running.
