@@ -128,13 +128,18 @@ public class GameManager : MonoBehaviour
 
     // ── Sequential turn loop ───────────────────────────────────────────────
 
+    // Guard against multiple StartNewRound calls in the same frame.
+    private int lastRoundStartFrame = -1;
+
     private void FixedUpdate()
     {
         if (gameOver || !IsReady) return;
 
-        // Bootstrap: start first round once systems are ready.
+        // Bootstrap / new round — at most once per frame to prevent freeze.
         if (!turnStarted)
         {
+            if (Time.frameCount == lastRoundStartFrame) return; // already tried this frame
+            lastRoundStartFrame = Time.frameCount;
             StartNewRound();
             return;
         }
@@ -202,13 +207,21 @@ public class GameManager : MonoBehaviour
         {
             // Round complete — tick respawn cooldowns.
             unitFactory.RespawnReady();
-            // Don't recurse into StartNewRound — let FixedUpdate handle it
-            // to prevent infinite recursion when all units are dead.
+            // Let FixedUpdate start the next round (one per frame max).
             turnStarted = false;
             return;
         }
 
         pendingUnit = turnOrder[turnIndex];
+
+        // Safety: if the pending unit's GO is inactive (died mid-round but somehow
+        // still in list), skip it.
+        if (pendingUnit == null || !pendingUnit.gameObject.activeInHierarchy)
+        {
+            AdvanceTurn(); // skip to next (safe: list is finite)
+            return;
+        }
+
         pendingUnit.isMyTurn = true;
     }
 
