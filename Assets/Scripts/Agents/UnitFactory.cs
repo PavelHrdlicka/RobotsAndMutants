@@ -66,22 +66,6 @@ public class UnitFactory : MonoBehaviour
         SpawnTeam(Team.Mutant, mutantBases, mutantUnits);
 
         Debug.Log($"[UnitFactory] Spawned {robotUnits.Count} Robots and {mutantUnits.Count} Mutants.");
-        Debug.Log($"[UnitFactory] DIAG skipMLAgents={skipMLAgents}");
-
-        if (!skipMLAgents)
-        {
-            try
-            {
-                bool commOn = Academy.Instance.IsCommunicatorOn;
-                var bp0 = robotUnits[0].GetComponent<BehaviorParameters>();
-                Debug.Log($"[UnitFactory] Academy.IsCommunicatorOn={commOn}, " +
-                          $"BehaviorType={bp0?.BehaviorType}, IsHeuristic={bp0?.IsInHeuristicMode()}");
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[UnitFactory] Diagnostic exception: {ex}");
-            }
-        }
     }
 
     private void SpawnTeam(Team team, List<HexTileData> baseTiles, List<UnitData> unitList)
