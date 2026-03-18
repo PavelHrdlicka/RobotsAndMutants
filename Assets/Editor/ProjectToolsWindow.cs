@@ -253,18 +253,19 @@ public class ProjectToolsWindow : EditorWindow
                 GUI.backgroundColor = Color.white;
 
                 // -- Init from previous trained weights --
-                if (!string.IsNullOrEmpty(prevRunId))
+                bool hasModel = !string.IsNullOrEmpty(prevRunId);
+                GUI.backgroundColor = hasModel ? new Color(0.8f, 0.6f, 1f) : Color.white;
+                GUI.enabled = hasModel;
+                string initLabel = hasModel ? $"New run (init from {prevRunId})" : "New run (init from previous) — no model yet";
+                if (GUILayout.Button(initLabel, GUILayout.Height(28)))
                 {
-                    GUI.backgroundColor = new Color(0.8f, 0.6f, 1f);
-                    if (GUILayout.Button($"New run (init from {prevRunId})", GUILayout.Height(28)))
-                    {
-                        int next = RunCounter;
-                        RunCounter = next + 1;
-                        runId = $"run{next}";
-                        StartTraining(TrainingMode.InitFrom, prevRunId);
-                    }
-                    GUI.backgroundColor = Color.white;
+                    int next = RunCounter;
+                    RunCounter = next + 1;
+                    runId = $"run{next}";
+                    StartTraining(TrainingMode.InitFrom, prevRunId);
                 }
+                GUI.enabled = true;
+                GUI.backgroundColor = Color.white;
 
                 if (processExited)
                 {
