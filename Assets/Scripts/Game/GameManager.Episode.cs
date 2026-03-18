@@ -47,7 +47,9 @@ public partial class GameManager
         unitFactory.ClearUnits();
         unitFactory.SpawnAllUnits();
 
-        Debug.Log("[GameManager] Game reset.");
+        // Throttle per-episode logging to avoid stack-trace overhead during training.
+        if (PlayerPrefs.GetInt("TotalGames", 0) % 50 == 0)
+            Debug.Log("[GameManager] Game reset.");
     }
 
     private void RecordMatch(Team matchWinner, int rounds, int rTiles, int mTiles)

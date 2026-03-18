@@ -65,7 +65,9 @@ public class UnitFactory : MonoBehaviour
         SpawnTeam(Team.Robot, robotBases, robotUnits);
         SpawnTeam(Team.Mutant, mutantBases, mutantUnits);
 
-        Debug.Log($"[UnitFactory] Spawned {robotUnits.Count} Robots and {mutantUnits.Count} Mutants.");
+        // Throttle per-episode logging — stack traces in Debug.Log are expensive.
+        if (PlayerPrefs.GetInt("TotalGames", 0) % 50 == 0)
+            Debug.Log($"[UnitFactory] Spawned {robotUnits.Count} Robots and {mutantUnits.Count} Mutants.");
     }
 
     private void SpawnTeam(Team team, List<HexTileData> baseTiles, List<UnitData> unitList)

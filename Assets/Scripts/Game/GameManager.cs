@@ -294,7 +294,8 @@ public partial class GameManager : MonoBehaviour
 
         RecordMatch(win, currentRound, rTiles, mTiles);
         EndEpisodeForAll();
-        Debug.Log($"[GameManager] {logMsg}");
+        if (PlayerPrefs.GetInt("TotalGames", 0) % 50 == 0)
+            Debug.Log($"[GameManager] {logMsg}");
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
