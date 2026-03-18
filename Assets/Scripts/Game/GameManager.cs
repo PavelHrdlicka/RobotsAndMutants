@@ -152,6 +152,18 @@ public class GameManager : MonoBehaviour
     private void StartNewRound()
     {
         currentRound++;
+
+        // Safety: force game-over if max rounds exceeded (even if no one acted).
+        if (currentRound > maxRounds)
+        {
+            int rTiles = CountTiles(Team.Robot);
+            int mTiles = CountTiles(Team.Mutant);
+            if      (rTiles > mTiles) EndGame(Team.Robot,  0.5f, -0.5f, rTiles, mTiles, "Max rounds.");
+            else if (mTiles > rTiles) EndGame(Team.Mutant, 0.5f, -0.5f, rTiles, mTiles, "Max rounds.");
+            else                      EndGame(Team.None,   0f,    0f,   rTiles, mTiles, "Max rounds. Draw.");
+            return;
+        }
+
         abilitySystem.UpdateAbilities(unitFactory.AllUnits);
         BuildTurnOrder();
         turnIndex   = -1;
@@ -188,17 +200,15 @@ public class GameManager : MonoBehaviour
 
         if (turnIndex >= turnOrder.Count)
         {
-            // Round complete.
+            // Round complete — tick respawn cooldowns.
             unitFactory.RespawnReady();
-            if (!gameOver)
-                StartNewRound();
+            // Don't recurse into StartNewRound — let FixedUpdate handle it
+            // to prevent infinite recursion when all units are dead.
+            turnStarted = false;
             return;
         }
 
         pendingUnit = turnOrder[turnIndex];
-
-        // Flag this unit as active. DecisionRequester fires for all agents every
-        // frame, but only the unit with isMyTurn=true will execute its action.
         pendingUnit.isMyTurn = true;
     }
 
