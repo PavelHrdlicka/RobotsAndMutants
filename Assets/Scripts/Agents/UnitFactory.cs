@@ -125,6 +125,9 @@ public class UnitFactory : MonoBehaviour
         bp.BrainParameters.VectorObservationSize = 56;
         bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(8);
         bp.TeamId = team == Team.Robot ? 0 : 1;
+        // Default to Heuristic so Unity doesn't try to connect to Python.
+        // When mlagents-learn runs, it overrides this to Default automatically.
+        bp.BehaviorType = BehaviorType.HeuristicOnly;
         Debug.Log($"[Factory::{unitName}] BehaviorParams OK");
 
         go.AddComponent<HexAgent>();
