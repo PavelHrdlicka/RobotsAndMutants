@@ -32,9 +32,13 @@ public class ProjectToolsWindow : EditorWindow
     private static string runId = "run1";
 
     // SessionState keys — survive domain reload within the same Unity session.
-    private const string k_TrainingPidKey   = "ProjectTools_TrainingPID";
-    private const string k_PythonReadyKey   = "ProjectTools_PythonReady";
-    private const string k_AutoPlayPending  = "ProjectTools_AutoPlayPending";
+    private const string k_TrainingPidKey      = "ProjectTools_TrainingPID";
+    private const string k_PythonReadyKey      = "ProjectTools_PythonReady";
+    private const string k_AutoPlayPending     = "ProjectTools_AutoPlayPending";
+    // Set before Reset/SetupScene so a domain reload mid-DoStartTrainingAndPlay
+    // can be detected in OnEnable and the training start can be resumed.
+    private const string k_StartTrainingPending = "ProjectTools_StartTrainingPending";
+    private const string k_StartTrainingRunId   = "ProjectTools_StartTrainingRunId";
 
     // Set to true when Python outputs "Listening on port 5004" — triggers auto Play.
     private static volatile bool pythonReady;
@@ -100,7 +104,39 @@ public class ProjectToolsWindow : EditorWindow
         EditorApplication.update += OnEditorUpdate;
         runId = $"run{RunCounter}";
         TryRestoreTrainingProcess();
+        TryResumeTrainingStart();
         TryResumeAutoPlay();
+    }
+
+    /// <summary>
+    /// If a domain reload happened inside DoStartTrainingAndPlay() — between
+    /// the Reset/Setup and the StartTraining() call — resume starting Python now.
+    /// This can happen when SaveAssets() flushes a pending compilation.
+    /// </summary>
+    private static void TryResumeTrainingStart()
+    {
+        if (!SessionState.GetBool(k_StartTrainingPending, false)) return;
+
+        string savedRunId = SessionState.GetString(k_StartTrainingRunId, "");
+        if (string.IsNullOrEmpty(savedRunId))
+        {
+            SessionState.EraseBool(k_StartTrainingPending);
+            return;
+        }
+
+        runId = savedRunId;
+        SessionState.EraseBool(k_StartTrainingPending);
+
+        // If process was already restored from PID (domain reload after StartTraining
+        // succeeded but before the flag was cleared) just register the wait loop.
+        bool alreadyRunning = trainingProcess != null && !trainingProcess.HasExited;
+        if (!alreadyRunning)
+        {
+            Debug.Log($"[ML-Train] Resuming training start after domain reload (run-id: {runId}).");
+            StartTraining();
+        }
+
+        RegisterWaitForPython();
     }
 
     /// <summary>
@@ -603,10 +639,26 @@ public class ProjectToolsWindow : EditorWindow
 
     private static void DoStartTrainingAndPlay()
     {
+        // Guard: if scripts are compiling, SaveAssets() will flush the compilation
+        // and trigger a domain reload that interrupts this method before StartTraining().
+        if (EditorApplication.isCompiling)
+        {
+            Debug.LogWarning("[ML-Train] Scripts are compiling — please wait and try again.");
+            return;
+        }
+
+        // Clear any stale AutoPlayPending from a previous failed attempt.
+        SessionState.EraseBool(k_AutoPlayPending);
+
         // Increment run counter for unique ID.
         int next = RunCounter;
         RunCounter = next + 1;
         runId = $"run{next}";
+
+        // Persist runId BEFORE Reset/SetupScene so that if SaveAssets() triggers a
+        // domain reload mid-function, TryResumeTrainingStart() in OnEnable can pick up.
+        SessionState.SetBool(k_StartTrainingPending, true);
+        SessionState.SetString(k_StartTrainingRunId, runId);
 
         // Reset and setup scene, then persist so prefab refs survive Play mode.
         HexGridSetup.Reset();
@@ -617,8 +669,20 @@ public class ProjectToolsWindow : EditorWindow
         // Start Python training.
         StartTraining();
 
+        // Reached here — no domain reload happened. Clear the pending flag.
+        SessionState.EraseBool(k_StartTrainingPending);
+
         // Wait for Python "Listening on port 5004" before entering Play mode.
-        // Fallback: enter Play after 90s even if message never arrives.
+        RegisterWaitForPython();
+    }
+
+    /// <summary>
+    /// Registers an EditorApplication.update callback that waits for Python
+    /// to print "Listening on port 5004", then enters Play mode automatically.
+    /// Fallback: enters Play after 90 s even if the message never arrives.
+    /// </summary>
+    private static void RegisterWaitForPython()
+    {
         double startTime = EditorApplication.timeSinceStartup;
         const double maxWaitSeconds = 90.0;
         EditorApplication.CallbackFunction waitForPython = null;
@@ -654,6 +718,7 @@ public class ProjectToolsWindow : EditorWindow
         trainingProcess = null;
         SessionState.EraseInt(k_TrainingPidKey);
         SessionState.EraseBool(k_AutoPlayPending);
+        SessionState.EraseBool(k_StartTrainingPending);
 
         // Kill any orphaned mlagents processes still holding port 5004.
         // This happens when domain reload (script recompile) clears the static

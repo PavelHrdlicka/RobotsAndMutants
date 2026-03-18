@@ -233,9 +233,11 @@ Všechny akce ovládané z Unity editoru přes dokovatelné okno **Project Tools
 - **Reset + Setup + Play** — jedno tlačítko: reset prefabů, setup scény, start play.
 
 ### ML Training
-- **Start Training** — spustí Python mlagents-learn proces.
+- **Start Training (new)** — spustí Python mlagents-learn s `--force` (nový run).
+- **Resume Training** — pokračuje v přerušeném run (`--resume`); dostupné pouze pokud `results/{runId}/` existuje.
+- **New run (init from previous)** — nový run inicializovaný z ONNX vah předchozího run (`--initialize-from`).
 - **Stop Training** — ukončí Python proces.
-- **Train (auto)** — reset + setup + start Python + auto-play.
+- **Train (auto)** — reset + setup + start Python + auto-play. Odolné vůči domain reloadu: pokud `SaveAssets()` spustí rekompilaci před startem Pythonu, `TryResumeTrainingStart()` po domain reloadu Python spustí automaticky.
 - **Open TensorBoard** — spustí TensorBoard a otevře prohlížeč.
 - **Stop TensorBoard** — ukončí TensorBoard.
 
