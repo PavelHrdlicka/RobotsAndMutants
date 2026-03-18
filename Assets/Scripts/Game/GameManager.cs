@@ -332,6 +332,15 @@ public class GameManager : MonoBehaviour
 
     private void EndEpisodeForAll()
     {
+        // Persist running total to PlayerPrefs every game.
+        PlayerPrefs.SetInt("TotalGames", PlayerPrefs.GetInt("TotalGames", 0) + 1);
+        long prev = (long)PlayerPrefs.GetInt("TotalTurnsHi", 0) << 32
+                  | (uint)PlayerPrefs.GetInt("TotalTurnsLo", 0);
+        // Save round count for this episode as turns delta.
+        long updated = prev + currentRound;
+        PlayerPrefs.SetInt("TotalTurnsHi", (int)(updated >> 32));
+        PlayerPrefs.SetInt("TotalTurnsLo", (int)(updated & 0xFFFFFFFF));
+
         robotGroup?.EndGroupEpisode();
         mutantGroup?.EndGroupEpisode();
 
@@ -390,6 +399,31 @@ public class GameManager : MonoBehaviour
         return count;
     }
 
+    private string cachedModelInfo;
+    private float modelInfoCacheTime;
+
+    private string GetModelInfo()
+    {
+        // Cache for 2 seconds to avoid per-frame lookups.
+        if (cachedModelInfo != null && Time.unscaledTime - modelInfoCacheTime < 2f)
+            return cachedModelInfo;
+        modelInfoCacheTime = Time.unscaledTime;
+
+        if (unitFactory == null || unitFactory.robotUnits.Count == 0)
+        {
+            cachedModelInfo = "Model: none (random)";
+            return cachedModelInfo;
+        }
+
+        var bp = unitFactory.robotUnits[0].GetComponent<Unity.MLAgents.Policies.BehaviorParameters>();
+        if (bp != null && bp.Model != null)
+            cachedModelInfo = $"Model: {bp.Model.name} (trained)";
+        else
+            cachedModelInfo = "Model: none (heuristic/random)";
+
+        return cachedModelInfo;
+    }
+
     // ── GUI ────────────────────────────────────────────────────────────────
 
     private GUIStyle panelStyle;
@@ -397,6 +431,7 @@ public class GameManager : MonoBehaviour
     private GUIStyle valueStyle;
     private GUIStyle stepStyle;
     private GUIStyle gameOverStyle;
+    private GUIStyle labelStyleCenter;
     private Texture2D robotBg;
     private Texture2D mutantBg;
     private Texture2D darkBg;
@@ -438,6 +473,13 @@ public class GameManager : MonoBehaviour
         {
             fontSize = 22, fontStyle = FontStyle.Bold,
             normal = { textColor = new Color(1f, 0.85f, 0.2f) },
+            alignment = TextAnchor.MiddleCenter
+        };
+
+        labelStyleCenter = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 10,
+            normal = { textColor = new Color(0.7f, 0.7f, 0.6f) },
             alignment = TextAnchor.MiddleCenter
         };
     }
@@ -489,13 +531,17 @@ public class GameManager : MonoBehaviour
         DrawBar(new Rect(rightX + 12, margin + 74, panelW - 24, 6),
                 mutantPct / 100f, new Color(0.3f, 0.8f, 0.2f));
 
-        // --- Round counter (top center) ---
-        float centerW = 180f;
+        // --- Round counter + model info (top center) ---
+        float centerW = 220f;
         float centerX = (Screen.width - centerW) * 0.5f;
         panelStyle.normal.background = darkBg;
-        GUI.Box(new Rect(centerX, margin, centerW, 30), "", panelStyle);
-        GUI.Label(new Rect(centerX, margin + 4, centerW, 22),
+        GUI.Box(new Rect(centerX, margin, centerW, 44), "", panelStyle);
+        GUI.Label(new Rect(centerX, margin + 2, centerW, 22),
                   $"Round {state.currentRound} / {state.maxRounds}", stepStyle);
+
+        // Show which model is loaded (reads from first robot agent).
+        string modelInfo = GetModelInfo();
+        GUI.Label(new Rect(centerX, margin + 22, centerW, 16), modelInfo, labelStyleCenter);
 
         // --- Game over banner ---
         if (state.gameOver)
@@ -559,7 +605,7 @@ public class GameManager : MonoBehaviour
             statsBg = MakeTex(1, 1, new Color(0.06f, 0.06f, 0.14f, 0.85f));
 
         const float panelW = 340f;
-        const float panelH = 56f;
+        const float panelH = 74f;
         const float margin = 10f;
 
         // Position: just above match history panel.
@@ -588,6 +634,15 @@ public class GameManager : MonoBehaviour
         GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18),
             $"Speed: {turnsPerSec:F0} turns/s   Avg: {(matchCounter > 0 ? totalTurns / matchCounter : 0):N0} turns/game",
             historyRowStyle);
+        y += 20f;
+
+        // Total training stats (all sessions combined, persisted in PlayerPrefs).
+        long allTimeGames = PlayerPrefs.GetInt("TotalGames", 0);
+        long allTimeRounds = (long)PlayerPrefs.GetInt("TotalTurnsHi", 0) << 32
+                           | (uint)PlayerPrefs.GetInt("TotalTurnsLo", 0);
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18),
+            $"ALL TIME: {allTimeGames:N0} games   {allTimeRounds:N0} rounds",
+            historyHeaderStyle);
     }
 
     private void DrawMatchHistory()

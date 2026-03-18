@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.InferenceEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Policies;
@@ -115,9 +116,19 @@ public class UnitFactory : MonoBehaviour
         bp.BrainParameters.VectorObservationSize = 56;
         bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(8);
         bp.TeamId = team == Team.Robot ? 0 : 1;
-        // Default to Heuristic so Unity doesn't try to connect to Python.
-        // When mlagents-learn runs, it overrides this to Default automatically.
-        bp.BehaviorType = BehaviorType.HeuristicOnly;
+
+        // Try to load a trained model; fall back to Heuristic (random).
+        string modelName = team == Team.Robot ? "HexRobot" : "HexMutant";
+        var model = Resources.Load<ModelAsset>(modelName);
+        if (model != null)
+        {
+            bp.Model = model;
+            bp.BehaviorType = BehaviorType.InferenceOnly;
+        }
+        else
+        {
+            bp.BehaviorType = BehaviorType.HeuristicOnly;
+        }
 
         go.AddComponent<HexAgent>();
 

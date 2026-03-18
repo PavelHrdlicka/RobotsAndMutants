@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEditor;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using Unity.MLAgents.Policies;
 using Debug = UnityEngine.Debug;
 
 /// <summary>
@@ -40,6 +43,10 @@ public class ProjectToolsWindow : EditorWindow
         }
         return max + 1;
     }
+
+    // Loaded model info (persisted in EditorPrefs).
+    private const string ModelRunIdKey   = "MLTrain_LoadedModelRunId";
+    private const string ModelStepsKey   = "MLTrain_LoadedModelSteps";
 
     private const string PythonExe = @"C:\Users\mail\miniconda3\envs\mlagents2\python.exe";
     private static string ConfigPath => System.IO.Path.GetFullPath("Assets/ML-Agents/config/hex_territory.yaml");
@@ -351,9 +358,99 @@ public class ProjectToolsWindow : EditorWindow
         {
             trainingProcess.Kill();
             trainingProcess.Dispose();
-            UnityEngine.Debug.Log("[ML-Train] Training stopped.");
+            Debug.Log("[ML-Train] Training stopped.");
         }
         trainingProcess = null;
+
+        // Auto-load the trained models.
+        LoadBestModels(runId);
+    }
+
+    /// <summary>
+    /// Find the latest .onnx models from a training run and copy them into
+    /// Assets/ML-Agents/ so they can be assigned to agents at runtime.
+    /// </summary>
+    private static void LoadBestModels(string fromRunId)
+    {
+        string resultsDir = Path.GetFullPath($"results/{fromRunId}");
+        if (!Directory.Exists(resultsDir))
+        {
+            Debug.LogWarning($"[ML-Train] No results folder for {fromRunId}.");
+            return;
+        }
+
+        string robotOnnx  = Path.Combine(resultsDir, "HexRobot.onnx");
+        string mutantOnnx = Path.Combine(resultsDir, "HexMutant.onnx");
+
+        if (!File.Exists(robotOnnx) || !File.Exists(mutantOnnx))
+        {
+            Debug.LogWarning($"[ML-Train] ONNX models not found in {resultsDir}.");
+            return;
+        }
+
+        // Copy into Assets so Unity can import them as NNModel.
+        string destDir = "Assets/Resources";
+        if (!Directory.Exists(destDir))
+            Directory.CreateDirectory(destDir);
+
+        string destRobot  = Path.Combine(destDir, "HexRobot.onnx");
+        string destMutant = Path.Combine(destDir, "HexMutant.onnx");
+        File.Copy(robotOnnx, destRobot, true);
+        File.Copy(mutantOnnx, destMutant, true);
+        AssetDatabase.Refresh();
+
+        // Read training steps from status JSON.
+        long totalSteps = 0;
+        string statusPath = Path.Combine(resultsDir, "run_logs", "training_status.json");
+        if (File.Exists(statusPath))
+        {
+            string json = File.ReadAllText(statusPath);
+            // Simple parse: find "steps": NNN
+            foreach (string line in json.Split('\n'))
+            {
+                string trimmed = line.Trim().Trim(',');
+                if (trimmed.StartsWith("\"steps\""))
+                {
+                    string val = trimmed.Split(':')[1].Trim().Trim(',');
+                    if (long.TryParse(val, out long s) && s > totalSteps)
+                        totalSteps = s;
+                }
+            }
+        }
+
+        // Save model info to EditorPrefs.
+        EditorPrefs.SetString(ModelRunIdKey, fromRunId);
+        EditorPrefs.SetInt(ModelStepsKey, (int)totalSteps);
+
+        Debug.Log($"[ML-Train] Loaded models from {fromRunId} ({totalSteps:N0} steps). Models at {destDir}/");
+
+        // If in Play mode, assign to all agents immediately.
+        if (EditorApplication.isPlaying)
+            AssignModelsToAgents();
+    }
+
+    private static void AssignModelsToAgents()
+    {
+        var robotModel  = AssetDatabase.LoadAssetAtPath<Unity.InferenceEngine.ModelAsset>("Assets/Resources/HexRobot.onnx");
+        var mutantModel = AssetDatabase.LoadAssetAtPath<Unity.InferenceEngine.ModelAsset>("Assets/Resources/HexMutant.onnx");
+
+        int assigned = 0;
+        foreach (var bp in Object.FindObjectsByType<BehaviorParameters>(FindObjectsSortMode.None))
+        {
+            if (bp.BehaviorName == "HexRobot" && robotModel != null)
+            {
+                bp.Model = robotModel;
+                bp.BehaviorType = BehaviorType.InferenceOnly;
+                assigned++;
+            }
+            else if (bp.BehaviorName == "HexMutant" && mutantModel != null)
+            {
+                bp.Model = mutantModel;
+                bp.BehaviorType = BehaviorType.InferenceOnly;
+                assigned++;
+            }
+        }
+        Debug.Log($"[ML-Train] Models assigned to {assigned} agents (InferenceOnly).");
     }
 
     private static void StartTensorBoard()
