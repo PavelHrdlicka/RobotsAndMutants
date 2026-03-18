@@ -695,7 +695,6 @@ public class GameManager : MonoBehaviour
         const float centerW = 240f;
         const float centerH = 52f;
         const float margin = 8f;
-        const float iconS = 16f;
 
         float centerX = (Screen.width - centerW) * 0.5f;
 
