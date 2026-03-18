@@ -143,9 +143,7 @@ public class GameManager : MonoBehaviour
         {
             if (Time.frameCount == lastRoundStartFrame) return;
             lastRoundStartFrame = Time.frameCount;
-            if (currentRound == 0) Debug.Log("[GameManager] Starting first round...");
             StartNewRound();
-            if (currentRound == 1) Debug.Log($"[GameManager] First round started. turnOrder={turnOrder.Count}, turnIndex={turnIndex}");
             return;
         }
 

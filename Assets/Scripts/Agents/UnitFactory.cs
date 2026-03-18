@@ -68,13 +68,10 @@ public class UnitFactory : MonoBehaviour
     {
         int count = Mathf.Min(unitsPerTeam, baseTiles.Count);
 
-        Debug.Log($"[UnitFactory] SpawnTeam {team}: count={count}, bases={baseTiles.Count}");
         for (int i = 0; i < count; i++)
         {
-            Debug.Log($"[UnitFactory] Creating {team} unit {i}...");
             var tile = baseTiles[i % baseTiles.Count];
             GameObject unitGo = CreateUnitPrimitive(team, i);
-            Debug.Log($"[UnitFactory] {team} unit {i} created OK.");
 
             var unitData = unitGo.GetComponent<UnitData>();
             unitData.team = team;
@@ -92,14 +89,11 @@ public class UnitFactory : MonoBehaviour
     private GameObject CreateUnitPrimitive(Team team, int index)
     {
         string unitName = team == Team.Robot ? $"Robot_{index}" : $"Mutant_{index}";
-        Debug.Log($"[Factory::{unitName}] START");
 
         var go = new GameObject(unitName);
 
         go.AddComponent<UnitData>();
-        Debug.Log($"[Factory::{unitName}] UnitData OK");
         go.AddComponent<HexMovement>();
-        Debug.Log($"[Factory::{unitName}] HexMovement OK");
 
         if (team == Team.Robot)
         {
@@ -111,14 +105,10 @@ public class UnitFactory : MonoBehaviour
             var builder = go.AddComponent<MutantModelBuilder>();
             builder.Build();
         }
-        Debug.Log($"[Factory::{unitName}] Model OK");
 
         go.AddComponent<UnitHealthBar3D>();
-        Debug.Log($"[Factory::{unitName}] HealthBar OK");
         go.AddComponent<UnitActionIndicator3D>();
-        Debug.Log($"[Factory::{unitName}] Indicator OK");
         go.AddComponent<AttackEffects>();
-        Debug.Log($"[Factory::{unitName}] Effects OK");
 
         var bp = go.AddComponent<BehaviorParameters>();
         bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
@@ -128,14 +118,11 @@ public class UnitFactory : MonoBehaviour
         // Default to Heuristic so Unity doesn't try to connect to Python.
         // When mlagents-learn runs, it overrides this to Default automatically.
         bp.BehaviorType = BehaviorType.HeuristicOnly;
-        Debug.Log($"[Factory::{unitName}] BehaviorParams OK");
 
         go.AddComponent<HexAgent>();
-        Debug.Log($"[Factory::{unitName}] HexAgent OK");
 
         var dr = go.AddComponent<DecisionRequester>();
         dr.DecisionPeriod = 1;
-        Debug.Log($"[Factory::{unitName}] DecisionRequester OK — DONE");
 
         return go;
     }
