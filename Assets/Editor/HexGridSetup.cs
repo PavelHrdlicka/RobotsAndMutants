@@ -120,19 +120,26 @@ public static class HexGridSetup
         Camera cam = Camera.main;
         if (cam == null)
         {
-            Debug.LogWarning("[HexGridSetup] No MainCamera found. HexGrid will configure it at Play time.");
-            return;
+            // Create a camera if none exists.
+            var camGo = new GameObject("Main Camera");
+            camGo.tag = "MainCamera";
+            cam = camGo.AddComponent<Camera>();
+            // Add URP camera data if available.
+            var urpCamType = System.Type.GetType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
+            if (urpCamType != null) camGo.AddComponent(urpCamType);
+            Debug.Log("[HexGridSetup] Created MainCamera.");
         }
 
         cam.orthographic = true;
         cam.transform.position = new Vector3(0f, 50f, 0f);
-        cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+        cam.transform.rotation = Quaternion.Euler(45f, 45f, 0f);
+        cam.transform.position = -cam.transform.forward * 50f;
         cam.orthographicSize = 10f;
         cam.nearClipPlane = 0.1f;
-        cam.farClipPlane = 100f;
+        cam.farClipPlane = 200f;
         cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.15f, 0.15f, 0.2f, 1f);
+        cam.backgroundColor = new Color(0.12f, 0.12f, 0.18f, 1f);
 
-        Debug.Log("[HexGridSetup] Camera configured for top-down view.");
+        Debug.Log("[HexGridSetup] Camera configured (isometric 45°).");
     }
 }
