@@ -110,15 +110,23 @@ public class ProjectToolsWindow : EditorWindow
     private static void TryResumeAutoPlay()
     {
         if (!SessionState.GetBool(k_AutoPlayPending, false)) return;
-        if (EditorApplication.isPlaying) { SessionState.EraseBool(k_AutoPlayPending); return; }
 
-        // Python should still be running — enter Play mode.
+        // isPlayingOrWillChangePlaymode is true both when already playing AND
+        // when a domain reload is happening as part of entering Play mode.
+        // In that case Unity will finish entering Play mode on its own — do nothing.
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            SessionState.EraseBool(k_AutoPlayPending);
+            return;
+        }
+
+        // We are truly in Edit mode (e.g. domain reload happened due to script
+        // compilation mid-wait, not due to Play mode entry). Re-enter Play mode.
         bool trainingAlive = trainingProcess != null && !trainingProcess.HasExited;
         if (trainingAlive)
         {
-            Debug.Log("[ML-Train] Resuming auto-Play after domain reload (Python still running).");
+            Debug.Log("[ML-Train] Resuming auto-Play after script-compile domain reload.");
             SessionState.EraseBool(k_AutoPlayPending);
-            // Delay one frame so the editor finishes OnEnable before switching to Play.
             EditorApplication.delayCall += () => EditorApplication.isPlaying = true;
         }
         else
