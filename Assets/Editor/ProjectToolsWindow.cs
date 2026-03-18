@@ -46,8 +46,12 @@ public class ProjectToolsWindow : EditorWindow
     }
 
     // Loaded model info (persisted in EditorPrefs).
-    private const string ModelRunIdKey   = "MLTrain_LoadedModelRunId";
-    private const string ModelStepsKey   = "MLTrain_LoadedModelSteps";
+    private const string ModelRunIdKey    = "MLTrain_LoadedModelRunId";
+    private const string ModelStepsKey    = "MLTrain_LoadedModelSteps";
+
+    // Training session counters — snapshot at start, delta saved to PlayerPrefs at stop.
+    private static int trainStartGames;
+    private static int trainStartRounds;
 
     private const string PythonExe = @"C:\Users\mail\miniconda3\envs\mlagents2\python.exe";
     private static string ConfigPath => System.IO.Path.GetFullPath("Assets/ML-Agents/config/hex_territory.yaml");
@@ -285,6 +289,14 @@ public class ProjectToolsWindow : EditorWindow
             if (GUILayout.Button("Open Test Runner"))
                 EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
 
+            if (EditorApplication.isPlaying)
+            {
+                EditorGUILayout.HelpBox(
+                    "EXIT Play mode before running PlayMode tests!\n" +
+                    "Test Runner fails with 'cannot be used during play mode' if game is running.",
+                    MessageType.Warning);
+            }
+
             EditorGUILayout.Space(4);
             bool autoTest = AutoTestRunner.Enabled;
             bool newAutoTest = EditorGUILayout.Toggle("Auto-run after compile", autoTest);
@@ -329,6 +341,10 @@ public class ProjectToolsWindow : EditorWindow
                 UnityEngine.Debug.Log($"[ML-Train] {e.Data}");
             }
         };
+
+        // Snapshot current counters so we can compute the training delta at stop.
+        trainStartGames  = PlayerPrefs.GetInt("TotalGames", 0);
+        trainStartRounds = PlayerPrefs.GetInt("TotalRoundsLo", 0);
 
         trainingProcess.Start();
         trainingProcess.BeginOutputReadLine();
@@ -444,7 +460,18 @@ public class ProjectToolsWindow : EditorWindow
         EditorPrefs.SetString(ModelRunIdKey, fromRunId);
         EditorPrefs.SetInt(ModelStepsKey, (int)totalSteps);
 
-        Debug.Log($"[ML-Train] Loaded models from {fromRunId} ({totalSteps:N0} steps). Models at {destDir}/");
+        // Compute training session delta and save to PlayerPrefs for runtime HUD.
+        int nowGames  = PlayerPrefs.GetInt("TotalGames", 0);
+        int nowRounds = PlayerPrefs.GetInt("TotalRoundsLo", 0);
+        int trainGames  = Mathf.Max(0, nowGames  - trainStartGames);
+        int trainRounds = Mathf.Max(0, nowRounds - trainStartRounds);
+        PlayerPrefs.SetInt("TrainedOnGames",  trainGames);
+        PlayerPrefs.SetInt("TrainedOnRounds", trainRounds);
+        PlayerPrefs.SetString("TrainedRunId", fromRunId);
+        PlayerPrefs.SetInt("TrainedSteps", (int)totalSteps);
+        PlayerPrefs.Save();
+
+        Debug.Log($"[ML-Train] Loaded models from {fromRunId} ({totalSteps:N0} steps, {trainGames} games, {trainRounds} rounds). Models at {destDir}/");
 
         // If in Play mode, assign to all agents immediately.
         if (EditorApplication.isPlaying)

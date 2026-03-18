@@ -32,8 +32,9 @@ public class HexGrid : MonoBehaviour
 
     private void Awake()
     {
-        // Ensure camera exists BEFORE URP initializes its render loop.
-        EnsureCamera();
+        // Skip camera setup in test mode — URP initialization in empty InitTestScene blocks.
+        if (!IsTestMode())
+            EnsureCamera();
     }
 
     private void Start()
@@ -49,7 +50,27 @@ public class HexGrid : MonoBehaviour
         }
         GenerateGrid();
         SetupBases();
-        CenterCamera();
+        if (!IsTestMode())
+            CenterCamera();
+    }
+
+    // Cached test-mode detection — same pattern as HexAgent.
+    private static bool? s_testMode;
+    private static bool IsTestMode()
+    {
+        if (!s_testMode.HasValue)
+        {
+            s_testMode = false;
+            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (asm.FullName.Contains("UnityEngine.TestRunner"))
+                {
+                    s_testMode = true;
+                    break;
+                }
+            }
+        }
+        return s_testMode.Value;
     }
 
     /// <summary>Create a camera if none exists. Called in Awake so URP sees it early.</summary>
