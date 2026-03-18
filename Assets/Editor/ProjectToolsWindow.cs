@@ -150,21 +150,22 @@ public class ProjectToolsWindow : EditorWindow
             if (GUILayout.Button("Reset + Setup + Play", GUILayout.Height(40)))
             {
                 if (EditorApplication.isPlaying)
-                    EditorApplication.isPlaying = false;
-
-                EditorApplication.delayCall += () =>
                 {
-                    // Always open SampleScene first — test scenes cause "No cameras rendering".
-                    var scenePath = "Assets/Scenes/SampleScene.unity";
-                    if (System.IO.File.Exists(scenePath))
-                        EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
-
-                    HexGridSetup.Reset();
-                    HexGridSetup.SetupScene();
-                    AssetDatabase.SaveAssets();
-                    EditorSceneManager.SaveOpenScenes();
-                    EditorApplication.isPlaying = true;
-                };
+                    EditorApplication.isPlaying = false;
+                    void OnExit(PlayModeStateChange s)
+                    {
+                        if (s == PlayModeStateChange.EnteredEditMode)
+                        {
+                            EditorApplication.playModeStateChanged -= OnExit;
+                            DoResetSetupPlay();
+                        }
+                    }
+                    EditorApplication.playModeStateChanged += OnExit;
+                }
+                else
+                {
+                    DoResetSetupPlay();
+                }
             }
             GUI.backgroundColor = Color.white;
         });
@@ -396,41 +397,55 @@ public class ProjectToolsWindow : EditorWindow
 
     private static void StartTrainingAndPlay()
     {
-        // Stop play if running.
         if (EditorApplication.isPlaying)
-            EditorApplication.isPlaying = false;
-
-        EditorApplication.delayCall += () =>
         {
-            // Increment run counter for unique ID.
-            int next = RunCounter;
-            RunCounter = next + 1;
-            runId = $"run{next}";
-
-            // Reset and setup scene, then persist so prefab refs survive Play mode.
-            HexGridSetup.Reset();
-            HexGridSetup.SetupScene();
-            AssetDatabase.SaveAssets();
-            EditorSceneManager.SaveOpenScenes();
-
-            // Start Python training.
-            StartTraining();
-
-            // Wait a bit for Python to start listening, then press Play.
-            double startTime = EditorApplication.timeSinceStartup;
-            EditorApplication.CallbackFunction waitForPython = null;
-            waitForPython = () =>
+            // Must wait for Play mode to fully exit before saving scene.
+            EditorApplication.isPlaying = false;
+            void OnPlayModeChanged(PlayModeStateChange state)
             {
-                // Wait 3 seconds for Python to start.
-                if (EditorApplication.timeSinceStartup - startTime > 3.0)
+                if (state == PlayModeStateChange.EnteredEditMode)
                 {
-                    EditorApplication.update -= waitForPython;
-                    EditorApplication.isPlaying = true;
-                    UnityEngine.Debug.Log("[ML-Train] Auto-starting Play mode.");
+                    EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+                    DoStartTrainingAndPlay();
                 }
-            };
-            EditorApplication.update += waitForPython;
+            }
+            EditorApplication.playModeStateChanged += OnPlayModeChanged;
+        }
+        else
+        {
+            DoStartTrainingAndPlay();
+        }
+    }
+
+    private static void DoStartTrainingAndPlay()
+    {
+        // Increment run counter for unique ID.
+        int next = RunCounter;
+        RunCounter = next + 1;
+        runId = $"run{next}";
+
+        // Reset and setup scene, then persist so prefab refs survive Play mode.
+        HexGridSetup.Reset();
+        HexGridSetup.SetupScene();
+        AssetDatabase.SaveAssets();
+        EditorSceneManager.SaveOpenScenes();
+
+        // Start Python training.
+        StartTraining();
+
+        // Wait for Python to start listening, then press Play.
+        double startTime = EditorApplication.timeSinceStartup;
+        EditorApplication.CallbackFunction waitForPython = null;
+        waitForPython = () =>
+        {
+            if (EditorApplication.timeSinceStartup - startTime > 3.0)
+            {
+                EditorApplication.update -= waitForPython;
+                EditorApplication.isPlaying = true;
+                Debug.Log("[ML-Train] Auto-starting Play mode.");
+            }
         };
+        EditorApplication.update += waitForPython;
     }
 
     private static void StopTraining()
@@ -547,6 +562,19 @@ public class ProjectToolsWindow : EditorWindow
             }
         }
         Debug.Log($"[ML-Train] Models assigned to {assigned} agents (InferenceOnly).");
+    }
+
+    private static void DoResetSetupPlay()
+    {
+        var scenePath = "Assets/Scenes/SampleScene.unity";
+        if (System.IO.File.Exists(scenePath))
+            EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+        HexGridSetup.Reset();
+        HexGridSetup.SetupScene();
+        AssetDatabase.SaveAssets();
+        EditorSceneManager.SaveOpenScenes();
+        EditorApplication.isPlaying = true;
     }
 
     private static void StartTensorBoard()
