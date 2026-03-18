@@ -40,7 +40,7 @@ public class UnitActionIndicator3D : MonoBehaviour
     // Build.
     private Transform buildIcon;
 
-    private static Material redMat, blueMat, yellowMat, greyMat, cyanMat, orangeMat, greenMat;
+    private static Material redMat, blueMat, yellowMat, greyMat, cyanMat, orangeMat;
 
     private void Awake()
     {
@@ -294,7 +294,6 @@ public class UnitActionIndicator3D : MonoBehaviour
         greyMat   = MakeUnlit(new Color(0.55f, 0.55f, 0.55f));
         cyanMat   = MakeUnlit(new Color(0.3f, 0.9f, 1f));
         orangeMat = MakeUnlit(new Color(1f, 0.7f, 0.2f));
-        greenMat  = MakeUnlit(new Color(0.3f, 1f, 0.3f));
     }
 
     private static Material MakeUnlit(Color color)

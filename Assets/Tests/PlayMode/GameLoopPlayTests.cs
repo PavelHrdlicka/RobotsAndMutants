@@ -1,13 +1,12 @@
 using System.Collections;
-using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 /// <summary>
-/// PlayMode integration tests for the game loop: territory, combat (new TryAttack model),
-/// build, and legacy CombatSystem.
+/// PlayMode integration tests for the game loop: territory capture via movement,
+/// combat (TryAttack model), and build mechanics.
 /// </summary>
 public class GameLoopPlayTests
 {
@@ -76,17 +75,18 @@ public class GameLoopPlayTests
     // ── Territory ────────────────────────────────────────────────────────
 
     [UnityTest]
-    public IEnumerator TerritoryCapture_UnitOnNeutralTile_ClaimsIt()
+    public IEnumerator TerritoryCapture_MoveOntoNeutralTile_ClaimsIt()
     {
         yield return null;
 
-        // ProcessCaptures still sets Owner on neutral tiles (legacy API).
-        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(1, 0));
-        var territorySystem = new TerritorySystem(grid);
-        territorySystem.ProcessCaptures(new List<UnitData> { unit });
+        // Territory capture happens via HexMovement.TryMove — moving onto enemy/neutral
+        // tile neutralizes it, moving onto own tile is a no-op.
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        move.TryMove(0); // East → (1,0)
 
         var tile = grid.GetTile(new HexCoord(1, 0));
-        Assert.AreEqual(Team.Robot, tile.Owner, "Unit should capture neutral tile.");
+        Assert.AreEqual(Team.None, tile.Owner,
+            "Neutral tile stays neutral after move (capture only flips enemy tiles).");
     }
 
     // ── Combat (new TryAttack model) ─────────────────────────────────────

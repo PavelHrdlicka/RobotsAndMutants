@@ -49,7 +49,6 @@ public class GameManager : MonoBehaviour
 
     private HexGrid         grid;
     private UnitFactory     unitFactory;
-    private TerritorySystem territorySystem;
     private AbilitySystem   abilitySystem;
 
     // Contestable tile count (non-base) for win-condition calculation.
@@ -101,8 +100,7 @@ public class GameManager : MonoBehaviour
             yield break;
         }
 
-        territorySystem = new TerritorySystem(grid);
-        abilitySystem   = new AbilitySystem(grid);
+        abilitySystem = new AbilitySystem(grid);
 
         contestableTileCount = 0;
         foreach (var tile in grid.Tiles.Values)
@@ -128,7 +126,7 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] Ready. {contestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
     }
 
-    public bool IsReady => grid != null && unitFactory != null && territorySystem != null;
+    public bool IsReady => grid != null && unitFactory != null;
 
     // ── Sequential turn loop ───────────────────────────────────────────────
 
@@ -341,7 +339,6 @@ public class GameManager : MonoBehaviour
 
         unitFactory.ClearUnits();
         unitFactory.SpawnAllUnits();
-        territorySystem?.Reset();
 
         Debug.Log("[GameManager] Game reset.");
     }
