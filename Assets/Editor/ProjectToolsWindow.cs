@@ -18,6 +18,14 @@ public class ProjectToolsWindow : EditorWindow
     private float autoPlayInterval = 0.1f;
     private double nextAutoPlayTime;
 
+    // Cached per Layout event — must NOT change between Layout and Repaint events
+    // or GUILayout will throw "control N's position in group with only N controls".
+    private bool cachedTrainingRunning;
+    private bool cachedTbRunning;
+    private bool cachedHasCheckpoint;
+    private bool cachedHasModel;
+    private string cachedPrevRunId;
+
     // Python processes.
     private static Process trainingProcess;
     private static Process tensorboardProcess;
@@ -159,6 +167,17 @@ public class ProjectToolsWindow : EditorWindow
 
     private void OnGUI()
     {
+        // Snapshot all process-state booleans once per Layout event.
+        // This guarantees the same control count for the subsequent Repaint event.
+        if (Event.current.type == EventType.Layout)
+        {
+            cachedTrainingRunning = trainingProcess != null && !trainingProcess.HasExited;
+            cachedTbRunning       = tensorboardProcess != null && !tensorboardProcess.HasExited;
+            cachedPrevRunId       = EditorPrefs.GetString(ModelRunIdKey, "");
+            cachedHasModel        = !string.IsNullOrEmpty(cachedPrevRunId);
+            cachedHasCheckpoint   = Directory.Exists(Path.GetFullPath($"results/{runId}"));
+        }
+
         scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
         // --- Game Config ---
@@ -227,9 +246,6 @@ public class ProjectToolsWindow : EditorWindow
         // --- ML Training ---
         DrawSection("ML Training", () =>
         {
-            bool trainingRunning = trainingProcess != null && !trainingProcess.HasExited;
-            bool tbRunning = tensorboardProcess != null && !tensorboardProcess.HasExited;
-
             // Run ID field.
             runId = EditorGUILayout.TextField("Run ID", runId);
 
@@ -237,8 +253,7 @@ public class ProjectToolsWindow : EditorWindow
 
             // Start / Stop training.
             bool processExited = trainingProcess != null && trainingProcess.HasExited;
-            string prevRunId = EditorPrefs.GetString(ModelRunIdKey, "");
-            if (!trainingRunning)
+            if (!cachedTrainingRunning)
             {
                 // -- Force (new run) --
                 GUI.backgroundColor = new Color(0.3f, 0.7f, 1f);
@@ -247,26 +262,24 @@ public class ProjectToolsWindow : EditorWindow
                 GUI.backgroundColor = Color.white;
 
                 // -- Resume (continue same run) — only if checkpoint exists --
-                bool hasCheckpoint = Directory.Exists(Path.GetFullPath($"results/{runId}"));
-                GUI.backgroundColor = hasCheckpoint ? new Color(0.5f, 0.8f, 1f) : Color.white;
-                GUI.enabled = hasCheckpoint;
-                string resumeLabel = hasCheckpoint ? $"Resume Training ({runId})" : $"Resume ({runId}) — no checkpoint";
+                GUI.backgroundColor = cachedHasCheckpoint ? new Color(0.5f, 0.8f, 1f) : Color.white;
+                GUI.enabled = cachedHasCheckpoint;
+                string resumeLabel = cachedHasCheckpoint ? $"Resume Training ({runId})" : $"Resume ({runId}) — no checkpoint";
                 if (GUILayout.Button(resumeLabel, GUILayout.Height(28)))
                     StartTraining(TrainingMode.Resume);
                 GUI.enabled = true;
                 GUI.backgroundColor = Color.white;
 
                 // -- Init from previous trained weights --
-                bool hasModel = !string.IsNullOrEmpty(prevRunId);
-                GUI.backgroundColor = hasModel ? new Color(0.8f, 0.6f, 1f) : Color.white;
-                GUI.enabled = hasModel;
-                string initLabel = hasModel ? $"New run (init from {prevRunId})" : "New run (init from previous) — no model yet";
+                GUI.backgroundColor = cachedHasModel ? new Color(0.8f, 0.6f, 1f) : Color.white;
+                GUI.enabled = cachedHasModel;
+                string initLabel = cachedHasModel ? $"New run (init from {cachedPrevRunId})" : "New run (init from previous) — no model yet";
                 if (GUILayout.Button(initLabel, GUILayout.Height(28)))
                 {
                     int next = RunCounter;
                     RunCounter = next + 1;
                     runId = $"run{next}";
-                    StartTraining(TrainingMode.InitFrom, prevRunId);
+                    StartTraining(TrainingMode.InitFrom, cachedPrevRunId);
                 }
                 GUI.enabled = true;
                 GUI.backgroundColor = Color.white;
@@ -308,19 +321,18 @@ public class ProjectToolsWindow : EditorWindow
             }
 
             // One-click: Start Training + auto-Play.
-            if (!trainingRunning)
-            {
-                EditorGUILayout.Space(4);
-                GUI.backgroundColor = new Color(1f, 0.85f, 0.2f);
-                if (GUILayout.Button("Train (auto: start + setup + play)", GUILayout.Height(30)))
-                    StartTrainingAndPlay();
-                GUI.backgroundColor = Color.white;
-            }
+            EditorGUILayout.Space(4);
+            GUI.enabled = !cachedTrainingRunning;
+            GUI.backgroundColor = !cachedTrainingRunning ? new Color(1f, 0.85f, 0.2f) : Color.white;
+            if (GUILayout.Button("Train (auto: start + setup + play)", GUILayout.Height(30)))
+                StartTrainingAndPlay();
+            GUI.enabled = true;
+            GUI.backgroundColor = Color.white;
 
             EditorGUILayout.Space(8);
 
             // TensorBoard.
-            if (!tbRunning)
+            if (!cachedTbRunning)
             {
                 if (GUILayout.Button("Open TensorBoard"))
                     StartTensorBoard();
