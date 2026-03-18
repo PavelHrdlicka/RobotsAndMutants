@@ -674,7 +674,6 @@ public class GameManager : MonoBehaviour
     private float cachedRobotPct, cachedMutantPct;
     private int cachedRobotAlive, cachedMutantAlive;
     private int cachedRobotTotal, cachedMutantTotal;
-    private float lastGuiRepaintTime;
 
     private void RefreshHudCache()
     {
@@ -700,12 +699,6 @@ public class GameManager : MonoBehaviour
     private void OnGUI()
     {
         if (grid == null) return;
-
-        // Throttle entire OnGUI (Layout + Repaint) to ~10 FPS.
-        // Both passes must be skipped together to stay in sync.
-        float now = Time.unscaledTime;
-        if (now - lastGuiRepaintTime < 0.1f) return;
-        if (Event.current.type == EventType.Repaint) lastGuiRepaintTime = now;
 
         InitStyles();
         RefreshHudCache();
