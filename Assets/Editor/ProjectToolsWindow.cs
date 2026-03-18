@@ -18,7 +18,28 @@ public class ProjectToolsWindow : EditorWindow
     private static Process trainingProcess;
     private static Process tensorboardProcess;
     private static string runId = "run1";
-    private static int runCounter = 1;
+
+    private static int RunCounter
+    {
+        get => EditorPrefs.GetInt("MLTrain_RunCounter", DetectNextRunId());
+        set => EditorPrefs.SetInt("MLTrain_RunCounter", value);
+    }
+
+    private static int DetectNextRunId()
+    {
+        string resultsDir = System.IO.Path.GetFullPath("results");
+        int max = 0;
+        if (System.IO.Directory.Exists(resultsDir))
+        {
+            foreach (var dir in System.IO.Directory.GetDirectories(resultsDir))
+            {
+                string name = System.IO.Path.GetFileName(dir);
+                if (name.StartsWith("run") && int.TryParse(name.Substring(3), out int num))
+                    if (num > max) max = num;
+            }
+        }
+        return max + 1;
+    }
 
     private const string PythonExe = @"C:\Users\mail\miniconda3\envs\mlagents2\python.exe";
     private static string ConfigPath => System.IO.Path.GetFullPath("Assets/ML-Agents/config/hex_territory.yaml");
@@ -33,6 +54,7 @@ public class ProjectToolsWindow : EditorWindow
     private void OnEnable()
     {
         EditorApplication.update += OnEditorUpdate;
+        runId = $"run{RunCounter}";
     }
 
     private void OnDisable()
@@ -295,7 +317,9 @@ public class ProjectToolsWindow : EditorWindow
         EditorApplication.delayCall += () =>
         {
             // Increment run counter for unique ID.
-            runId = $"run{++runCounter}";
+            int next = RunCounter;
+            RunCounter = next + 1;
+            runId = $"run{next}";
 
             // Reset and setup scene.
             HexGridSetup.Reset();
