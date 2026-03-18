@@ -32,8 +32,6 @@ public class HexGrid : MonoBehaviour
 
     private void Start()
     {
-        Debug.Log("[HexGrid] Start() BEGIN");
-
         var config = GameConfig.Instance;
         if (config != null)
             boardSide = config.boardSide;
@@ -44,11 +42,8 @@ public class HexGrid : MonoBehaviour
             return;
         }
         GenerateGrid();
-        Debug.Log($"[HexGrid] GenerateGrid done: {tiles.Count} tiles");
         SetupBases();
-        Debug.Log("[HexGrid] SetupBases done");
         CenterCamera();
-        Debug.Log("[HexGrid] CenterCamera done — Start() END");
     }
 
     private void GenerateGrid()
@@ -226,13 +221,8 @@ public class HexGrid : MonoBehaviour
         }
 
         // Ensure URP rendering data exists (required for camera to render in URP).
-        if (cam.GetComponent("UniversalAdditionalCameraData") == null)
-        {
-            var urpType = System.Type.GetType(
-                "UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
-            if (urpType != null)
-                cam.gameObject.AddComponent(urpType);
-        }
+        if (cam.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>() == null)
+            cam.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
 
         float boardRadius = outerRadius * Mathf.Sqrt(3f) * (boardSide - 1);
         float padding = outerRadius * 3f;
