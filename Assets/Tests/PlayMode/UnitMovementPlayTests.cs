@@ -307,4 +307,36 @@ public class UnitMovementPlayTests
     }
 
     private const float AnimTickFractionProxy = HexMovement.AnimTickFraction;
+
+    // ── Performance test ────────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Performance_MovementSpeed_Minimum50TurnsPerSecond()
+    {
+        yield return null;
+
+        const int targetOps = 200;
+        float startTime = Time.realtimeSinceStartup;
+
+        // Alternate: move east then move west.
+        for (int i = 0; i < targetOps; i++)
+        {
+            if (i % 2 == 0)
+            {
+                movement.TryMove(0); // East
+                movement.PlaceAt(unitData.currentHex); // snap visual
+            }
+            else
+            {
+                movement.TryMove(3); // West (back)
+                movement.PlaceAt(unitData.currentHex);
+            }
+        }
+
+        float elapsed = Time.realtimeSinceStartup - startTime;
+        float opsPerSec = targetOps / elapsed;
+
+        Assert.Greater(opsPerSec, 50f,
+            $"Movement throughput too slow: {opsPerSec:F0} ops/s (min 50). Elapsed: {elapsed:F3}s");
+    }
 }

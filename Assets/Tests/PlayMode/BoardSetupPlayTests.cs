@@ -156,7 +156,6 @@ public class BoardSetupPlayTests
     {
         yield return SetupBoard(5);
         var cam = Camera.main;
-        // Camera.main may not exist in test scenes (no tagged MainCamera).
         if (cam == null)
             Assert.Ignore("No MainCamera in test scene — skipping camera test.");
         Assert.IsTrue(cam.orthographic, "Camera should be orthographic.");
@@ -171,5 +170,55 @@ public class BoardSetupPlayTests
             var visuals = tile.GetComponent<HexVisuals>();
             Assert.IsNotNull(visuals, $"Tile {tile.coord} should have HexVisuals component.");
         }
+    }
+
+    // ── Camera creation test ────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator SetupScene_CreatesCamera_WhenNoneExists()
+    {
+        // Destroy all scene objects including any cameras.
+        foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects())
+            Object.Destroy(go);
+        yield return null;
+
+        LogAssert.ignoreFailingMessages = true;
+
+        // Verify no camera exists.
+        Assert.IsNull(Camera.main, "Pre-condition: no MainCamera should exist.");
+
+        // Run setup (editor code).
+        HexGridSetup.SetupScene();
+        yield return null;
+
+        var cam = Camera.main;
+        Assert.IsNotNull(cam, "SetupScene should create a MainCamera when none exists.");
+        Assert.IsTrue(cam.orthographic, "Created camera should be orthographic.");
+        Assert.AreEqual("MainCamera", cam.tag, "Created camera should be tagged MainCamera.");
+    }
+
+    // ── Performance test ────────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Performance_HexGridSetup_CompletesUnder2Seconds()
+    {
+        foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects())
+            Object.Destroy(go);
+        yield return null;
+
+        LogAssert.ignoreFailingMessages = true;
+
+        float start = Time.realtimeSinceStartup;
+        HexGridSetup.SetupScene();
+        yield return null;
+        yield return null;
+        float elapsed = Time.realtimeSinceStartup - start;
+
+        Assert.Less(elapsed, 2f, $"SetupScene took {elapsed:F2}s — should be under 2s.");
+
+        // Verify grid was created.
+        var grid2 = Object.FindFirstObjectByType<HexGrid>();
+        Assert.IsNotNull(grid2, "HexGrid should exist after SetupScene.");
+        Assert.Greater(grid2.Tiles.Count, 0, "Grid should have tiles.");
     }
 }
