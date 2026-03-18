@@ -131,6 +131,9 @@ public class GameManager : MonoBehaviour
     // Guard against multiple StartNewRound calls in the same frame.
     private int lastRoundStartFrame = -1;
 
+    // Safety: cap how many turns can be processed in a single FixedUpdate.
+    private const int MaxTurnsPerFixedUpdate = 1;
+
     private void FixedUpdate()
     {
         if (gameOver || !IsReady) return;
@@ -138,13 +141,16 @@ public class GameManager : MonoBehaviour
         // Bootstrap / new round — at most once per frame to prevent freeze.
         if (!turnStarted)
         {
-            if (Time.frameCount == lastRoundStartFrame) return; // already tried this frame
+            if (Time.frameCount == lastRoundStartFrame) return;
             lastRoundStartFrame = Time.frameCount;
+            if (currentRound == 0) Debug.Log("[GameManager] Starting first round...");
             StartNewRound();
+            if (currentRound == 1) Debug.Log($"[GameManager] First round started. turnOrder={turnOrder.Count}, turnIndex={turnIndex}");
             return;
         }
 
         // Check whether the pending unit has completed its turn.
+        // Process at most one turn per FixedUpdate to prevent frame starvation.
         if (pendingUnit != null && pendingUnit.hasPendingTurnResult)
         {
             pendingUnit.hasPendingTurnResult = false;

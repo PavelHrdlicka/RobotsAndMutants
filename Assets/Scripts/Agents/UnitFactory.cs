@@ -68,10 +68,13 @@ public class UnitFactory : MonoBehaviour
     {
         int count = Mathf.Min(unitsPerTeam, baseTiles.Count);
 
+        Debug.Log($"[UnitFactory] SpawnTeam {team}: count={count}, bases={baseTiles.Count}");
         for (int i = 0; i < count; i++)
         {
+            Debug.Log($"[UnitFactory] Creating {team} unit {i}...");
             var tile = baseTiles[i % baseTiles.Count];
             GameObject unitGo = CreateUnitPrimitive(team, i);
+            Debug.Log($"[UnitFactory] {team} unit {i} created OK.");
 
             var unitData = unitGo.GetComponent<UnitData>();
             unitData.team = team;
