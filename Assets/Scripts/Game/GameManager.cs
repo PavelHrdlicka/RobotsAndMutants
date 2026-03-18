@@ -43,6 +43,10 @@ public class GameManager : MonoBehaviour
     private static readonly List<MatchResult> matchHistory = new();
     private static int matchCounter;
 
+    // Cumulative stats (persist across resets within one Play session).
+    private static long totalTurns;
+    private static float sessionStartTime;
+
     private HexGrid         grid;
     private UnitFactory     unitFactory;
     private TerritorySystem territorySystem;
@@ -113,6 +117,9 @@ public class GameManager : MonoBehaviour
             var agent = unit.GetComponent<HexAgent>();
             if (agent != null) mutantGroup.RegisterAgent(agent);
         }
+
+        if (sessionStartTime == 0f)
+            sessionStartTime = Time.realtimeSinceStartup;
 
         Debug.Log($"[GameManager] Ready. {contestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
     }
@@ -197,6 +204,8 @@ public class GameManager : MonoBehaviour
 
     private void PostTurnProcessing(UnitData unit)
     {
+        totalTurns++;
+
         // Territory is claimed only through explicit BUILD actions (TryBuild in HexMovement).
         // Moving does NOT colour / claim a tile — no territory processing on Move.
 
@@ -475,7 +484,8 @@ public class GameManager : MonoBehaviour
             GUI.Label(new Rect(bannerX, Screen.height * 0.4f + 8, bannerW, 34), winText, gameOverStyle);
         }
 
-        // --- Match History (bottom) ---
+        // --- Session Stats + Match History (bottom-left) ---
+        DrawSessionStats();
         DrawMatchHistory();
     }
 
@@ -510,6 +520,47 @@ public class GameManager : MonoBehaviour
             normal = { textColor = new Color(0.95f, 0.95f, 0.95f) },
             alignment = TextAnchor.MiddleLeft
         };
+    }
+
+    private Texture2D statsBg;
+
+    private void DrawSessionStats()
+    {
+        InitHistoryStyles();
+
+        if (statsBg == null)
+            statsBg = MakeTex(1, 1, new Color(0.06f, 0.06f, 0.14f, 0.85f));
+
+        const float panelW = 340f;
+        const float panelH = 56f;
+        const float margin = 10f;
+
+        // Position: just above match history panel.
+        float historyH = matchHistory.Count > 0
+            ? 24f + 20f + matchHistory.Count * 18f + 12f + 4
+            : 0f;
+        float panelX = margin;
+        float panelY = Screen.height - historyH - panelH - margin - 4f;
+
+        GUI.DrawTexture(new Rect(panelX, panelY, panelW, panelH), statsBg);
+
+        float elapsed = Time.realtimeSinceStartup - sessionStartTime;
+        string timeStr;
+        if (elapsed < 60f)      timeStr = $"{elapsed:F0}s";
+        else if (elapsed < 3600) timeStr = $"{elapsed / 60f:F1}m";
+        else                     timeStr = $"{elapsed / 3600f:F1}h";
+
+        float turnsPerSec = elapsed > 1f ? totalTurns / elapsed : 0f;
+
+        float y = panelY + 4f;
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18),
+            $"Session  |  {matchCounter} games   {totalTurns:N0} turns   {timeStr}",
+            historyHeaderStyle);
+        y += 20f;
+
+        GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18),
+            $"Speed: {turnsPerSec:F0} turns/s   Avg: {(matchCounter > 0 ? totalTurns / matchCounter : 0):N0} turns/game",
+            historyRowStyle);
     }
 
     private void DrawMatchHistory()
