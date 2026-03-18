@@ -35,6 +35,13 @@ public class UnitData : MonoBehaviour
     [HideInInspector]
     public bool hasPendingTurnResult;
 
+    /// <summary>
+    /// Set by GameManager to indicate this unit is the active turn unit.
+    /// Only the active unit executes its action; others observe only.
+    /// </summary>
+    [HideInInspector]
+    public bool isMyTurn;
+
     public int Health
     {
         get => health;

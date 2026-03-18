@@ -110,7 +110,9 @@ public class HexAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        // Always signal turn complete (even if dead — GameManager must advance).
+        // DecisionRequester fires for ALL agents every frame.
+        // Only the active turn unit executes its action; others just observe.
+        if (!unitData.isMyTurn) return;
 
         if (unitData.isAlive)
         {
@@ -118,13 +120,11 @@ public class HexAgent : Agent
 
             if (action == 0)
             {
-                // Explicit idle: unit chose to stay on its turn.
                 unitData.lastAction = UnitAction.Idle;
             }
             else if (action >= 1 && action <= 6)
             {
                 int dir = action - 1;
-                // Attack takes priority; fall back to move if no enemy there.
                 if (!movement.TryAttack(dir))
                     movement.TryMove(dir);
             }
@@ -151,6 +151,7 @@ public class HexAgent : Agent
         }
 
         // Signal to GameManager that this unit's turn is done.
+        unitData.isMyTurn = false;
         unitData.hasPendingTurnResult = true;
     }
 

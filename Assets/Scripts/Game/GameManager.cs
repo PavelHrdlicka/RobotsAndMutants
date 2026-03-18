@@ -190,16 +190,9 @@ public class GameManager : MonoBehaviour
 
         pendingUnit = turnOrder[turnIndex];
 
-        var agent = pendingUnit.GetComponent<HexAgent>();
-        if (agent != null && agent.enabled)
-        {
-            agent.RequestDecision();
-        }
-        else
-        {
-            // No active agent — auto-skip this unit's turn.
-            pendingUnit.hasPendingTurnResult = true;
-        }
+        // Flag this unit as active. DecisionRequester fires for all agents every
+        // frame, but only the unit with isMyTurn=true will execute its action.
+        pendingUnit.isMyTurn = true;
     }
 
     private void PostTurnProcessing(UnitData unit)
@@ -310,6 +303,9 @@ public class GameManager : MonoBehaviour
         {
             var agent = unit.GetComponent<HexAgent>();
             if (agent != null) agent.enabled = false;
+            var dr = unit.GetComponent<DecisionRequester>();
+            if (dr != null) dr.enabled = false;
+            unit.isMyTurn = false;
         }
 
         if (autoRestart)
@@ -327,12 +323,16 @@ public class GameManager : MonoBehaviour
         foreach (var unit in unitFactory.robotUnits)
         {
             var agent = unit.GetComponent<HexAgent>();
+            var dr = unit.GetComponent<DecisionRequester>();
             if (agent != null) { agent.enabled = true; robotGroup.RegisterAgent(agent); }
+            if (dr != null) dr.enabled = true;
         }
         foreach (var unit in unitFactory.mutantUnits)
         {
             var agent = unit.GetComponent<HexAgent>();
+            var dr = unit.GetComponent<DecisionRequester>();
             if (agent != null) { agent.enabled = true; mutantGroup.RegisterAgent(agent); }
+            if (dr != null) dr.enabled = true;
         }
     }
 

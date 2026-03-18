@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Policies;
 using UnityEngine;
@@ -120,6 +121,11 @@ public class UnitFactory : MonoBehaviour
         bp.TeamId = team == Team.Robot ? 0 : 1;
 
         go.AddComponent<HexAgent>();
+
+        // DecisionRequester: all agents observe every frame.
+        // Only the active turn unit executes its action (checked via isMyTurn).
+        var dr = go.AddComponent<DecisionRequester>();
+        dr.DecisionPeriod = 1;
 
         return go;
     }
