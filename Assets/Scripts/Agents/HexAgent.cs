@@ -1,6 +1,7 @@
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Policies;
 using UnityEngine;
 
 /// <summary>
@@ -28,6 +29,35 @@ public class HexAgent : Agent
     // Cached previous tile counts for reward shaping.
     private int prevTeamTiles;
     private int prevEnemyTiles;
+
+    // Cached one-time detection of whether tests are running.
+    private static bool? s_testMode;
+
+    private void Awake()
+    {
+        // Awake fires before OnEnable. Academy.LazyInitialize() is called in OnEnable,
+        // which blocks ~60s when BehaviorType=Default and no Python trainer is running.
+        // Detect test runner by checking if the NUnit/TestRunner assembly is loaded.
+        if (!s_testMode.HasValue)
+        {
+            s_testMode = false;
+            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (asm.FullName.Contains("UnityEngine.TestRunner"))
+                {
+                    s_testMode = true;
+                    break;
+                }
+            }
+        }
+
+        if (s_testMode.Value)
+        {
+            var bp = GetComponent<BehaviorParameters>();
+            if (bp != null)
+                bp.BehaviorType = BehaviorType.HeuristicOnly;
+        }
+    }
 
     public override void Initialize()
     {
