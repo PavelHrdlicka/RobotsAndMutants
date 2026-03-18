@@ -120,18 +120,25 @@ public static class HexGridSetup
         Camera cam = Camera.main;
         if (cam == null)
         {
-            // Create a camera if none exists.
             var camGo = new GameObject("Main Camera");
             camGo.tag = "MainCamera";
             cam = camGo.AddComponent<Camera>();
-            // Add URP camera data if available.
-            var urpCamType = System.Type.GetType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
-            if (urpCamType != null) camGo.AddComponent(urpCamType);
+            camGo.AddComponent<AudioListener>();
+
+            // URP camera data — use reflection in Editor (can't reference URP from Editor assembly).
+            var urpType = System.Type.GetType(
+                "UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
+            if (urpType != null)
+                camGo.AddComponent(urpType);
+            else
+                Debug.LogWarning("[HexGridSetup] URP camera data type not found — camera may not render.");
+
             Debug.Log("[HexGridSetup] Created MainCamera.");
         }
 
+        cam.targetDisplay = 0;
+        cam.enabled = true;
         cam.orthographic = true;
-        cam.transform.position = new Vector3(0f, 50f, 0f);
         cam.transform.rotation = Quaternion.Euler(45f, 45f, 0f);
         cam.transform.position = -cam.transform.forward * 50f;
         cam.orthographicSize = 10f;

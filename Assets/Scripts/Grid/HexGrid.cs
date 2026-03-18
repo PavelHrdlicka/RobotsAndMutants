@@ -218,11 +218,19 @@ public class HexGrid : MonoBehaviour
             camGo.tag = "MainCamera";
             cam = camGo.AddComponent<Camera>();
             camGo.AddComponent<AudioListener>();
+
+            // URP requires this component for the camera to render.
+            camGo.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+        }
+        else if (cam.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>() == null)
+        {
+            cam.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
         }
 
-        // Ensure URP rendering data exists (required for camera to render in URP).
-        if (cam.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>() == null)
-            cam.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+        // Force camera to render to Display 1.
+        cam.targetDisplay = 0;
+        cam.enabled = true;
+        cam.depth = 0;
 
         float boardRadius = outerRadius * Mathf.Sqrt(3f) * (boardSide - 1);
         float padding = outerRadius * 3f;
