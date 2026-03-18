@@ -91,8 +91,23 @@ public class ProjectToolsWindow : EditorWindow
         autoPlay = false;
     }
 
+    // Track whether we already logged the training exit.
+    private static bool trainingExitLogged;
+
     private void OnEditorUpdate()
     {
+        // Monitor training process — log when it exits.
+        if (trainingProcess != null && trainingProcess.HasExited && !trainingExitLogged)
+        {
+            trainingExitLogged = true;
+            int exitCode = trainingProcess.ExitCode;
+            if (exitCode == 0)
+                Debug.Log($"[ML-Train] Training finished successfully (exit code 0). Models saved to results/{runId}/");
+            else
+                Debug.LogWarning($"[ML-Train] Training process exited with code {exitCode}. Check Console for errors.");
+            Repaint();
+        }
+
         if (!autoPlay || !EditorApplication.isPlaying) return;
 
         if (EditorApplication.timeSinceStartup >= nextAutoPlayTime)
@@ -182,6 +197,7 @@ public class ProjectToolsWindow : EditorWindow
             EditorGUILayout.Space(4);
 
             // Start / Stop training.
+            bool processExited = trainingProcess != null && trainingProcess.HasExited;
             if (!trainingRunning)
             {
                 GUI.backgroundColor = new Color(0.3f, 0.7f, 1f);
@@ -189,9 +205,21 @@ public class ProjectToolsWindow : EditorWindow
                     StartTraining();
                 GUI.backgroundColor = Color.white;
 
-                EditorGUILayout.HelpBox(
-                    "1. Click 'Start Training'\n2. Wait for 'Listening on port 5004' in Console\n3. Press Play in Unity",
-                    MessageType.Info);
+                if (processExited)
+                {
+                    int exitCode = trainingProcess.ExitCode;
+                    var style = new GUIStyle(EditorStyles.boldLabel)
+                        { normal = { textColor = exitCode == 0 ? new Color(0.3f, 1f, 0.3f) : new Color(1f, 0.4f, 0.3f) } };
+                    EditorGUILayout.LabelField(
+                        exitCode == 0 ? $"Last run ({runId}): Finished OK" : $"Last run ({runId}): Exited with code {exitCode}",
+                        style);
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox(
+                        "1. Click 'Start Training'\n2. Wait for 'Listening on port 5004' in Console\n3. Press Play in Unity",
+                        MessageType.Info);
+                }
             }
             else
             {
@@ -375,6 +403,7 @@ public class ProjectToolsWindow : EditorWindow
 
         try
         {
+            trainingExitLogged = false;
             trainingProcess.Start();
             trainingProcess.BeginOutputReadLine();
             trainingProcess.BeginErrorReadLine();
