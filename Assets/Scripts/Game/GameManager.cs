@@ -922,15 +922,18 @@ public class GameManager : MonoBehaviour
         // Team title.
         GUI.Label(new Rect(px, py + 2, pw, 24), title, teamTitleStyle);
 
-        // Alive row: mini icons for each unit.
+        // Alive row: bright icons for alive count (left), dim for dead (right).
         float rowX = px + 10;
         float rowY = py + 28;
         if (units != null)
         {
+            int aliveCount = 0;
+            foreach (var u in units) if (u != null && u.isAlive) aliveCount++;
+
             for (int i = 0; i < units.Count; i++)
             {
-                bool alive = units[i] != null && units[i].isAlive;
-                GUI.color = alive ? Color.white : new Color(1, 1, 1, 0.25f);
+                bool lit = i < aliveCount;
+                GUI.color = lit ? Color.white : new Color(1, 1, 1, 0.2f);
                 GUI.DrawTexture(new Rect(rowX + i * (iconS + gap), rowY, iconS, iconS), unitIcon);
             }
             GUI.color = Color.white;
