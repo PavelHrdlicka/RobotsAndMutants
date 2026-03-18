@@ -92,14 +92,15 @@ public class UnitFactory : MonoBehaviour
     private GameObject CreateUnitPrimitive(Team team, int index)
     {
         string unitName = team == Team.Robot ? $"Robot_{index}" : $"Mutant_{index}";
+        Debug.Log($"[Factory::{unitName}] START");
 
         var go = new GameObject(unitName);
 
-        // Core unit components.
         go.AddComponent<UnitData>();
+        Debug.Log($"[Factory::{unitName}] UnitData OK");
         go.AddComponent<HexMovement>();
+        Debug.Log($"[Factory::{unitName}] HexMovement OK");
 
-        // 3D model.
         if (team == Team.Robot)
         {
             var builder = go.AddComponent<RobotModelBuilder>();
@@ -110,25 +111,28 @@ public class UnitFactory : MonoBehaviour
             var builder = go.AddComponent<MutantModelBuilder>();
             builder.Build();
         }
+        Debug.Log($"[Factory::{unitName}] Model OK");
 
-        // 3D visuals (health bar, action indicators, attack effects).
         go.AddComponent<UnitHealthBar3D>();
+        Debug.Log($"[Factory::{unitName}] HealthBar OK");
         go.AddComponent<UnitActionIndicator3D>();
+        Debug.Log($"[Factory::{unitName}] Indicator OK");
         go.AddComponent<AttackEffects>();
+        Debug.Log($"[Factory::{unitName}] Effects OK");
 
-        // ML-Agents components.
         var bp = go.AddComponent<BehaviorParameters>();
         bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
         bp.BrainParameters.VectorObservationSize = 56;
         bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(8);
         bp.TeamId = team == Team.Robot ? 0 : 1;
+        Debug.Log($"[Factory::{unitName}] BehaviorParams OK");
 
         go.AddComponent<HexAgent>();
+        Debug.Log($"[Factory::{unitName}] HexAgent OK");
 
-        // DecisionRequester: all agents observe every frame.
-        // Only the active turn unit executes its action (checked via isMyTurn).
         var dr = go.AddComponent<DecisionRequester>();
         dr.DecisionPeriod = 1;
+        Debug.Log($"[Factory::{unitName}] DecisionRequester OK — DONE");
 
         return go;
     }
