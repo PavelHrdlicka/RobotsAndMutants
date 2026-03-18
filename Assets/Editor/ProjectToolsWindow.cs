@@ -31,8 +31,10 @@ public class ProjectToolsWindow : EditorWindow
     private static Process tensorboardProcess;
     private static string runId = "run1";
 
-    // SessionState key — survives domain reload within the same Unity session.
-    private const string k_TrainingPidKey = "ProjectTools_TrainingPID";
+    // SessionState keys — survive domain reload within the same Unity session.
+    private const string k_TrainingPidKey   = "ProjectTools_TrainingPID";
+    private const string k_PythonReadyKey   = "ProjectTools_PythonReady";
+    private const string k_AutoPlayPending  = "ProjectTools_AutoPlayPending";
 
     // Set to true when Python outputs "Listening on port 5004" — triggers auto Play.
     private static volatile bool pythonReady;
@@ -98,6 +100,31 @@ public class ProjectToolsWindow : EditorWindow
         EditorApplication.update += OnEditorUpdate;
         runId = $"run{RunCounter}";
         TryRestoreTrainingProcess();
+        TryResumeAutoPlay();
+    }
+
+    /// <summary>
+    /// If a domain reload happened while waiting for auto-Play (between
+    /// "Python ready" and actual Play mode entry), re-enter Play mode now.
+    /// </summary>
+    private static void TryResumeAutoPlay()
+    {
+        if (!SessionState.GetBool(k_AutoPlayPending, false)) return;
+        if (EditorApplication.isPlaying) { SessionState.EraseBool(k_AutoPlayPending); return; }
+
+        // Python should still be running — enter Play mode.
+        bool trainingAlive = trainingProcess != null && !trainingProcess.HasExited;
+        if (trainingAlive)
+        {
+            Debug.Log("[ML-Train] Resuming auto-Play after domain reload (Python still running).");
+            SessionState.EraseBool(k_AutoPlayPending);
+            // Delay one frame so the editor finishes OnEnable before switching to Play.
+            EditorApplication.delayCall += () => EditorApplication.isPlaying = true;
+        }
+        else
+        {
+            SessionState.EraseBool(k_AutoPlayPending);
+        }
     }
 
     /// <summary>
@@ -143,6 +170,10 @@ public class ProjectToolsWindow : EditorWindow
 
     private void OnEditorUpdate()
     {
+        // Once Play mode is confirmed running, clear the pending flag.
+        if (EditorApplication.isPlaying && SessionState.GetBool(k_AutoPlayPending, false))
+            SessionState.EraseBool(k_AutoPlayPending);
+
         // Monitor training process — log when it exits.
         if (trainingProcess != null && trainingProcess.HasExited && !trainingExitLogged)
         {
@@ -595,6 +626,9 @@ public class ProjectToolsWindow : EditorWindow
                     Debug.LogWarning("[ML-Train] Timed out waiting for Python. Starting Play anyway.");
                 else
                     Debug.Log("[ML-Train] Python ready — auto-starting Play mode.");
+                // Persist "auto-play pending" so a domain reload during Play mode
+                // entry doesn't swallow the isPlaying=true call.
+                SessionState.SetBool(k_AutoPlayPending, true);
                 EditorApplication.isPlaying = true;
             }
         };
@@ -611,6 +645,7 @@ public class ProjectToolsWindow : EditorWindow
         }
         trainingProcess = null;
         SessionState.EraseInt(k_TrainingPidKey);
+        SessionState.EraseBool(k_AutoPlayPending);
 
         // Kill any orphaned mlagents processes still holding port 5004.
         // This happens when domain reload (script recompile) clears the static
