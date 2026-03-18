@@ -801,7 +801,7 @@ public class GameManager : MonoBehaviour
     private Texture2D statsBg;
 
     // Cached stats strings (rebuilt in RefreshHudCache).
-    private string statsLine1 = "", statsLine2 = "", statsLine3 = "";
+    private string statsLine1 = "", statsLine2 = "", statsLine3 = "", statsLine4 = "";
 
     private void RefreshStatsStrings()
     {
@@ -818,6 +818,16 @@ public class GameManager : MonoBehaviour
         long allRounds = (long)PlayerPrefs.GetInt("TotalTurnsHi", 0) << 32
                        | (uint)PlayerPrefs.GetInt("TotalTurnsLo", 0);
         statsLine3 = $"ALL TIME: {allGames:N0} games   {allRounds:N0} rounds";
+
+        // Training stats for current model.
+        string trainRunId  = PlayerPrefs.GetString("TrainedRunId", "");
+        int trainGames     = PlayerPrefs.GetInt("TrainedOnGames", 0);
+        int trainRounds    = PlayerPrefs.GetInt("TrainedOnRounds", 0);
+        int trainSteps     = PlayerPrefs.GetInt("TrainedSteps", 0);
+        if (!string.IsNullOrEmpty(trainRunId))
+            statsLine4 = $"MODEL ({trainRunId}): {trainSteps:N0} steps  |  {trainGames:N0} games  {trainRounds:N0} rounds";
+        else
+            statsLine4 = "";
     }
 
     private void DrawSessionStats()
@@ -828,8 +838,9 @@ public class GameManager : MonoBehaviour
             statsBg = MakeTex(1, 1, new Color(0.06f, 0.06f, 0.14f, 0.85f));
 
         const float panelW = 340f;
-        const float panelH = 74f;
         const float margin = 10f;
+        bool hasModelLine = !string.IsNullOrEmpty(statsLine4);
+        float panelH = hasModelLine ? 94f : 74f;
 
         float historyH = matchHistory.Count > 0
             ? 24f + 20f + matchHistory.Count * 18f + 12f + 4 : 0f;
@@ -844,6 +855,11 @@ public class GameManager : MonoBehaviour
         GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine2, historyRowStyle);
         y += 20f;
         GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine3, historyHeaderStyle);
+        if (hasModelLine)
+        {
+            y += 20f;
+            GUI.Label(new Rect(panelX + 8, y, panelW - 16, 18), statsLine4, historyRowStyle);
+        }
     }
 
     private void DrawMatchHistory()
