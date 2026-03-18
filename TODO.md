@@ -9,11 +9,11 @@
 ### ML-Agents trénink
 - [x] Kill bonus (+0.5 reward za zabití nepřítele)
 - [x] Build reward (+0.05 za úspěšný TryBuild)
-- [ ] Přidat fortification do observací (1 float/neighbor, celkem +6 floats → 62 obs)
-- [ ] Přidat respawn cooldown do observací (1 global float → 63 obs)
-- [ ] Zvýšit síť 256×2 → 512×2 v hex_territory.yaml
-- [ ] Zvýšit max_steps 5M → 10-15M v hex_territory.yaml
-- [ ] Zvýšit num_epoch 3 → 5 v hex_territory.yaml
+- [x] Přidat fortification do observací (1 float/neighbor, celkem +6 floats → 62 obs)
+- [x] Přidat respawn cooldown do observací (1 global float → 63 obs)
+- [x] Zvýšit síť 256×2 → 512×2 v hex_territory.yaml
+- [x] Zvýšit max_steps 5M → 10-15M v hex_territory.yaml
+- [x] Zvýšit num_epoch 3 → 5 v hex_territory.yaml
 - [x] Opravit step progress clock (Academy.StepCount / 6000f místo 2000f)
 
 ### Architektura

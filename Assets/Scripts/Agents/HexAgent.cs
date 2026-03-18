@@ -74,17 +74,19 @@ public class HexAgent : Agent
     }
 
     /// <summary>
-    /// Observation vector (56 floats):
+    /// Observation vector (63 floats):
     /// - Own position (2), health (1), alive (1), team (1) = 5
-    /// - 6 neighbors × 8 values each = 48
-    /// - Global: own tiles (1), enemy tiles (1), step progress (1) = 3
-    /// Total = 56
+    /// - 6 neighbors × 9 values each = 54
+    ///     neutral(1), own(1), enemy(1), empty(1), crate(1), slime(1),
+    ///     hasEnemy(1), hasAlly(1), fortification(1)
+    /// - Global: own tiles (1), enemy tiles (1), step progress (1), respawn cooldown (1) = 4
+    /// Total = 63
     /// </summary>
     public override void CollectObservations(VectorSensor sensor)
     {
         if (grid == null || unitData == null)
         {
-            for (int i = 0; i < 56; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < 63; i++) sensor.AddObservation(0f);
             return;
         }
 
@@ -98,7 +100,7 @@ public class HexAgent : Agent
         sensor.AddObservation(unitData.isAlive ? 1f : 0f);
         sensor.AddObservation(unitData.team == Team.Robot ? 1f : -1f);
 
-        // 6 neighbour observations.
+        // 6 neighbour observations (9 floats each).
         for (int dir = 0; dir < 6; dir++)
         {
             var neighborCoord = unitData.currentHex.Neighbor(dir);
@@ -106,7 +108,7 @@ public class HexAgent : Agent
 
             if (neighborTile == null)
             {
-                for (int j = 0; j < 8; j++) sensor.AddObservation(0f);
+                for (int j = 0; j < 9; j++) sensor.AddObservation(0f);
                 continue;
             }
 
@@ -122,6 +124,7 @@ public class HexAgent : Agent
 
             sensor.AddObservation(HasEnemyUnit(neighborCoord) ? 1f : 0f);
             sensor.AddObservation(HasAllyUnit(neighborCoord)  ? 1f : 0f);
+            sensor.AddObservation(neighborTile.Fortification / 3f);
         }
 
         // Global state.
@@ -135,6 +138,9 @@ public class HexAgent : Agent
 
         float stepProgress = Mathf.Clamp01(Academy.Instance.StepCount / 6000f);
         sensor.AddObservation(stepProgress);
+
+        // Respawn cooldown: 0 when alive, counts down from 30 max.
+        sensor.AddObservation(unitData.respawnCooldown / 30f);
     }
 
     public override void OnActionReceived(ActionBuffers actions)

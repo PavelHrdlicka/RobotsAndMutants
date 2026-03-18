@@ -7,16 +7,16 @@ behaviors:
       learning_rate: 3.0e-4
       beta: 5.0e-3
       epsilon: 0.2
-      num_epoch: 3
+      num_epoch: 5
     network_settings:
       normalize: true
-      hidden_units: 256
+      hidden_units: 512
       num_layers: 2
     reward_signals:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-    max_steps: 5000000
+    max_steps: 10000000
     time_horizon: 128
     summary_freq: 10000
 
@@ -28,15 +28,15 @@ behaviors:
       learning_rate: 3.0e-4
       beta: 5.0e-3
       epsilon: 0.2
-      num_epoch: 3
+      num_epoch: 5
     network_settings:
       normalize: true
-      hidden_units: 256
+      hidden_units: 512
       num_layers: 2
     reward_signals:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-    max_steps: 5000000
+    max_steps: 10000000
     time_horizon: 128
     summary_freq: 10000
