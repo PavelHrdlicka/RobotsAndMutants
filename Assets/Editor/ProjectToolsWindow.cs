@@ -54,8 +54,22 @@ public class ProjectToolsWindow : EditorWindow
     [MenuItem("Tools/Project Tools Window")]
     public static void ShowWindow()
     {
-        var window = GetWindow<ProjectToolsWindow>("Project Tools");
+        // Dock to the right side next to Inspector.
+        var inspectorType = typeof(Editor).Assembly.GetType("UnityEditor.InspectorWindow");
+        var window = GetWindow<ProjectToolsWindow>("Project Tools", false, inspectorType);
         window.minSize = new Vector2(250, 500);
+    }
+
+    /// <summary>Auto-open on editor launch.</summary>
+    [InitializeOnLoadMethod]
+    private static void AutoOpen()
+    {
+        // Delay to let editor finish loading.
+        EditorApplication.delayCall += () =>
+        {
+            if (!HasOpenInstances<ProjectToolsWindow>())
+                ShowWindow();
+        };
     }
 
     private void OnEnable()
