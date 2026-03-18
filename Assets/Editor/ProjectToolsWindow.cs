@@ -161,6 +161,8 @@ public class ProjectToolsWindow : EditorWindow
 
                     HexGridSetup.Reset();
                     HexGridSetup.SetupScene();
+                    AssetDatabase.SaveAssets();
+                    EditorSceneManager.SaveOpenScenes();
                     EditorApplication.isPlaying = true;
                 };
             }
@@ -405,9 +407,11 @@ public class ProjectToolsWindow : EditorWindow
             RunCounter = next + 1;
             runId = $"run{next}";
 
-            // Reset and setup scene.
+            // Reset and setup scene, then persist so prefab refs survive Play mode.
             HexGridSetup.Reset();
             HexGridSetup.SetupScene();
+            AssetDatabase.SaveAssets();
+            EditorSceneManager.SaveOpenScenes();
 
             // Start Python training.
             StartTraining();
