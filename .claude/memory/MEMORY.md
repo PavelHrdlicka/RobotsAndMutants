@@ -18,6 +18,10 @@
 - [feedback_mlagents_playmode_tests.md](feedback_mlagents_playmode_tests.md) — PlayMode testy: 4 záruky — HeuristicOnly guard, skip URP camera init, skip CreatePrimitive ve vizuálech, workflow (exit play mode)
 - [feedback_ongui_throttle.md](feedback_ongui_throttle.md) — Unity OnGUI: nikdy nethrottlovat rendering přes early return, throttlovat pouze výpočty dat
 - [feedback_save_before_play.md](feedback_save_before_play.md) — Vždy SaveAssets + SaveOpenScenes před programatickým vstupem do Play mode
+- [feedback_dead_code.md](feedback_dead_code.md) — Při větších změnách aktivně vyhledávat a odstraňovat mrtvý kód
+- [feedback_asmdef_cycle.md](feedback_asmdef_cycle.md) — Před přidáním asmdef reference zkontrolovat zpětnou závislost (prevence cyklů)
+- [feedback_mlagents_obs_size.md](feedback_mlagents_obs_size.md) — Při změně počtu observací synchronizovat VectorObservationSize ve stejném commitu
+- [feedback_post_fix_rules.md](feedback_post_fix_rules.md) — Po každé opravě chyby/warningu (testy OK) odvodit a uložit obecné pravidlo
 
 ## Reference
 - [reference_unity_log.md](reference_unity_log.md) — Unity Editor log: C:\Users\mail\AppData\Local\Unity\Editor\Editor.log
