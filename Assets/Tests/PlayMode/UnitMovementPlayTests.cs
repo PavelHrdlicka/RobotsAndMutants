@@ -1,8 +1,8 @@
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
-using UnityEngine.TestTools.Utils;
 
 /// <summary>
 /// PlayMode integration tests for unit spawning, movement, attack, and build.
@@ -18,8 +18,11 @@ public class UnitMovementPlayTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
-        // Ignore background errors from scene objects (GameManager, ML-Agents Academy,
-        // ProjectToolsWindow) that run during Play Mode tests but aren't part of the test.
+        // Destroy all scene objects so GameManager/UnitFactory/ML-Agents don't interfere.
+        foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects())
+            Object.Destroy(go);
+        yield return null;
+
         LogAssert.ignoreFailingMessages = true;
         Time.timeScale = 1f;
 

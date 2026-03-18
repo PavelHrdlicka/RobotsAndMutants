@@ -1,6 +1,7 @@
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 /// <summary>
@@ -29,6 +30,11 @@ public class BoardSetupPlayTests
 
     private IEnumerator SetupBoard(int side, int unitsPerTeam = 3)
     {
+        // Destroy all scene objects so GameManager/UnitFactory/ML-Agents don't interfere.
+        foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects())
+            Object.Destroy(go);
+        yield return null;
+
         LogAssert.ignoreFailingMessages = true;
 
         var prefab = CreatePrefab();
