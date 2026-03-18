@@ -197,7 +197,17 @@ public class ProjectToolsWindow : EditorWindow
                     StopTraining();
                 GUI.backgroundColor = Color.white;
 
-                EditorGUILayout.LabelField("Status: Training running", EditorStyles.boldLabel);
+                // Blinking indicator so user sees it's alive.
+                bool blink = ((int)(EditorApplication.timeSinceStartup * 2)) % 2 == 0;
+                string dot = blink ? " ●" : " ○";
+                var statusStyle = new GUIStyle(EditorStyles.boldLabel)
+                    { normal = { textColor = new Color(0.3f, 1f, 0.3f) } };
+                string pid = "";
+                try { pid = $" (PID {trainingProcess.Id})"; } catch { }
+                EditorGUILayout.LabelField($"Status: Training running{pid}{dot}", statusStyle);
+
+                // Force continuous repaint while training to show blinking.
+                Repaint();
             }
 
             // One-click: Start Training + auto-Play.
@@ -316,6 +326,17 @@ public class ProjectToolsWindow : EditorWindow
     {
         StopTraining();
 
+        if (!File.Exists(PythonExe))
+        {
+            Debug.LogError($"[ML-Train] Python not found at: {PythonExe}");
+            return;
+        }
+        if (!File.Exists(ConfigPath))
+        {
+            Debug.LogError($"[ML-Train] Config not found at: {ConfigPath}");
+            return;
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = PythonExe,
@@ -349,11 +370,26 @@ public class ProjectToolsWindow : EditorWindow
         trainStartGames  = PlayerPrefs.GetInt("TotalGames", 0);
         trainStartRounds = PlayerPrefs.GetInt("TotalRoundsLo", 0);
 
-        trainingProcess.Start();
-        trainingProcess.BeginOutputReadLine();
-        trainingProcess.BeginErrorReadLine();
+        try
+        {
+            trainingProcess.Start();
+            trainingProcess.BeginOutputReadLine();
+            trainingProcess.BeginErrorReadLine();
+            Debug.Log($"[ML-Train] Started training (run-id: {runId}, PID: {trainingProcess.Id}). Python is loading — wait for 'Listening on port 5004'...");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[ML-Train] Failed to start process: {ex.Message}");
+            trainingProcess = null;
+            return;
+        }
 
-        UnityEngine.Debug.Log($"[ML-Train] Started training (run-id: {runId}). Wait for 'Listening on port 5004' then press Play.");
+        // Show Console so user can see training output.
+        EditorApplication.ExecuteMenuItem("Window/General/Console");
+
+        // Force window repaint to update button state.
+        if (HasOpenInstances<ProjectToolsWindow>())
+            GetWindow<ProjectToolsWindow>().Repaint();
     }
 
     private static void StartTrainingAndPlay()
@@ -405,6 +441,10 @@ public class ProjectToolsWindow : EditorWindow
 
         // Auto-load the trained models.
         LoadBestModels(runId);
+
+        // Force window repaint to update button state.
+        if (HasOpenInstances<ProjectToolsWindow>())
+            GetWindow<ProjectToolsWindow>().Repaint();
     }
 
     /// <summary>
