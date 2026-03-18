@@ -30,18 +30,6 @@ public class HexAgent : Agent
     private int prevTeamTiles;
     private int prevEnemyTiles;
 
-    private new void Awake()
-    {
-        // Awake fires before OnEnable. Academy.LazyInitialize() is called in OnEnable,
-        // which blocks ~60s when BehaviorType=Default and no Python trainer is running.
-        if (TestModeDetector.IsTestMode())
-        {
-            var bp = GetComponent<BehaviorParameters>();
-            if (bp != null)
-                bp.BehaviorType = BehaviorType.HeuristicOnly;
-        }
-    }
-
     public override void Initialize()
     {
         unitData = GetComponent<UnitData>();
