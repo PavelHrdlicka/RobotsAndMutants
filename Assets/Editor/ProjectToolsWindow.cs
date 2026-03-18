@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using UnityEditor.TestTools.TestRunner.Api;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -618,33 +617,10 @@ public class ProjectToolsWindow : EditorWindow
 
         if (EditorApplication.isPlaying)
         {
-            Debug.Log("[ProjectTools] Stopping game before running PlayMode tests...");
+            Debug.Log("[ProjectTools] Stopping game — click 'Run All' in Test Runner once Unity exits Play mode.");
             EditorApplication.isPlaying = false;
-
-            // Schedule test execution after play mode has fully exited.
-            EditorApplication.playModeStateChanged -= OnPlayModeExitedForTests;
-            EditorApplication.playModeStateChanged += OnPlayModeExitedForTests;
         }
-        else
-        {
-            ExecutePlayModeTests();
-        }
-    }
-
-    private static void OnPlayModeExitedForTests(PlayModeStateChange state)
-    {
-        if (state == PlayModeStateChange.EnteredEditMode)
-        {
-            EditorApplication.playModeStateChanged -= OnPlayModeExitedForTests;
-            // Small delay so Unity finishes cleanup.
-            EditorApplication.delayCall += ExecutePlayModeTests;
-        }
-    }
-
-    private static void ExecutePlayModeTests()
-    {
-        Debug.Log("[ProjectTools] Starting PlayMode tests via TestRunnerApi...");
-        var api = ScriptableObject.CreateInstance<TestRunnerApi>();
-        api.Execute(new ExecutionSettings(new Filter { testMode = TestMode.PlayMode }));
+        // User clicks Run All in Test Runner after game has stopped.
+        // Direct automation via TestRunnerApi causes NullRef in PlayModeRunTask (Unity bug).
     }
 }
