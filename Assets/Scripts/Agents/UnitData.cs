@@ -10,8 +10,8 @@ public class UnitData : MonoBehaviour
     public int unitIndex;
 
     [Header("Stats")]
-    public int maxHealth = 5;
-    [SerializeField] private int health = 5;
+    public int maxHealth = 7;
+    [SerializeField] private int health = 7;
 
     [Header("Position")]
     public HexCoord currentHex;
@@ -27,6 +27,11 @@ public class UnitData : MonoBehaviour
     public UnitAction lastAction = UnitAction.Move; // Move = "no indicator" — idle spinner shown only on explicit idle choice
     public HexCoord moveFrom;
     public HexCoord moveTo;
+
+    /// <summary>Set by HexMovement.TryAttack — the enemy that was attacked this turn.</summary>
+    [HideInInspector] public UnitData lastAttackTarget;
+    /// <summary>True if lastAttackTarget died from the attack.</summary>
+    [HideInInspector] public bool lastAttackKilled;
 
     /// <summary>
     /// Set by HexAgent.OnActionReceived to signal GameManager that this unit's
@@ -61,6 +66,7 @@ public class UnitData : MonoBehaviour
     /// <summary>Respawn at given hex with full health.</summary>
     public void Respawn(HexCoord hex, Vector3 worldPos)
     {
+        ApplyConfigHealth();
         isAlive = true;
         health = maxHealth;
         respawnCooldown = 0;
@@ -80,10 +86,19 @@ public class UnitData : MonoBehaviour
     /// <summary>Reset unit to initial state for a new episode.</summary>
     public void ResetUnit()
     {
+        ApplyConfigHealth();
         health = maxHealth;
         isAlive = true;
         respawnCooldown = 0;
         hasShield = false;
         gameObject.SetActive(true);
+    }
+
+    /// <summary>Sync maxHealth from GameConfig if available.</summary>
+    public void ApplyConfigHealth()
+    {
+        var cfg = GameConfig.Instance;
+        if (cfg != null)
+            maxHealth = cfg.unitMaxHealth;
     }
 }

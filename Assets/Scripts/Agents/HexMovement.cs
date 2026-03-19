@@ -140,7 +140,9 @@ public class HexMovement : MonoBehaviour
 
     /// <summary>
     /// Attack the enemy unit on the adjacent hex in the given direction.
-    /// Attacker stays in place; both units take 1 damage.
+    /// Attacker stays in place; both units take damage.
+    /// Robot Flanking: each adjacent ally gives robotFlankingChancePerAlly chance of double damage (max 3 allies).
+    /// Mutant Swarm Cover: each adjacent ally of defender gives mutantDodgeChancePerAlly chance to dodge (max 3 allies).
     /// Returns true if an attack was executed.
     /// </summary>
     public bool TryAttack(int direction)
@@ -152,18 +154,42 @@ public class HexMovement : MonoBehaviour
         UnitData enemy = FindEnemyAt(targetCoord);
         if (enemy == null) return false;
 
-        // Attacker deals 2 damage, defender deals 1. Shield negates incoming damage to its holder.
-        int damageToSelf  = unitData.hasShield ? 0 : 1;   // defender hits back for 1
-        int damageToEnemy = enemy.hasShield    ? 0 : 2;    // attacker hits for 2
+        var cfg = GameConfig.Instance;
+
+        // Base damage: attacker deals 2, defender hits back for 1. Shield negates.
+        int damageToSelf  = unitData.hasShield ? 0 : 1;
+        int damageToEnemy = enemy.hasShield    ? 0 : 2;
+
+        // Robot Flanking: adjacent allies give chance of double damage.
+        if (damageToEnemy > 0 && unitData.team == Team.Robot && cfg != null)
+        {
+            int allies = CountAdjacentAllies(unitData);
+            float flankChance = allies * cfg.robotFlankingChancePerAlly;
+            if (Random.value < flankChance)
+                damageToEnemy *= 2;
+        }
+
+        // Mutant Swarm Cover: defender's adjacent allies give chance to dodge.
+        if (damageToEnemy > 0 && enemy.team == Team.Mutant && cfg != null)
+        {
+            int defenderAllies = CountAdjacentAllies(enemy);
+            float dodgeChance = defenderAllies * cfg.mutantDodgeChancePerAlly;
+            if (Random.value < dodgeChance)
+                damageToEnemy = 0;
+        }
 
         unitData.Health -= damageToSelf;
         enemy.Health    -= damageToEnemy;
 
-        unitData.lastAction = UnitAction.Attack;   // attacker: crossed swords
-        if (enemy.isAlive) enemy.lastAction = UnitAction.Defend;  // defender: shield icon
+        unitData.lastAction = UnitAction.Attack;
+        unitData.lastAttackTarget = enemy;
+        if (enemy.isAlive) enemy.lastAction = UnitAction.Defend;
 
-        if (enemy.Health <= 0)
+        bool killed = enemy.Health <= 0;
+        if (killed)
             enemy.Die(12);
+
+        unitData.lastAttackKilled = killed;
 
         if (unitData.Health <= 0)
             unitData.Die(12);
@@ -281,6 +307,28 @@ public class HexMovement : MonoBehaviour
             if (unit.currentHex == coord) return true;
         }
         return false;
+    }
+
+    /// <summary>Count alive allies adjacent to unit (same team, max 3).</summary>
+    private int CountAdjacentAllies(UnitData unit)
+    {
+        int count = 0;
+        for (int i = 0; i < 6; i++)
+        {
+            HexCoord neighbor = unit.currentHex.Neighbor(i);
+            foreach (var other in UnitCache.GetAll())
+            {
+                if (other == unit || !other.isAlive) continue;
+                if (other.team != unit.team) continue;
+                if (other.currentHex == neighbor)
+                {
+                    count++;
+                    if (count >= 3) return 3;
+                    break;
+                }
+            }
+        }
+        return count;
     }
 
     /// <summary>Returns the enemy unit at the given coord, or null if none.</summary>

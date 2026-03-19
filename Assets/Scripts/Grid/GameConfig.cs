@@ -47,6 +47,24 @@ public class GameConfig : ScriptableObject
 
     private int MaxBaseSize => boardSide >= 3 ? 4 : 1; // Corner + 3 neighbors max
 
+    [Header("Combat")]
+    [Tooltip("Maximum health points per unit.")]
+    [Range(3, 20)]
+    public int unitMaxHealth = 7;
+
+    [Tooltip("Robot Flanking: % chance of double damage per adjacent ally (0.1 = 10%). Max 3 allies counted.")]
+    [Range(0f, 0.5f)]
+    public float robotFlankingChancePerAlly = 0.1f;
+
+    [Tooltip("Mutant Swarm Cover: % chance to dodge attack per adjacent ally (0.1 = 10%). Max 3 allies counted.")]
+    [Range(0f, 0.5f)]
+    public float mutantDodgeChancePerAlly = 0.1f;
+
+    [Header("Replay Logging")]
+    [Tooltip("Log every Nth game to a JSONL replay file. 1 = every game, 10 = every 10th game.")]
+    [Range(1, 1000)]
+    public int replayLogEveryNthGame = 1;
+
     [Header("Reward Shaping")]
     [Tooltip("Reward for killing an enemy unit.")]
     public float killBonus = 0.5f;
@@ -59,6 +77,24 @@ public class GameConfig : ScriptableObject
 
     [Tooltip("Reward per enemy tile lost in a single turn (opponent lost territory).")]
     public float enemyLossRewardPerTile = 0.1f;
+
+    [Tooltip("Per-neighbor bonus when building on a tile adjacent to own tiles (encourages clustering).")]
+    public float buildAdjacencyBonus = 0.03f;
+
+    [Tooltip("Per-neighbor bonus when capturing a tile surrounded by enemy tiles (encourages disruption).")]
+    public float captureDisruptionBonus = 0.05f;
+
+    [Tooltip("Bonus scaled by cohesion ratio (largest group / total tiles). Penalizes scattered islands.")]
+    public float cohesionBonus = 0.02f;
+
+    [Tooltip("One-time bonus when an action splits the enemy into more connected components.")]
+    public float groupSplitBonus = 0.3f;
+
+    [Tooltip("Per-step bonus when the largest group is connected to the team's base.")]
+    public float baseConnectionBonus = 0.005f;
+
+    [Tooltip("Per-step bonus for a unit standing on a frontline tile (own tile adjacent to enemy).")]
+    public float frontlineBonus = 0.005f;
 
     [Tooltip("Small negative reward each step to encourage speed (should be negative).")]
     public float stepPenalty = -0.001f;

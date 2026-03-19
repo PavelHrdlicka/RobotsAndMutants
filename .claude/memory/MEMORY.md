@@ -25,6 +25,16 @@
 - [feedback_isready_guard.md](feedback_isready_guard.md) — IsReady guard musí explicitně kontrolovat všechny závislosti; proxy-field smazání může skrytě rozbít garanci
 - [feedback_ongui_stable_controls.md](feedback_ongui_stable_controls.md) — OnGUI: nikdy podmíněně přidávat/odebírat controls; použít GUI.enabled=false místo if/skip
 - [feedback_mlagents_training_guards.md](feedback_mlagents_training_guards.md) — Před --resume/--initialize-from vždy validovat prerekvizity (checkpoint/ONNX existence)
+- [feedback_no_write_to_assets.md](feedback_no_write_to_assets.md) — Nikdy za běhu nezapisovat soubory do Assets/ (Asset Pipeline import zpomaluje hru)
+- [feedback_explicit_null_cast.md](feedback_explicit_null_cast.md) — Při předávání null jako argumentu vždy explicitně přetypovat: (Type)null
+- [feedback_replace_all_review.md](feedback_replace_all_review.md) — Po replace_all vždy zkontrolovat všechny výskyty — mohou mít jiný kontext
+- [feedback_preallocate_collections.md](feedback_preallocate_collections.md) — V hot-path kódu nikdy new kolekce — pre-alokovat a Clear()
+- [feedback_no_save_during_playmode.md](feedback_no_save_during_playmode.md) — Nikdy neukládat .cs soubory zatímco Unity běží v Play mode (domain reload freeze)
+- [feedback_mlagents_training_perf.md](feedback_mlagents_training_perf.md) — ML-Agents trénink: threaded:true, batch/buffer dle HW, device:cpu pro editor training
+- [feedback_pytorch_cuda_unity.md](feedback_pytorch_cuda_unity.md) — PyTorch CUDA nelze s Unity na jedné GPU (device mismatch, VRAM konflikt, auto-detect past)
+
+## Project
+- [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)
 
 ## Reference
 - [reference_unity_log.md](reference_unity_log.md) — Unity Editor log: C:\Users\mail\AppData\Local\Unity\Editor\Editor.log

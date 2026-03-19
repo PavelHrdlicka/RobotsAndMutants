@@ -54,11 +54,14 @@ public partial class GameManager : MonoBehaviour
     private int robotAttacks, robotBuilds, robotKills;
     private int mutantAttacks, mutantBuilds, mutantKills;
 
+    // Replay logger — writes JSONL files for strategy analysis.
+    private readonly GameReplayLogger replayLogger = new();
+
     // ── Initialisation ─────────────────────────────────────────────────────
 
     public GameState State => new GameState(
         currentRound, maxRounds,
-        grid?.CountTiles(Team.Robot)  ?? 0,  grid?.CountTiles(Team.Mutant) ?? 0,
+        grid?.LargestConnectedGroup(Team.Robot)  ?? 0,  grid?.LargestConnectedGroup(Team.Mutant) ?? 0,
         CountAlive(Team.Robot), CountAlive(Team.Mutant),
         gameOver, winner
     );
@@ -144,11 +147,11 @@ public partial class GameManager : MonoBehaviour
             var cfg = GameConfig.Instance;
             float tw = cfg?.timeoutWinReward  ??  0.5f;
             float tl = cfg?.timeoutLoseReward ?? -0.5f;
-            int rTiles = grid.CountTiles(Team.Robot);
-            int mTiles = grid.CountTiles(Team.Mutant);
-            if      (rTiles > mTiles) EndGame(Team.Robot,  tw, tl, rTiles, mTiles, "Max rounds.");
-            else if (mTiles > rTiles) EndGame(Team.Mutant, tw, tl, rTiles, mTiles, "Max rounds.");
-            else                      EndGame(Team.None,   0f, 0f, rTiles, mTiles, "Max rounds. Draw.");
+            int rGroup = grid.LargestConnectedGroup(Team.Robot);
+            int mGroup = grid.LargestConnectedGroup(Team.Mutant);
+            if      (rGroup > mGroup) EndGame(Team.Robot,  tw, tl, rGroup, mGroup, "Max rounds.");
+            else if (mGroup > rGroup) EndGame(Team.Mutant, tw, tl, rGroup, mGroup, "Max rounds.");
+            else                      EndGame(Team.None,   0f, 0f, rGroup, mGroup, "Max rounds. Draw.");
             return;
         }
 
@@ -232,6 +235,15 @@ public partial class GameManager : MonoBehaviour
             }
         }
 
+        // Log turn to replay file.
+        replayLogger.LogTurn(currentRound, unit,
+            grid.LargestConnectedGroup(Team.Robot), grid.LargestConnectedGroup(Team.Mutant),
+            CountAlive(Team.Robot), CountAlive(Team.Mutant));
+
+        // Clear per-turn attack tracking.
+        unit.lastAttackTarget = null;
+        unit.lastAttackKilled = false;
+
         CheckWinCondition();
     }
 
@@ -239,11 +251,12 @@ public partial class GameManager : MonoBehaviour
 
     private void CheckWinCondition()
     {
-        int   robotTiles  = grid.CountTiles(Team.Robot);
-        int   mutantTiles = grid.CountTiles(Team.Mutant);
+        // Win condition: largest connected group of territory (not total tiles).
+        int   robotGroup  = grid.LargestConnectedGroup(Team.Robot);
+        int   mutantGroup = grid.LargestConnectedGroup(Team.Mutant);
         float total       = grid.ContestableTileCount > 0 ? grid.ContestableTileCount : 1f;
-        float robotRatio  = robotTiles  / total;
-        float mutantRatio = mutantTiles / total;
+        float robotRatio  = robotGroup  / total;
+        float mutantRatio = mutantGroup / total;
 
         var cfg = GameConfig.Instance;
         float wr = cfg?.winReward         ??  1f;
@@ -253,22 +266,22 @@ public partial class GameManager : MonoBehaviour
 
         if (robotRatio >= winThreshold)
         {
-            EndGame(Team.Robot, wr, lr, robotTiles, mutantTiles,
-                    $"Robots win! ({robotRatio:P0} territory at round {currentRound})");
+            EndGame(Team.Robot, wr, lr, robotGroup, mutantGroup,
+                    $"Robots win! ({robotRatio:P0} connected territory at round {currentRound})");
         }
         else if (mutantRatio >= winThreshold)
         {
-            EndGame(Team.Mutant, wr, lr, robotTiles, mutantTiles,
-                    $"Mutants win! ({mutantRatio:P0} territory at round {currentRound})");
+            EndGame(Team.Mutant, wr, lr, robotGroup, mutantGroup,
+                    $"Mutants win! ({mutantRatio:P0} connected territory at round {currentRound})");
         }
         else if (currentRound >= maxRounds && turnIndex >= turnOrder.Count - 1)
         {
-            if (robotTiles > mutantTiles)
-                EndGame(Team.Robot,  tw, tl, robotTiles, mutantTiles, "Max rounds. Robots lead.");
-            else if (mutantTiles > robotTiles)
-                EndGame(Team.Mutant, tw, tl, robotTiles, mutantTiles, "Max rounds. Mutants lead.");
+            if (robotGroup > mutantGroup)
+                EndGame(Team.Robot,  tw, tl, robotGroup, mutantGroup, "Max rounds. Robots lead.");
+            else if (mutantGroup > robotGroup)
+                EndGame(Team.Mutant, tw, tl, robotGroup, mutantGroup, "Max rounds. Mutants lead.");
             else
-                EndGame(Team.None,   0f, 0f, robotTiles, mutantTiles, "Max rounds. Draw.");
+                EndGame(Team.None,   0f, 0f, robotGroup, mutantGroup, "Max rounds. Draw.");
         }
     }
 
@@ -293,6 +306,12 @@ public partial class GameManager : MonoBehaviour
         }
 
         RecordMatch(win, currentRound, rTiles, mTiles);
+
+        // Close replay file with summary + territory snapshot.
+        replayLogger.EndGame(win, currentRound, rTiles, mTiles,
+            robotAttacks, mutantAttacks, mutantKills, robotKills,
+            robotBuilds, mutantBuilds, grid);
+
         EndEpisodeForAll();
         if (PlayerPrefs.GetInt("TotalGames", 0) % 50 == 0)
             Debug.Log($"[GameManager] {logMsg}");

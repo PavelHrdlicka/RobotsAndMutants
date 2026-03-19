@@ -146,6 +146,35 @@ public class HexGrid : MonoBehaviour
     /// <summary>Check if a coordinate is valid on the current board.</summary>
     public bool IsValidCoord(HexCoord coord) => tiles.ContainsKey(coord);
 
+    /// <summary>Count how many non-base neighbors of a coord are owned by the given team.</summary>
+    public int CountTeamNeighbors(HexCoord coord, Team team)
+    {
+        int count = 0;
+        for (int i = 0; i < 6; i++)
+        {
+            var neighbor = coord.Neighbor(i);
+            if (tiles.TryGetValue(neighbor, out var tile) && !tile.isBase && tile.Owner == team)
+                count++;
+        }
+        return count;
+    }
+
+    /// <summary>Is this coord on the frontline? Own tile with at least one enemy neighbor.</summary>
+    public bool IsFrontlineTile(HexCoord coord, Team ownTeam)
+    {
+        if (!tiles.TryGetValue(coord, out var tile)) return false;
+        if (tile.Owner != ownTeam) return false;
+
+        Team enemy = ownTeam == Team.Robot ? Team.Mutant : Team.Robot;
+        for (int i = 0; i < 6; i++)
+        {
+            var neighbor = coord.Neighbor(i);
+            if (tiles.TryGetValue(neighbor, out var nTile) && nTile.Owner == enemy)
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>
     /// Robot base: bottom-left cluster (q negative, r positive).
     /// Mutant base: top-right cluster (q positive, r negative).
@@ -216,6 +245,114 @@ public class HexGrid : MonoBehaviour
         foreach (var tile in tiles.Values)
             if (!tile.isBase && tile.Owner == team) count++;
         return count;
+    }
+
+    // ── Territory analysis (BFS) ───────────────────────────────────────────
+
+    /// <summary>
+    /// Comprehensive territory info computed in a single BFS pass per team.
+    /// </summary>
+    public struct TerritoryInfo
+    {
+        /// <summary>Size of the largest connected group (non-base tiles only).</summary>
+        public int largestGroup;
+        /// <summary>Number of separate connected components.</summary>
+        public int componentCount;
+        /// <summary>Whether the largest group is connected to a base tile.</summary>
+        public bool largestTouchesBase;
+        /// <summary>Total non-base tiles owned by the team.</summary>
+        public int totalTiles;
+    }
+
+    // Frame-based cache — all territory metrics computed once per frame.
+    // Pre-allocated collections to avoid GC pressure during training.
+    private TerritoryInfo _cachedRobotInfo, _cachedMutantInfo;
+    private int _territoryInfoCacheFrame = -1;
+    private readonly HashSet<HexCoord> _bfsVisited = new();
+    private readonly Queue<HexCoord> _bfsQueue = new();
+
+    /// <summary>Get full territory analysis for a team. Cached per frame.</summary>
+    public TerritoryInfo GetTerritoryInfo(Team team)
+    {
+        RefreshTerritoryCache();
+        return team == Team.Robot ? _cachedRobotInfo : _cachedMutantInfo;
+    }
+
+    /// <summary>Largest connected group (non-base tiles). Cached per frame.</summary>
+    public int LargestConnectedGroup(Team team)
+    {
+        RefreshTerritoryCache();
+        return team == Team.Robot ? _cachedRobotInfo.largestGroup : _cachedMutantInfo.largestGroup;
+    }
+
+    private void RefreshTerritoryCache()
+    {
+        int frame = UnityEngine.Time.frameCount;
+        if (_territoryInfoCacheFrame == frame) return;
+        _cachedRobotInfo  = ComputeTerritoryInfo(Team.Robot);
+        _cachedMutantInfo = ComputeTerritoryInfo(Team.Mutant);
+        _territoryInfoCacheFrame = frame;
+    }
+
+    private TerritoryInfo ComputeTerritoryInfo(Team team)
+    {
+        _bfsVisited.Clear();
+        int bestSize = 0;
+        bool bestTouchesBase = false;
+        int componentCount = 0;
+        int totalTiles = 0;
+
+        foreach (var kvp in tiles)
+        {
+            if (kvp.Value.Owner != team) continue;
+            if (_bfsVisited.Contains(kvp.Key)) continue;
+
+            // BFS from this tile.
+            int groupSize = 0;
+            bool touchesBase = false;
+            _bfsQueue.Clear();
+            _bfsQueue.Enqueue(kvp.Key);
+            _bfsVisited.Add(kvp.Key);
+
+            while (_bfsQueue.Count > 0)
+            {
+                var coord = _bfsQueue.Dequeue();
+                var tile = tiles[coord];
+
+                if (tile.isBase)
+                    touchesBase = true;
+                else
+                    groupSize++;
+
+                for (int i = 0; i < 6; i++)
+                {
+                    var neighbor = coord.Neighbor(i);
+                    if (_bfsVisited.Contains(neighbor)) continue;
+                    if (!tiles.TryGetValue(neighbor, out var nTile)) continue;
+                    if (nTile.Owner != team) continue;
+
+                    _bfsVisited.Add(neighbor);
+                    _bfsQueue.Enqueue(neighbor);
+                }
+            }
+
+            componentCount++;
+            totalTiles += groupSize;
+
+            if (groupSize > bestSize)
+            {
+                bestSize = groupSize;
+                bestTouchesBase = touchesBase;
+            }
+        }
+
+        return new TerritoryInfo
+        {
+            largestGroup = bestSize,
+            componentCount = componentCount,
+            largestTouchesBase = bestTouchesBase,
+            totalTiles = totalTiles,
+        };
     }
 
     private int _contestableTileCount = -1;

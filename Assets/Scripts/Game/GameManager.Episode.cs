@@ -41,6 +41,11 @@ public partial class GameManager
         mutantAttacks = 0; mutantBuilds = 0; mutantKills = 0;
         turnOrder.Clear();
 
+        // Start replay logging for this episode.
+        var cfg = GameConfig.Instance;
+        replayLogger.logEveryNthGame = cfg != null ? cfg.replayLogEveryNthGame : 1;
+        replayLogger.StartGame(matchCounter + 1, cfg, grid);
+
         foreach (var tile in grid.Tiles.Values)
             tile.ResetTile();
 

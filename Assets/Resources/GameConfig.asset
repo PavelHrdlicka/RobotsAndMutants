@@ -17,3 +17,18 @@ MonoBehaviour:
   msPerTick: 1
   winPercent: 60
   maxSteps: 2000
+  killBonus: 0.5
+  buildReward: 0.05
+  captureRewardPerTile: 0.1
+  enemyLossRewardPerTile: 0.1
+  buildAdjacencyBonus: 0.03
+  captureDisruptionBonus: 0.05
+  cohesionBonus: 0.02
+  groupSplitBonus: 0.3
+  baseConnectionBonus: 0.005
+  frontlineBonus: 0.005
+  stepPenalty: -0.001
+  winReward: 1
+  loseReward: -1
+  timeoutWinReward: 0.5
+  timeoutLoseReward: -0.5

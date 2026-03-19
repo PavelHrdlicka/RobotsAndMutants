@@ -9,14 +9,20 @@ using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// Dockable editor window with quick-access buttons for all project tools.
+/// Layout follows the ML training workflow: Configure → Train → Observe → Analyze → Test.
 /// Open via: Tools > Project Tools Window
 /// </summary>
 public class ProjectToolsWindow : EditorWindow
 {
     private Vector2 scrollPos;
-    private bool autoPlay;
-    private float autoPlayInterval = 0.1f;
-    private double nextAutoPlayTime;
+
+    // Replay analysis state.
+    private int analyzeCount = 10;
+    private string lastAnalysisResult;
+
+    // Foldout states (persisted via EditorPrefs).
+    private const string k_AdvancedFoldoutKey = "ProjectTools_AdvancedFoldout";
+    private const string k_SceneSetupFoldoutKey = "ProjectTools_SceneSetupFoldout";
 
     // Cached per Layout event — must NOT change between Layout and Repaint events
     // or GUILayout will throw "control N's position in group with only N controls".
@@ -174,23 +180,12 @@ public class ProjectToolsWindow : EditorWindow
     {
         if (!SessionState.GetBool(k_AutoPlayPending, false)) return;
 
-        // k_IsEnteringPlayMode is set just before we call isPlaying=true (in
-        // RegisterWaitForPython). If it's still set, this domain reload is the one
-        // triggered BY our Play mode entry — Unity will finish entering Play mode on its
-        // own. Do NOT call isPlaying=true again (that would cause a double-entry and a
-        // NullReferenceException in ML-Agents' RpcCommunicator.Initialize).
-        // k_IsEnteringPlayMode is cleared by OnPlayModeStateChanged once Play mode is
-        // confirmed entered or exited.
         if (SessionState.GetBool(k_IsEnteringPlayMode, false))
         {
-            // Keep k_AutoPlayPending — OnPlayModeStateChanged will erase it on success.
             Debug.Log("[ML-Train] Domain reload is part of Play mode entry — waiting for play mode.");
             return;
         }
 
-        // k_IsEnteringPlayMode not set: this is a script-compile domain reload that
-        // happened while waiting for Python (before isPlaying=true was called).
-        // Python is ready; re-trigger Play mode entry.
         bool trainingAlive = trainingProcess != null && !trainingProcess.HasExited;
         if (trainingAlive)
         {
@@ -239,7 +234,6 @@ public class ProjectToolsWindow : EditorWindow
     private void OnDisable()
     {
         EditorApplication.update -= OnEditorUpdate;
-        autoPlay = false;
     }
 
     // Track whether we already logged the training exit.
@@ -256,27 +250,25 @@ public class ProjectToolsWindow : EditorWindow
                 SessionState.EraseBool(k_IsEnteringPlayMode);
         }
 
-        // Monitor training process — log when it exits.
+        // Monitor training process — log when it exits and auto-load models.
         if (trainingProcess != null && trainingProcess.HasExited && !trainingExitLogged)
         {
             trainingExitLogged = true;
             int exitCode = trainingProcess.ExitCode;
             if (exitCode == 0)
-                Debug.Log($"[ML-Train] Training finished successfully (exit code 0). Models saved to results/{runId}/");
+            {
+                Debug.Log($"[ML-Train] Training finished successfully (exit code 0). Loading models from results/{runId}/...");
+                LoadBestModels(runId);
+            }
             else
+            {
                 Debug.LogWarning($"[ML-Train] Training process exited with code {exitCode}. Check Console for errors.");
-            Repaint();
-        }
-
-        if (!autoPlay || !EditorApplication.isPlaying) return;
-
-        if (EditorApplication.timeSinceStartup >= nextAutoPlayTime)
-        {
-            nextAutoPlayTime = EditorApplication.timeSinceStartup + autoPlayInterval;
-            StepGame(1);
+            }
             Repaint();
         }
     }
+
+    // ─── OnGUI ────────────────────────────────────────────
 
     private void OnGUI()
     {
@@ -293,8 +285,21 @@ public class ProjectToolsWindow : EditorWindow
 
         scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
-        // --- Game Config ---
-        DrawSection("Game Config", () =>
+        DrawConfigSection();
+        DrawTrainingSection();
+        DrawObserveSection();
+        DrawAnalysisSection();
+        DrawTestingSection();
+        DrawSceneSetupSection();
+
+        EditorGUILayout.EndScrollView();
+    }
+
+    // ─── 1. Configuration ─────────────────────────────────
+
+    private void DrawConfigSection()
+    {
+        DrawSection("Configuration", () =>
         {
             var config = GameConfigEditor.GetOrCreateConfig();
             if (config == null)
@@ -319,6 +324,17 @@ public class ProjectToolsWindow : EditorWindow
             config.winPercent = EditorGUILayout.IntSlider("Win %", config.winPercent, 10, 100);
             config.maxSteps = EditorGUILayout.IntSlider("Max Steps", config.maxSteps, 100, 10000);
 
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Combat", EditorStyles.miniBoldLabel);
+            config.unitMaxHealth = EditorGUILayout.IntSlider("Unit Max Health", config.unitMaxHealth, 3, 20);
+            config.robotFlankingChancePerAlly = EditorGUILayout.Slider("Robot Flank %/ally", config.robotFlankingChancePerAlly, 0f, 0.5f);
+            EditorGUILayout.LabelField($"  {config.robotFlankingChancePerAlly * 100:F0}% per adjacent ally → double damage (max 3)", EditorStyles.miniLabel);
+            config.mutantDodgeChancePerAlly = EditorGUILayout.Slider("Mutant Dodge %/ally", config.mutantDodgeChancePerAlly, 0f, 0.5f);
+            EditorGUILayout.LabelField($"  {config.mutantDodgeChancePerAlly * 100:F0}% per adjacent ally → dodge attack (max 3)", EditorStyles.miniLabel);
+
+            EditorGUILayout.Space(4);
+            config.replayLogEveryNthGame = EditorGUILayout.IntSlider("Replay: log every Nth game", config.replayLogEveryNthGame, 1, 1000);
+
             if (EditorGUI.EndChangeCheck())
             {
                 EditorUtility.SetDirty(config);
@@ -328,12 +344,134 @@ public class ProjectToolsWindow : EditorWindow
                     Time.timeScale = config.TimeScale;
             }
         });
+    }
 
-        // --- Quick Launch ---
-        DrawSection("Quick Launch", () =>
+    // ─── 2. Training ──────────────────────────────────────
+
+    private void DrawTrainingSection()
+    {
+        DrawSection("Training", () =>
+        {
+            // --- Hero button: one-click training ---
+            GUI.enabled = !cachedTrainingRunning;
+            GUI.backgroundColor = !cachedTrainingRunning ? new Color(1f, 0.84f, 0f) : Color.gray;
+            if (GUILayout.Button("Start Training", GUILayout.Height(45)))
+                StartTrainingAndPlay();
+            GUI.enabled = true;
+            GUI.backgroundColor = Color.white;
+
+            // --- Run ID + Status on one line ---
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Run ID:", GUILayout.Width(45));
+            runId = EditorGUILayout.TextField(runId, GUILayout.Width(70));
+            GUILayout.FlexibleSpace();
+
+            // Status indicator.
+            string statusText;
+            Color statusColor;
+            bool processExited = trainingProcess != null && trainingProcess.HasExited;
+
+            if (cachedTrainingRunning)
+            {
+                bool blink = ((int)(EditorApplication.timeSinceStartup * 2)) % 2 == 0;
+                string pid = "";
+                try { pid = $" PID {trainingProcess.Id}"; } catch { }
+                statusText = $"Training{pid} {(blink ? "●" : "○")}";
+                statusColor = new Color(0.3f, 1f, 0.3f);
+                Repaint();
+            }
+            else if (processExited)
+            {
+                int exitCode = trainingProcess.ExitCode;
+                statusText = exitCode == 0 ? "Finished OK" : $"Error (code {exitCode})";
+                statusColor = exitCode == 0 ? new Color(0.3f, 1f, 0.3f) : new Color(1f, 0.4f, 0.3f);
+            }
+            else
+            {
+                statusText = "Idle";
+                statusColor = Color.gray;
+            }
+
+            var statusStyle = new GUIStyle(EditorStyles.miniLabel)
+                { normal = { textColor = statusColor }, fontStyle = FontStyle.Bold };
+            EditorGUILayout.LabelField(statusText, statusStyle);
+            EditorGUILayout.EndHorizontal();
+
+            // --- Stop button (only when running) ---
+            if (cachedTrainingRunning)
+            {
+                GUI.backgroundColor = new Color(1f, 0.4f, 0.3f);
+                if (GUILayout.Button("Stop Training", GUILayout.Height(30)))
+                    StopTraining();
+                GUI.backgroundColor = Color.white;
+            }
+
+            // --- Advanced start options (foldout) ---
+            EditorGUILayout.Space(4);
+            bool advancedOpen = EditorPrefs.GetBool(k_AdvancedFoldoutKey, false);
+            bool newAdvancedOpen = EditorGUILayout.Foldout(advancedOpen, "Advanced Start Options", true);
+            if (newAdvancedOpen != advancedOpen)
+                EditorPrefs.SetBool(k_AdvancedFoldoutKey, newAdvancedOpen);
+
+            if (newAdvancedOpen)
+            {
+                GUI.enabled = !cachedTrainingRunning;
+
+                // Start Training (new) — manual, does NOT auto-Play.
+                GUI.backgroundColor = new Color(0.3f, 0.7f, 1f);
+                if (GUILayout.Button("Start Training (manual, no auto-Play)", GUILayout.Height(28)))
+                    StartTraining();
+                GUI.backgroundColor = Color.white;
+
+                // Resume.
+                GUI.enabled = !cachedTrainingRunning && cachedHasCheckpoint;
+                string resumeLabel = cachedHasCheckpoint ? $"Resume ({runId})" : $"Resume ({runId}) — no checkpoint";
+                if (GUILayout.Button(resumeLabel, GUILayout.Height(25)))
+                    StartTraining(TrainingMode.Resume);
+
+                // Init from previous.
+                GUI.enabled = !cachedTrainingRunning && cachedHasModel;
+                string initLabel = cachedHasModel ? $"Init from {cachedPrevRunId}" : "Init from previous — no model yet";
+                if (GUILayout.Button(initLabel, GUILayout.Height(25)))
+                {
+                    int next = RunCounter;
+                    RunCounter = next + 1;
+                    runId = $"run{next}";
+                    StartTraining(TrainingMode.InitFrom, cachedPrevRunId);
+                }
+
+                GUI.enabled = true;
+            }
+
+            // --- TensorBoard ---
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            if (!cachedTbRunning)
+            {
+                if (GUILayout.Button("Open TensorBoard"))
+                    StartTensorBoard();
+            }
+            else
+            {
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button("Open in Browser"))
+                    Application.OpenURL("http://localhost:6006");
+                if (GUILayout.Button("Stop TensorBoard"))
+                    StopTensorBoard();
+                EditorGUILayout.EndHorizontal();
+            }
+        });
+    }
+
+    // ─── 3. Observe ───────────────────────────────────────
+
+    private void DrawObserveSection()
+    {
+        DrawSection("Observe (no training)", () =>
         {
             GUI.backgroundColor = new Color(0.3f, 0.8f, 0.3f);
-            if (GUILayout.Button("Reset + Setup + Play", GUILayout.Height(40)))
+            if (GUILayout.Button("Launch Game", GUILayout.Height(35)))
             {
                 if (EditorApplication.isPlaying)
                 {
@@ -354,195 +492,144 @@ public class ProjectToolsWindow : EditorWindow
                 }
             }
             GUI.backgroundColor = Color.white;
-        });
 
-        // --- ML Training ---
-        DrawSection("ML Training", () =>
-        {
-            // Run ID field.
-            runId = EditorGUILayout.TextField("Run ID", runId);
-
-            EditorGUILayout.Space(4);
-
-            // Start / Stop training.
-            bool processExited = trainingProcess != null && trainingProcess.HasExited;
-            if (!cachedTrainingRunning)
+            // Speed info (read-only, config is edited in Configuration section).
+            var config = GameConfigEditor.GetOrCreateConfig();
+            if (config != null)
             {
-                // -- Force (new run) --
-                GUI.backgroundColor = new Color(0.3f, 0.7f, 1f);
-                if (GUILayout.Button("Start Training (new)", GUILayout.Height(35)))
-                    StartTraining();
-                GUI.backgroundColor = Color.white;
-
-                // -- Resume (continue same run) — only if checkpoint exists --
-                GUI.backgroundColor = cachedHasCheckpoint ? new Color(0.5f, 0.8f, 1f) : Color.white;
-                GUI.enabled = cachedHasCheckpoint;
-                string resumeLabel = cachedHasCheckpoint ? $"Resume Training ({runId})" : $"Resume ({runId}) — no checkpoint";
-                if (GUILayout.Button(resumeLabel, GUILayout.Height(28)))
-                    StartTraining(TrainingMode.Resume);
-                GUI.enabled = true;
-                GUI.backgroundColor = Color.white;
-
-                // -- Init from previous trained weights --
-                GUI.backgroundColor = cachedHasModel ? new Color(0.8f, 0.6f, 1f) : Color.white;
-                GUI.enabled = cachedHasModel;
-                string initLabel = cachedHasModel ? $"New run (init from {cachedPrevRunId})" : "New run (init from previous) — no model yet";
-                if (GUILayout.Button(initLabel, GUILayout.Height(28)))
-                {
-                    int next = RunCounter;
-                    RunCounter = next + 1;
-                    runId = $"run{next}";
-                    StartTraining(TrainingMode.InitFrom, cachedPrevRunId);
-                }
-                GUI.enabled = true;
-                GUI.backgroundColor = Color.white;
-
-                if (processExited)
-                {
-                    int exitCode = trainingProcess.ExitCode;
-                    var style = new GUIStyle(EditorStyles.boldLabel)
-                        { normal = { textColor = exitCode == 0 ? new Color(0.3f, 1f, 0.3f) : new Color(1f, 0.4f, 0.3f) } };
-                    EditorGUILayout.LabelField(
-                        exitCode == 0 ? $"Last run ({runId}): Finished OK" : $"Last run ({runId}): Exited with code {exitCode}",
-                        style);
-                }
-                else
-                {
-                    EditorGUILayout.HelpBox(
-                        "1. Click 'Start Training'\n2. Wait for 'Listening on port 5004' in Console\n3. Press Play in Unity",
-                        MessageType.Info);
-                }
-            }
-            else
-            {
-                GUI.backgroundColor = new Color(1f, 0.4f, 0.3f);
-                if (GUILayout.Button("Stop Training", GUILayout.Height(35)))
-                    StopTraining();
-                GUI.backgroundColor = Color.white;
-
-                // Blinking indicator so user sees it's alive.
-                bool blink = ((int)(EditorApplication.timeSinceStartup * 2)) % 2 == 0;
-                string dot = blink ? " ●" : " ○";
-                var statusStyle = new GUIStyle(EditorStyles.boldLabel)
-                    { normal = { textColor = new Color(0.3f, 1f, 0.3f) } };
-                string pid = "";
-                try { pid = $" (PID {trainingProcess.Id})"; } catch { }
-                EditorGUILayout.LabelField($"Status: Training running{pid}{dot}", statusStyle);
-
-                // Force continuous repaint while training to show blinking.
-                Repaint();
-            }
-
-            // One-click: Start Training + auto-Play.
-            EditorGUILayout.Space(4);
-            GUI.enabled = !cachedTrainingRunning;
-            GUI.backgroundColor = !cachedTrainingRunning ? new Color(1f, 0.85f, 0.2f) : Color.white;
-            if (GUILayout.Button("Train (auto: start + setup + play)", GUILayout.Height(30)))
-                StartTrainingAndPlay();
-            GUI.enabled = true;
-            GUI.backgroundColor = Color.white;
-
-            EditorGUILayout.Space(8);
-
-            // TensorBoard.
-            if (!cachedTbRunning)
-            {
-                if (GUILayout.Button("Open TensorBoard"))
-                    StartTensorBoard();
-            }
-            else
-            {
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Open in Browser"))
-                    Application.OpenURL("http://localhost:6006");
-                if (GUILayout.Button("Stop TensorBoard"))
-                    StopTensorBoard();
-                EditorGUILayout.EndHorizontal();
-            }
-        });
-
-        // --- Hex Grid ---
-        DrawSection("Hex Grid", () =>
-        {
-            if (GUILayout.Button("Setup Scene", GUILayout.Height(30)))
-                HexGridSetup.SetupScene();
-
-            if (GUILayout.Button("Reset (Delete Prefab + Material)"))
-                HexGridSetup.Reset();
-        });
-
-        // --- Game ---
-        DrawSection("Game", () =>
-        {
-            if (GUILayout.Button("Step (1x)", GUILayout.Height(25)))
-                StepGame(1);
-
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Step 10x"))  StepGame(10);
-            if (GUILayout.Button("Step 100x")) StepGame(100);
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.Space(4);
-
-            EditorGUILayout.BeginHorizontal();
-            GUI.backgroundColor = autoPlay ? new Color(1f, 0.4f, 0.3f) : new Color(0.3f, 0.8f, 0.3f);
-            if (GUILayout.Button(autoPlay ? "Stop Autoplay" : "Autoplay", GUILayout.Height(28)))
-            {
-                autoPlay = !autoPlay;
-                if (autoPlay) nextAutoPlayTime = EditorApplication.timeSinceStartup;
-            }
-            GUI.backgroundColor = Color.white;
-            EditorGUILayout.EndHorizontal();
-
-            if (autoPlay)
-            {
-                autoPlayInterval = EditorGUILayout.Slider("Interval (s)", autoPlayInterval, 0.01f, 1f);
+                float ticksPerSec = 1000f / config.msPerTick;
+                EditorGUILayout.LabelField($"Speed: {config.msPerTick}ms/tick ({ticksPerSec:F0} ticks/s)", EditorStyles.miniLabel);
             }
 
             EditorGUILayout.Space(4);
-
             if (GUILayout.Button("Reset Game"))
                 ResetGame();
         });
+    }
 
-        // --- Debug ---
-        DrawSection("Debug", () =>
+    // ─── 4. Analysis ──────────────────────────────────────
+
+    private void DrawAnalysisSection()
+    {
+        DrawSection("Analysis", () =>
         {
-            if (GUILayout.Button("Randomize Tile Ownership"))
-                RandomizeTileOwnership();
-        });
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Last N games:", GUILayout.Width(90));
+            analyzeCount = EditorGUILayout.IntField(analyzeCount, GUILayout.Width(50));
+            if (GUILayout.Button("Analyze"))
+            {
+                var results = StrategyAnalyzer.AnalyzeLast(analyzeCount);
+                StrategyAnalyzer.LogResults(results);
+                lastAnalysisResult = results.Count > 0
+                    ? $"Analyzed {results.Count} games. See Console."
+                    : "No replay files found.";
+            }
+            EditorGUILayout.EndHorizontal();
 
-        // --- Testing ---
+            if (GUILayout.Button("Analyze All Replays"))
+            {
+                var results = StrategyAnalyzer.AnalyzeAll();
+                StrategyAnalyzer.LogResults(results);
+                lastAnalysisResult = results.Count > 0
+                    ? $"Analyzed {results.Count} games. CSV exported."
+                    : "No replay files found.";
+            }
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            EditorGUILayout.LabelField("AI Highlights", EditorStyles.miniBoldLabel);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Detect Highlights (Last N)"))
+            {
+                string path = HighlightDetector.AnalyzeAndExport(analyzeCount);
+                lastAnalysisResult = path != null
+                    ? $"Highlights exported to {path}. Open in Claude Code for AI interpretation."
+                    : "No replay files found.";
+            }
+            if (GUILayout.Button("Detect All"))
+            {
+                string path = HighlightDetector.AnalyzeAndExport();
+                lastAnalysisResult = path != null
+                    ? $"Highlights exported to {path}. Open in Claude Code for AI interpretation."
+                    : "No replay files found.";
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Open Replays Folder"))
+            {
+                string dir = System.IO.Path.GetFullPath("Replays");
+                if (System.IO.Directory.Exists(dir))
+                    EditorUtility.RevealInFinder(dir);
+                else
+                    Debug.LogWarning("[ProjectTools] Replays folder not found yet. Play some games first.");
+            }
+
+            if (!string.IsNullOrEmpty(lastAnalysisResult))
+                EditorGUILayout.HelpBox(lastAnalysisResult, MessageType.Info);
+        });
+    }
+
+    // ─── 5. Testing ───────────────────────────────────────
+
+    private void DrawTestingSection()
+    {
         DrawSection("Testing", () =>
         {
-            if (GUILayout.Button("Run EditMode Tests Now", GUILayout.Height(30)))
+            if (GUILayout.Button("Run EditMode Tests", GUILayout.Height(28)))
                 AutoTestRunner.RunEditModeTests();
 
-            if (GUILayout.Button("Open Test Runner"))
-                EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
-
-            // Safe PlayMode test runner — stops game first if needed.
             if (GUILayout.Button(
-                    EditorApplication.isPlaying ? "STOP GAME + Run PlayMode Tests" : "Run PlayMode Tests",
-                    GUILayout.Height(32)))
+                    EditorApplication.isPlaying ? "Stop Game + Open Test Runner" : "Open Test Runner",
+                    GUILayout.Height(25)))
             {
                 RunPlayModeTestsSafely();
             }
-
-            if (EditorApplication.isPlaying)
-                EditorGUILayout.HelpBox("Game is running — use button above, NOT 'Run All' in Test Runner!", MessageType.Error);
 
             EditorGUILayout.Space(4);
             bool autoTest = AutoTestRunner.Enabled;
             bool newAutoTest = EditorGUILayout.Toggle("Auto-run after compile", autoTest);
             if (newAutoTest != autoTest)
                 AutoTestRunner.Enabled = newAutoTest;
-        });
 
-        EditorGUILayout.EndScrollView();
+            EditorGUILayout.Space(8);
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUI.backgroundColor = new Color(1f, 0.4f, 0.3f);
+            if (GUILayout.Button("Reset All History & Models", GUILayout.Height(28)))
+                ResetAllHistory();
+            GUI.backgroundColor = Color.white;
+        });
     }
 
-    // ─── ML Training ──────────────────────────────────────
+    // ─── 6. Scene Setup (collapsed foldout) ───────────────
+
+    private void DrawSceneSetupSection()
+    {
+        EditorGUILayout.Space(8);
+        bool open = EditorPrefs.GetBool(k_SceneSetupFoldoutKey, false);
+        bool newOpen = EditorGUILayout.Foldout(open, "Scene Setup", true, EditorStyles.boldLabel);
+        if (newOpen != open)
+            EditorPrefs.SetBool(k_SceneSetupFoldoutKey, newOpen);
+
+        if (newOpen)
+        {
+            EditorGUILayout.BeginVertical("box");
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Setup Scene", GUILayout.Height(28)))
+                HexGridSetup.SetupScene();
+            if (GUILayout.Button("Reset Scene", GUILayout.Height(28)))
+                HexGridSetup.Reset();
+            EditorGUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Randomize Tile Ownership"))
+                RandomizeTileOwnership();
+
+            EditorGUILayout.EndVertical();
+        }
+    }
+
+    // ─── ML Training Logic ────────────────────────────────
 
     private enum TrainingMode { Force, Resume, InitFrom }
 
@@ -564,7 +651,7 @@ public class ProjectToolsWindow : EditorWindow
         // Guard: validate prerequisites before launching Python.
         if (mode == TrainingMode.Resume && !Directory.Exists(Path.GetFullPath($"results/{runId}")))
         {
-            Debug.LogError($"[ML-Train] Cannot resume: results/{runId}/ not found. Use 'Start Training (new)' first.");
+            Debug.LogError($"[ML-Train] Cannot resume: results/{runId}/ not found. Use 'Start Training' first.");
             return;
         }
         if (mode == TrainingMode.InitFrom)
@@ -736,8 +823,6 @@ public class ProjectToolsWindow : EditorWindow
                     Debug.LogWarning("[ML-Train] Timed out waiting for Python. Starting Play anyway.");
                 else
                     Debug.Log("[ML-Train] Python ready — auto-starting Play mode.");
-                // Persist flags so domain reload during Play mode entry is recognized
-                // as part of entry (not a script-compile reload), preventing double-entry.
                 SessionState.SetBool(k_AutoPlayPending, true);
                 SessionState.SetBool(k_IsEnteringPlayMode, true);
                 EditorApplication.isPlaying = true;
@@ -760,22 +845,16 @@ public class ProjectToolsWindow : EditorWindow
         SessionState.EraseBool(k_IsEnteringPlayMode);
         SessionState.EraseBool(k_StartTrainingPending);
 
-        // Kill any orphaned mlagents processes still holding port 5004.
-        // This happens when domain reload (script recompile) clears the static
-        // trainingProcess reference but the OS process keeps running.
         KillOrphanedTrainers();
-
-        // Auto-load the trained models.
         LoadBestModels(runId);
 
-        // Force window repaint to update button state.
         if (HasOpenInstances<ProjectToolsWindow>())
             GetWindow<ProjectToolsWindow>().Repaint();
     }
 
     /// <summary>
     /// Find the latest .onnx models from a training run and copy them into
-    /// Assets/ML-Agents/ so they can be assigned to agents at runtime.
+    /// Assets/Resources/ so they can be assigned to agents at runtime.
     /// </summary>
     private static void LoadBestModels(string fromRunId)
     {
@@ -795,15 +874,12 @@ public class ProjectToolsWindow : EditorWindow
             return;
         }
 
-        // Copy into Assets so Unity can import them as NNModel.
         string destDir = "Assets/Resources";
         if (!Directory.Exists(destDir))
             Directory.CreateDirectory(destDir);
 
-        string destRobot  = Path.Combine(destDir, "HexRobot.onnx");
-        string destMutant = Path.Combine(destDir, "HexMutant.onnx");
-        File.Copy(robotOnnx, destRobot, true);
-        File.Copy(mutantOnnx, destMutant, true);
+        File.Copy(robotOnnx, Path.Combine(destDir, "HexRobot.onnx"), true);
+        File.Copy(mutantOnnx, Path.Combine(destDir, "HexMutant.onnx"), true);
         AssetDatabase.Refresh();
 
         // Read training steps from status JSON.
@@ -812,7 +888,6 @@ public class ProjectToolsWindow : EditorWindow
         if (File.Exists(statusPath))
         {
             string json = File.ReadAllText(statusPath);
-            // Simple parse: find "steps": NNN
             foreach (string line in json.Split('\n'))
             {
                 string trimmed = line.Trim().Trim(',');
@@ -825,11 +900,9 @@ public class ProjectToolsWindow : EditorWindow
             }
         }
 
-        // Save model info to EditorPrefs.
         EditorPrefs.SetString(ModelRunIdKey, fromRunId);
         EditorPrefs.SetInt(ModelStepsKey, (int)totalSteps);
 
-        // Compute training session delta and save to PlayerPrefs for runtime HUD.
         int nowGames  = PlayerPrefs.GetInt("TotalGames", 0);
         int nowRounds = PlayerPrefs.GetInt("TotalRoundsLo", 0);
         int trainGames  = Mathf.Max(0, nowGames  - trainStartGames);
@@ -842,7 +915,6 @@ public class ProjectToolsWindow : EditorWindow
 
         Debug.Log($"[ML-Train] Loaded models from {fromRunId} ({totalSteps:N0} steps, {trainGames} games, {trainRounds} rounds). Models at {destDir}/");
 
-        // If in Play mode, assign to all agents immediately.
         if (EditorApplication.isPlaying)
             AssignModelsToAgents();
     }
@@ -939,7 +1011,7 @@ public class ProjectToolsWindow : EditorWindow
         tensorboardProcess = null;
     }
 
-    // ─── Game ─────────────────────────────────────────────
+    // ─── Utility ──────────────────────────────────────────
 
     private static void DrawSection(string title, System.Action content)
     {
@@ -952,8 +1024,6 @@ public class ProjectToolsWindow : EditorWindow
         }
         catch (System.Exception ex) when (Event.current?.type != EventType.Layout)
         {
-            // Don't let exceptions in content break the BeginVertical/EndVertical pairing.
-            // Log only during Repaint so Layout and Repaint stay in sync.
             Debug.LogException(ex);
         }
         EditorGUILayout.EndVertical();
@@ -986,24 +1056,6 @@ public class ProjectToolsWindow : EditorWindow
         Debug.Log("[ProjectTools] Randomized tile ownership, types, and fortification.");
     }
 
-    private static void StepGame(int count)
-    {
-        var gm = Object.FindFirstObjectByType<GameManager>();
-        if (gm == null)
-        {
-            Debug.LogWarning("[ProjectTools] No GameManager found. Enter Play mode first.");
-            return;
-        }
-
-        for (int i = 0; i < count; i++)
-        {
-            if (gm.gameOver) break;
-
-            // Sequential turn mode: turns advance automatically via FixedUpdate.
-            // Manual step not applicable; ResetGame is available below.
-        }
-    }
-
     private static void ResetGame()
     {
         var gm = Object.FindFirstObjectByType<GameManager>();
@@ -1015,11 +1067,58 @@ public class ProjectToolsWindow : EditorWindow
         gm.ResetGame();
     }
 
-    /// <summary>
-    /// Run PlayMode tests safely: stops the game first if needed, then executes tests via API.
-    /// Direct "Run All" in Test Runner window fails when game is playing because
-    /// EditorSceneManager.GetSceneManagerSetup() cannot be called during play mode.
-    /// </summary>
+    private static void ResetAllHistory()
+    {
+        if (!EditorUtility.DisplayDialog("Reset All History",
+                "This will delete:\n" +
+                "• All PlayerPrefs (game counters, match history)\n" +
+                "• Trained ONNX models in Assets/Resources/\n" +
+                "• All replay files in Replays/\n" +
+                "• Training run counter\n\n" +
+                "results/ folder is kept (gitignored). Continue?",
+                "Reset Everything", "Cancel"))
+            return;
+
+        // 1. PlayerPrefs — game counters.
+        PlayerPrefs.DeleteKey("TotalGames");
+        PlayerPrefs.DeleteKey("TotalTurnsHi");
+        PlayerPrefs.DeleteKey("TotalTurnsLo");
+        PlayerPrefs.DeleteKey("TrainedRunId");
+        PlayerPrefs.DeleteKey("TrainedOnGames");
+        PlayerPrefs.DeleteKey("TrainedOnRounds");
+        PlayerPrefs.DeleteKey("TrainedSteps");
+        PlayerPrefs.Save();
+
+        // 2. EditorPrefs — training model info + run counter.
+        EditorPrefs.DeleteKey(ModelRunIdKey);
+        EditorPrefs.DeleteKey(ModelStepsKey);
+        EditorPrefs.DeleteKey("MLTrain_RunCounter");
+
+        // 3. ONNX models in Assets/Resources/.
+        string[] modelFiles = { "Assets/Resources/HexRobot.onnx", "Assets/Resources/HexMutant.onnx" };
+        foreach (var f in modelFiles)
+        {
+            if (File.Exists(f)) File.Delete(f);
+            string meta = f + ".meta";
+            if (File.Exists(meta)) File.Delete(meta);
+        }
+
+        // 4. Replay files.
+        string replayDir = Path.GetFullPath("Replays");
+        if (Directory.Exists(replayDir))
+        {
+            Directory.Delete(replayDir, true);
+            Debug.Log($"[Reset] Deleted {replayDir}");
+        }
+
+        // 5. Reset run counter to 1.
+        RunCounter = 1;
+        runId = "run1";
+
+        AssetDatabase.Refresh();
+        Debug.Log("[Reset] All history, models, and replays cleared. Fresh start.");
+    }
+
     private static void RunPlayModeTestsSafely()
     {
         EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
@@ -1029,7 +1128,5 @@ public class ProjectToolsWindow : EditorWindow
             Debug.Log("[ProjectTools] Stopping game — click 'Run All' in Test Runner once Unity exits Play mode.");
             EditorApplication.isPlaying = false;
         }
-        // User clicks Run All in Test Runner after game has stopped.
-        // Direct automation via TestRunnerApi causes NullRef in PlayModeRunTask (Unity bug).
     }
 }

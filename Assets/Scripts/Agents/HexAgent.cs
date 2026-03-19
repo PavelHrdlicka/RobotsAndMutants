@@ -26,9 +26,10 @@ public class HexAgent : Agent
     private HexMovement movement;
     private HexGrid grid;
 
-    // Cached previous tile counts for reward shaping.
+    // Cached previous territory state for reward shaping.
     private int prevTeamTiles;
     private int prevEnemyTiles;
+    private int prevEnemyComponents;
 
     public override void Initialize()
     {
@@ -40,8 +41,9 @@ public class HexAgent : Agent
 
     public override void OnEpisodeBegin()
     {
-        prevTeamTiles  = 0;
-        prevEnemyTiles = 0;
+        prevTeamTiles      = 0;
+        prevEnemyTiles     = 0;
+        prevEnemyComponents = 0;
     }
 
     /// <summary>
@@ -98,14 +100,14 @@ public class HexAgent : Agent
             sensor.AddObservation(neighborTile.Fortification / 3f);
         }
 
-        // Global state.
-        int  ownTiles    = grid.CountTiles(unitData.team);
+        // Global state — largest connected group (win condition metric).
+        int  ownGroup    = grid.LargestConnectedGroup(unitData.team);
         Team enemyTeam   = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
-        int  enemyTiles  = grid.CountTiles(enemyTeam);
+        int  enemyGroup  = grid.LargestConnectedGroup(enemyTeam);
         float totalF     = grid.ContestableTileCount > 0 ? grid.ContestableTileCount : 1f;
 
-        sensor.AddObservation(ownTiles   / totalF);
-        sensor.AddObservation(enemyTiles / totalF);
+        sensor.AddObservation(ownGroup   / totalF);
+        sensor.AddObservation(enemyGroup / totalF);
 
         float stepProgress = Mathf.Clamp01(Academy.Instance.StepCount / 6000f);
         sensor.AddObservation(stepProgress);
@@ -148,30 +150,67 @@ public class HexAgent : Agent
                 else
                 {
                     movement.TryMove(dir);
+
+                    // Disruption bonus: capturing a tile surrounded by enemy tiles.
+                    if (unitData.lastAction == UnitAction.Capture)
+                    {
+                        Team enemy = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
+                        int enemyNeighbors = grid.CountTeamNeighbors(unitData.currentHex, enemy);
+                        if (enemyNeighbors > 0)
+                            AddReward((GameConfig.Instance?.captureDisruptionBonus ?? 0.05f) * enemyNeighbors);
+                    }
                 }
             }
             else if (action == 7)
             {
                 if (movement.TryBuild())
+                {
                     AddReward(GameConfig.Instance?.buildReward ?? 0.05f);
+
+                    // Adjacency bonus: more own neighbors → higher reward for clustering.
+                    int ownNeighbors = grid.CountTeamNeighbors(unitData.currentHex, unitData.team);
+                    if (ownNeighbors > 0)
+                        AddReward((GameConfig.Instance?.buildAdjacencyBonus ?? 0.03f) * ownNeighbors);
+                }
             }
 
-            // Reward shaping.
+            // Reward shaping — based on territory analysis (connected groups).
             var cfg = GameConfig.Instance;
-            int ownTiles   = grid.CountTiles(unitData.team);
             Team enemyTeam = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
-            int enemyTiles = grid.CountTiles(enemyTeam);
+            var ownInfo   = grid.GetTerritoryInfo(unitData.team);
+            var enemyInfo = grid.GetTerritoryInfo(enemyTeam);
 
-            int tilesGained = ownTiles - prevTeamTiles;
-            if (tilesGained > 0) AddReward((cfg?.captureRewardPerTile ?? 0.1f) * tilesGained);
+            // Connected group growth/shrink.
+            int groupGained = ownInfo.largestGroup - prevTeamTiles;
+            if (groupGained > 0) AddReward((cfg?.captureRewardPerTile ?? 0.1f) * groupGained);
 
-            int enemyLost = prevEnemyTiles - enemyTiles;
-            if (enemyLost > 0) AddReward((cfg?.enemyLossRewardPerTile ?? 0.1f) * enemyLost);
+            int enemyGroupLost = prevEnemyTiles - enemyInfo.largestGroup;
+            if (enemyGroupLost > 0) AddReward((cfg?.enemyLossRewardPerTile ?? 0.1f) * enemyGroupLost);
+
+            // 1) Cohesion bonus: reward keeping territory in one big group.
+            if (ownInfo.totalTiles > 0)
+            {
+                float cohesion = (float)ownInfo.largestGroup / ownInfo.totalTiles;
+                AddReward((cfg?.cohesionBonus ?? 0.02f) * cohesion);
+            }
+
+            // 2) Group split bonus: extra reward when enemy gets fragmented.
+            int enemySplits = enemyInfo.componentCount - prevEnemyComponents;
+            if (enemySplits > 0) AddReward((cfg?.groupSplitBonus ?? 0.3f) * enemySplits);
+
+            // 3) Base connection bonus: reward keeping largest group linked to base.
+            if (ownInfo.largestTouchesBase)
+                AddReward(cfg?.baseConnectionBonus ?? 0.005f);
+
+            // 4) Frontline presence: reward units holding the border.
+            if (grid.IsFrontlineTile(unitData.currentHex, unitData.team))
+                AddReward(cfg?.frontlineBonus ?? 0.005f);
 
             AddReward(cfg?.stepPenalty ?? -0.001f);
 
-            prevTeamTiles  = ownTiles;
-            prevEnemyTiles = enemyTiles;
+            prevTeamTiles       = ownInfo.largestGroup;
+            prevEnemyTiles      = enemyInfo.largestGroup;
+            prevEnemyComponents = enemyInfo.componentCount;
         }
 
         // Signal to GameManager that this unit's turn is done.

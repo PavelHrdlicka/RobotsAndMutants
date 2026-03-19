@@ -53,6 +53,9 @@ crashlytics-build.properties
 results/
 *.onnx.bak
 
+# Replay logs (local only)
+Replays/
+
 # Conda / Python env
 __pycache__/
 *.pyc
