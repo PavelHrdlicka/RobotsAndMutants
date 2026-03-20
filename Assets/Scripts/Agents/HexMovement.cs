@@ -7,7 +7,7 @@ using UnityEngine;
 /// Sequential turn model:
 ///   TryMove   — moves to an empty adjacent hex (no unit of any team there).
 ///   TryAttack — fights the enemy on an adjacent hex; attacker stays in place.
-///   TryBuild  — builds a Crate (Robot) or spreads Slime (Mutant) on the
+///   TryBuild  — builds a Crate (Robot) or places Slime (Mutant) on the
 ///               unit's current tile.
 ///
 /// Visual position works through a Queue of waypoints so each hop animation
@@ -201,7 +201,7 @@ public class HexMovement : MonoBehaviour
     /// Build on the unit's current tile (neutral or own, non-base, empty).
     /// Cannot build on an enemy-owned tile.
     /// Robot → builds a Crate and claims the tile.
-    /// Mutant → converts tile to Slime, claims it, and randomly spreads to neutral neighbors.
+    /// Mutant → converts tile to Slime and claims it.
     /// Returns true if build succeeded.
     /// </summary>
     public bool TryBuild()
@@ -226,21 +226,6 @@ public class HexMovement : MonoBehaviour
         {
             tile.TileType       = TileType.Slime;
             unitData.lastAction = UnitAction.SpreadSlime;
-
-            // Spread slime to adjacent neutral empty tiles.
-            var neighbors = grid.GetNeighbors(unitData.currentHex);
-            foreach (var neighbor in neighbors)
-            {
-                if (neighbor.isBase) continue;
-                if (neighbor.Owner == Team.None && neighbor.TileType == TileType.Empty)
-                {
-                    if (Random.value < 0.12f)
-                    {
-                        neighbor.Owner    = Team.Mutant;
-                        neighbor.TileType = TileType.Slime;
-                    }
-                }
-            }
         }
 
         return true;
