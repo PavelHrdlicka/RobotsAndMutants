@@ -57,6 +57,27 @@ public class ReplayPlayer : MonoBehaviour
 
     // ── Lifecycle ───────────────────────────────────────────────────────
 
+    private void Awake()
+    {
+        // Recover path from SessionState before domain-reload wipes static fields.
+#if UNITY_EDITOR
+        if (string.IsNullOrEmpty(PendingReplayPath))
+            PendingReplayPath = UnityEditor.SessionState.GetString("ReplayPlayer_PendingPath", "");
+        UnityEditor.SessionState.EraseString("ReplayPlayer_PendingPath");
+#endif
+
+        // Immediately block GameManager's game loop so it doesn't start episodes.
+        if (!string.IsNullOrEmpty(PendingReplayPath))
+        {
+            var gm = GetComponent<GameManager>();
+            if (gm != null)
+            {
+                gm.gameOver = true;
+                gm.autoRestart = false;
+            }
+        }
+    }
+
     private IEnumerator Start()
     {
         if (string.IsNullOrEmpty(PendingReplayPath))

@@ -592,6 +592,8 @@ public class ProjectToolsWindow : EditorWindow
 
     private static void DoLaunchReplay(string replayPath)
     {
+        // SessionState survives domain reload (unlike static fields).
+        SessionState.SetString("ReplayPlayer_PendingPath", replayPath);
         ReplayPlayer.PendingReplayPath = replayPath;
 
         var scenePath = "Assets/Scenes/SampleScene.unity";
