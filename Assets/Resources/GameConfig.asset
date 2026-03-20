@@ -17,6 +17,10 @@ MonoBehaviour:
   msPerTick: 1
   winPercent: 60
   maxSteps: 2000
+  unitMaxHealth: 7
+  robotFlankingChancePerAlly: 0.1
+  mutantDodgeChancePerAlly: 0.1
+  replayLogEveryNthGame: 10
   killBonus: 0.5
   buildReward: 0.05
   captureRewardPerTile: 0.1

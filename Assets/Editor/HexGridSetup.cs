@@ -94,8 +94,10 @@ public static class HexGridSetup
 
         var gmGo = new GameObject("GameManager");
         gmGo.AddComponent<GameManager>();
+        gmGo.AddComponent<ReplayPlayer>();
+        gmGo.AddComponent<ReplayPlayerHUD>();
 
-        Debug.Log("[HexGridSetup] HexGrid + UnitFactory + GameManager created.");
+        Debug.Log("[HexGridSetup] HexGrid + UnitFactory + GameManager + ReplayPlayer created.");
     }
 
     private static Material GetOrCreateMaterial()

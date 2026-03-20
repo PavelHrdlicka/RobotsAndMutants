@@ -264,6 +264,15 @@ Všechny akce ovládané z Unity editoru přes dokovatelné okno **Project Tools
 - **Detect Highlights (Last N) / Detect All** — algoritmická detekce zajímavých momentů (comeback, territory swing, coordinated attack, flanking, wipe event, blitz win, close game, stalemate break, kill streak). Výstup: `Replays/highlights.json` pro AI interpretaci přes Claude Code.
 - **Open Replays Folder** — otevře adresář s replay soubory.
 
+### Replay Viewer
+- **Replay sekce** v ProjectToolsWindow: výběr souboru, "Select Latest Replay", "Play Replay".
+- **Play Replay** nastaví `ReplayPlayer.PendingReplayPath`, provede Reset + Setup + Play.
+- **ReplayPlayer** (runtime): parsuje JSONL replay soubor, vypne GameManager loop + ML-Agents, přehrává tahy krok po kroku.
+  - Playback controls: Play/Pause, Step Turn, Step Round, JumpToRound.
+  - Reaktivní vizualizace: nastavuje UnitData/HexTileData stav → HexVisuals, health bary, akční indikátory reagují automaticky.
+- **ReplayPlayerHUD** (OnGUI): transportní ovládání — play/pause, step, speed slider (1-100 turns/s), round scrubber.
+- **ReplayData** (parser): zpracovává header, turn a summary řádky z JSONL formátu.
+
 ### 5. Testing
 - **Run EditMode Tests** — spustí testy okamžitě.
 - **Open Test Runner** — otevře Unity Test Runner.

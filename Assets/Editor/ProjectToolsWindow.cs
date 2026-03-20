@@ -288,6 +288,7 @@ public class ProjectToolsWindow : EditorWindow
         DrawConfigSection();
         DrawTrainingSection();
         DrawObserveSection();
+        DrawReplaySection();
         DrawAnalysisSection();
         DrawTestingSection();
         DrawSceneSetupSection();
@@ -505,6 +506,103 @@ public class ProjectToolsWindow : EditorWindow
             if (GUILayout.Button("Reset Game"))
                 ResetGame();
         });
+    }
+
+    // ─── 3b. Replay ─────────────────────────────────────────
+
+    private string selectedReplayPath;
+
+    private void DrawReplaySection()
+    {
+        DrawSection("Replay", () =>
+        {
+            // File picker.
+            EditorGUILayout.BeginHorizontal();
+            string displayName = string.IsNullOrEmpty(selectedReplayPath)
+                ? "(no file selected)"
+                : System.IO.Path.GetFileName(selectedReplayPath);
+            EditorGUILayout.LabelField(displayName, EditorStyles.miniLabel);
+
+            if (GUILayout.Button("Browse...", GUILayout.Width(70)))
+            {
+                string dir = System.IO.Path.GetFullPath("Replays");
+                if (!System.IO.Directory.Exists(dir)) dir = System.IO.Path.GetFullPath(".");
+                string path = EditorUtility.OpenFilePanel("Select Replay File", dir, "jsonl");
+                if (!string.IsNullOrEmpty(path))
+                    selectedReplayPath = path;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            // Quick pick: latest replay.
+            if (GUILayout.Button("Select Latest Replay"))
+            {
+                string dir = System.IO.Path.GetFullPath("Replays");
+                if (System.IO.Directory.Exists(dir))
+                {
+                    var files = System.IO.Directory.GetFiles(dir, "game_*.jsonl");
+                    if (files.Length > 0)
+                    {
+                        string latest = files[0];
+                        var latestTime = System.IO.File.GetLastWriteTime(latest);
+                        foreach (var f in files)
+                        {
+                            var t = System.IO.File.GetLastWriteTime(f);
+                            if (t > latestTime) { latest = f; latestTime = t; }
+                        }
+                        selectedReplayPath = latest;
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[Replay] No replay files found in Replays/");
+                    }
+                }
+            }
+
+            // Launch replay button.
+            EditorGUILayout.Space(4);
+            GUI.enabled = !string.IsNullOrEmpty(selectedReplayPath);
+            GUI.backgroundColor = new Color(1f, 0.84f, 0f);
+            if (GUILayout.Button("Play Replay", GUILayout.Height(35)))
+                LaunchReplay(selectedReplayPath);
+            GUI.backgroundColor = Color.white;
+            GUI.enabled = true;
+        });
+    }
+
+    private static void LaunchReplay(string replayPath)
+    {
+        if (EditorApplication.isPlaying)
+        {
+            EditorApplication.isPlaying = false;
+            void OnExit(PlayModeStateChange s)
+            {
+                if (s == PlayModeStateChange.EnteredEditMode)
+                {
+                    EditorApplication.playModeStateChanged -= OnExit;
+                    DoLaunchReplay(replayPath);
+                }
+            };
+            EditorApplication.playModeStateChanged += OnExit;
+        }
+        else
+        {
+            DoLaunchReplay(replayPath);
+        }
+    }
+
+    private static void DoLaunchReplay(string replayPath)
+    {
+        ReplayPlayer.PendingReplayPath = replayPath;
+
+        var scenePath = "Assets/Scenes/SampleScene.unity";
+        if (System.IO.File.Exists(scenePath))
+            EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+        HexGridSetup.Reset();
+        HexGridSetup.SetupScene();
+        AssetDatabase.SaveAssets();
+        EditorSceneManager.SaveOpenScenes();
+        EditorApplication.isPlaying = true;
     }
 
     // ─── 4. Analysis ──────────────────────────────────────
