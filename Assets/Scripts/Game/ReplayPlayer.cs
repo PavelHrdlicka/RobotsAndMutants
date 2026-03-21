@@ -389,6 +389,21 @@ public class ReplayPlayer : MonoBehaviour
         // Set HP.
         unit.Energy = turn.energy;
 
+        // Dead unit: force Dead action, teleport to base, skip all actions.
+        if (turn.energy <= 0 || !unit.isAlive)
+        {
+            if (unit.isAlive)
+            {
+                int replayCd = GameConfig.Instance != null ? GameConfig.Instance.respawnCooldown : 10;
+                unit.Die(replayCd);
+            }
+            unit.lastAction = UnitAction.Dead;
+            unit.lastAttackTarget = null;
+            unit.lastAttackKilled = false;
+            TeleportDeadUnitToBase(unit);
+            return;
+        }
+
         // Set position.
         var coord = new HexCoord(turn.q, turn.r);
         if (unit.currentHex != coord && movementMap.TryGetValue(turn.unitName, out var movement))
@@ -412,19 +427,13 @@ public class ReplayPlayer : MonoBehaviour
             {
                 int respawnCD = GameConfig.Instance != null ? GameConfig.Instance.respawnCooldown : 10;
                 unit.lastAttackTarget.Die(respawnCD);
+                TeleportDeadUnitToBase(unit.lastAttackTarget);
             }
         }
         else
         {
             unit.lastAttackTarget = null;
             unit.lastAttackKilled = false;
-        }
-
-        // Die if HP dropped to 0.
-        if (turn.energy <= 0 && unit.isAlive)
-        {
-            int replayCd = GameConfig.Instance != null ? GameConfig.Instance.respawnCooldown : 10;
-            unit.Die(replayCd);
         }
 
         // Apply tile changes from actions.
@@ -489,6 +498,43 @@ public class ReplayPlayer : MonoBehaviour
                 capTile.TileType = TileType.Empty;
             }
         }
+    }
+
+    /// <summary>
+    /// Teleport a dead unit to its team's base hex (first free slot).
+    /// Mirrors GameManager.TeleportDeadToBase() logic.
+    /// </summary>
+    private void TeleportDeadUnitToBase(UnitData unit)
+    {
+        if (unit.isAlive || grid == null) return;
+
+        // Already on own base hex? Skip.
+        var currentTile = grid.GetTile(unit.currentHex);
+        if (currentTile != null && currentTile.isBase && currentTile.baseTeam == unit.team)
+            return;
+
+        var baseTiles = grid.GetBaseTiles(unit.team);
+        foreach (var bt in baseTiles)
+        {
+            if (!IsHexOccupiedByOther(bt.coord, unit))
+            {
+                unit.currentHex = bt.coord;
+                if (movementMap.TryGetValue(unit.gameObject.name, out var mov))
+                    mov.PlaceAt(bt.coord);
+                return;
+            }
+        }
+    }
+
+    private bool IsHexOccupiedByOther(HexCoord coord, UnitData exclude)
+    {
+        foreach (var u in unitFactory.AllUnits)
+        {
+            if (u == exclude) continue;
+            if (u.currentHex == coord && u.gameObject.activeInHierarchy)
+                return true;
+        }
+        return false;
     }
 
     private static UnitAction ParseAction(string action)

@@ -637,7 +637,7 @@ public class MovementMechanicsTests
             "IsValidMove should return false for enemy base hex.");
     }
 
-    // ── Dead unit ───────────────────────────────────────────────────────
+    // ── Dead unit — all actions blocked ─────────────────────────────────
 
     [UnityTest]
     public IEnumerator Move_DeadUnit_Fails()
@@ -649,6 +649,94 @@ public class MovementMechanicsTests
 
         bool moved = move.TryMove(0);
         Assert.IsFalse(moved, "Dead unit cannot move.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_DeadUnit_Fails()
+    {
+        yield return null;
+
+        // Place enemy adjacent so attack would normally be valid.
+        SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(6);
+
+        bool attacked = move.TryAttack(0);
+        Assert.IsFalse(attacked, "Dead unit cannot attack.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_DeadUnit_Fails()
+    {
+        yield return null;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        // Own the hex so build would normally be valid.
+        var tile = grid.GetTile(new HexCoord(0, 0));
+        if (tile != null) tile.Owner = Team.Robot;
+        unit.Die(6);
+
+        bool built = move.TryBuild(0);
+        Assert.IsFalse(built, "Dead unit cannot build.");
+    }
+
+    [UnityTest]
+    public IEnumerator DestroyWall_DeadUnit_Fails()
+    {
+        yield return null;
+
+        // Place wall adjacent.
+        var wallTile = grid.GetTile(new HexCoord(1, 0));
+        if (wallTile != null)
+        {
+            wallTile.Owner = Team.Robot;
+            wallTile.TileType = TileType.Wall;
+            wallTile.WallHP = 3;
+        }
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(6);
+
+        bool destroyed = move.TryDestroyWall(0);
+        Assert.IsFalse(destroyed, "Dead unit cannot destroy wall.");
+    }
+
+    [UnityTest]
+    public IEnumerator IsValidMove_DeadUnit_AllDirectionsFalse()
+    {
+        yield return null;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(6);
+
+        for (int d = 0; d < 6; d++)
+        {
+            Assert.IsFalse(move.IsValidMove(d),
+                $"Dead unit: IsValidMove({d}) must be false.");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator IsValidAttack_DeadUnit_AllDirectionsFalse()
+    {
+        yield return null;
+
+        // Place enemies around.
+        for (int d = 0; d < 6; d++)
+        {
+            var nCoord = new HexCoord(0, 0).Neighbor(d);
+            if (grid.IsValidCoord(nCoord))
+                SpawnUnit(Team.Mutant, nCoord);
+        }
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(6);
+
+        for (int d = 0; d < 6; d++)
+        {
+            Assert.IsFalse(move.IsValidAttack(d),
+                $"Dead unit: IsValidAttack({d}) must be false.");
+        }
     }
 
     // ── Invalid direction ───────────────────────────────────────────────
