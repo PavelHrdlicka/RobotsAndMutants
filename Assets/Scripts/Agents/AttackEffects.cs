@@ -23,6 +23,7 @@ public class AttackEffects : MonoBehaviour
     private Color savedAttackerColor;
     private Color savedTargetColor;
     private bool isFlashing;
+    private int flashFrameCount;
 
     private static readonly Color AttackerFlashColor = new Color(0.9f, 0.15f, 0.1f);  // red
     private static readonly Color TargetFlashColor   = new Color(1f, 0.55f, 0.1f);     // orange
@@ -67,6 +68,15 @@ public class AttackEffects : MonoBehaviour
         // Safety: always unflash if action is not Attack (catch edge cases).
         if (isFlashing && unitData.lastAction != UnitAction.Attack)
             UnflashTiles();
+
+        // Auto-unflash after 2 frames (handles replay mode where lastAction
+        // can stay Attack across multiple Update cycles).
+        if (isFlashing)
+        {
+            flashFrameCount++;
+            if (flashFrameCount > 2)
+                UnflashTiles();
+        }
 
         // Detect death.
         if (wasAlive && !unitData.isAlive)
@@ -149,6 +159,7 @@ public class AttackEffects : MonoBehaviour
         }
 
         isFlashing = true;
+        flashFrameCount = 0;
     }
 
     private void UnflashTiles()
