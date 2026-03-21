@@ -328,7 +328,8 @@ public class BuildMechanicsTests
         Assert.IsTrue(built);
         Assert.AreEqual(TileType.Slime, tile.TileType,
             "Slime should be placed on mutant's current hex.");
-        Assert.AreEqual(13, mutant.Energy, "Slime placement costs 2 energy.");
+        int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimePlaceCost : 2;
+        Assert.AreEqual(15 - slimeCost, mutant.Energy, $"Slime placement costs {slimeCost} energy.");
         Assert.AreEqual(UnitAction.PlaceSlime, mutant.lastAction);
     }
 
@@ -416,7 +417,8 @@ public class BuildMechanicsTests
         tile.Owner = Team.Mutant;
 
         var (mutant, move) = SpawnUnit(Team.Mutant, new HexCoord(0, 0));
-        mutant.Energy = 1; // Not enough (costs 2)
+        int slimeCostVal = GameConfig.Instance != null ? GameConfig.Instance.slimePlaceCost : 2;
+        mutant.Energy = slimeCostVal - 1; // Not enough
 
         bool built = move.TryBuild(0);
 
@@ -442,7 +444,8 @@ public class BuildMechanicsTests
         Assert.IsTrue(destroyed);
         Assert.AreEqual(TileType.Empty, tile.TileType, "Wall should be destroyed.");
         Assert.AreEqual(0, tile.WallHP);
-        Assert.AreEqual(14, robot.Energy, "Destroy own wall costs 1 energy.");
+        int destroyCost = GameConfig.Instance != null ? GameConfig.Instance.destroyOwnWallCost : 1;
+        Assert.AreEqual(15 - destroyCost, robot.Energy, $"Destroy own wall costs {destroyCost} energy.");
         Assert.AreEqual(Team.Robot, tile.Owner, "Ownership should remain.");
         Assert.AreEqual(UnitAction.DestroyWall, robot.lastAction,
             "lastAction should be DestroyWall.");

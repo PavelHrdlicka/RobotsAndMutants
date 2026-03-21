@@ -150,12 +150,13 @@ public class AttackMechanicsTests
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
-        robot.Energy = 2;
+        int notEnough = AtkCost - 1;
+        robot.Energy = notEnough;
 
         bool attacked = robotMove.TryAttack(0);
 
         Assert.IsFalse(attacked, "Attack should fail with insufficient energy.");
-        Assert.AreEqual(2, robot.Energy, "Energy should not change.");
+        Assert.AreEqual(notEnough, robot.Energy, "Energy should not change.");
         Assert.AreEqual(15, mutant.Energy, "Target should not take damage.");
     }
 
@@ -258,7 +259,7 @@ public class AttackMechanicsTests
         tile.WallHP = 3;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 1;
+        robot.Energy = WallAtkCost - 1;
 
         bool attacked = robotMove.TryAttack(0);
 
@@ -512,7 +513,7 @@ public class AttackMechanicsTests
 
         var (_, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
         var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 2;
+        robot.Energy = AtkCost - 1;
 
         Assert.IsFalse(move.IsValidAttack(0),
             "IsValidAttack should be false when not enough energy for unit attack.");
@@ -529,7 +530,7 @@ public class AttackMechanicsTests
         tile.WallHP = 3;
 
         var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 1;
+        robot.Energy = WallAtkCost - 1;
 
         Assert.IsFalse(move.IsValidAttack(0),
             "IsValidAttack should be false when not enough energy for wall attack.");

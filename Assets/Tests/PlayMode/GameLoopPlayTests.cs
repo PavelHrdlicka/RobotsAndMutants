@@ -146,7 +146,8 @@ public class GameLoopPlayTests
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _)        = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
 
-        robot.Energy  = 2; // Not enough (attack costs 3)
+        int atkCostVal = GameConfig.Instance != null ? GameConfig.Instance.attackUnitCost : 3;
+        robot.Energy  = atkCostVal - 1; // Not enough
         mutant.Energy = 15;
 
         bool attacked = robotMove.TryAttack(0);
@@ -257,7 +258,8 @@ public class GameLoopPlayTests
 
         Assert.IsTrue(built);
         Assert.AreEqual(TileType.Slime, tile.TileType, "Slime should be placed on mutant's current hex.");
-        Assert.AreEqual(13, mutant.Energy, "Slime place costs 2 energy.");
+        int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimePlaceCost : 2;
+        Assert.AreEqual(15 - slimeCost, mutant.Energy, $"Slime place costs {slimeCost} energy.");
     }
 
     [UnityTest]
@@ -294,7 +296,8 @@ public class GameLoopPlayTests
 
         Assert.IsTrue(destroyed);
         Assert.AreEqual(TileType.Empty, tile.TileType);
-        Assert.AreEqual(14, robot.Energy, "Destroy own wall costs 1 energy.");
+        int destroyCost = GameConfig.Instance != null ? GameConfig.Instance.destroyOwnWallCost : 1;
+        Assert.AreEqual(15 - destroyCost, robot.Energy, $"Destroy own wall costs {destroyCost} energy.");
         Assert.AreEqual(Team.Robot, tile.Owner, "Tile keeps team ownership.");
     }
 

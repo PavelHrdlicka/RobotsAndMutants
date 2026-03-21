@@ -34,6 +34,7 @@
 - [feedback_pytorch_cuda_unity.md](feedback_pytorch_cuda_unity.md) — PyTorch CUDA nelze s Unity na jedné GPU (device mismatch, VRAM konflikt, auto-detect past)
 - [feedback_test_visibility.md](feedback_test_visibility.md) — Metody volané z testů musí být public, ne internal (Unity asmdef boundary)
 - [feedback_button_full_text.md](feedback_button_full_text.md) — Tlačítka musí být dostatečně široká pro celý text labelu
+- [feedback_no_hardcoded_values.md](feedback_no_hardcoded_values.md) — Nikdy nehardcodovat herní hodnoty v testech — vždy číst z GameConfig
 
 ## Project
 - [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)
