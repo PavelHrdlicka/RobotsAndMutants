@@ -104,4 +104,97 @@ public class HexTileDataTests
 
         Assert.AreEqual(Team.Robot, tile.Owner, "Base tile should reset to its base team.");
     }
+
+    // ── Structure auto-clear on ownership change ──────────────────────
+
+    [Test]
+    public void Slime_ClearedWhenOwnerChangesToRobot()
+    {
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Slime;
+
+        tile.Owner = Team.Robot;
+
+        Assert.AreEqual(TileType.Empty, tile.TileType,
+            "Slime must be cleared when hex ownership changes from Mutant to Robot.");
+    }
+
+    [Test]
+    public void Slime_ClearedWhenOwnerChangesToNone()
+    {
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Slime;
+
+        tile.Owner = Team.None;
+
+        Assert.AreEqual(TileType.Empty, tile.TileType,
+            "Slime must be cleared when hex becomes neutral.");
+    }
+
+    [Test]
+    public void Slime_StaysWhenOwnerRemainsMutant()
+    {
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Slime;
+
+        // Setting same owner should not clear slime.
+        tile.Owner = Team.Mutant;
+
+        Assert.AreEqual(TileType.Slime, tile.TileType,
+            "Slime should remain if owner stays Mutant.");
+    }
+
+    [Test]
+    public void Wall_ClearedWhenOwnerChangesToMutant()
+    {
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        tile.Owner = Team.Mutant;
+
+        Assert.AreEqual(TileType.Empty, tile.TileType,
+            "Wall must be cleared when hex ownership changes from Robot to Mutant.");
+        Assert.AreEqual(0, tile.WallHP, "WallHP must be reset to 0.");
+    }
+
+    [Test]
+    public void Wall_ClearedWhenOwnerChangesToNone()
+    {
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 2;
+
+        tile.Owner = Team.None;
+
+        Assert.AreEqual(TileType.Empty, tile.TileType,
+            "Wall must be cleared when hex becomes neutral.");
+        Assert.AreEqual(0, tile.WallHP);
+    }
+
+    [Test]
+    public void Wall_StaysWhenOwnerRemainsRobot()
+    {
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        tile.Owner = Team.Robot;
+
+        Assert.AreEqual(TileType.Wall, tile.TileType,
+            "Wall should remain if owner stays Robot.");
+        Assert.AreEqual(3, tile.WallHP);
+    }
+
+    [Test]
+    public void EmptyTile_NotAffectedByOwnerChange()
+    {
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Empty;
+
+        tile.Owner = Team.Robot;
+
+        Assert.AreEqual(TileType.Empty, tile.TileType,
+            "Empty tile should stay empty regardless of owner change.");
+    }
 }

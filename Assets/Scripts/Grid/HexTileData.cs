@@ -25,7 +25,25 @@ public class HexTileData : MonoBehaviour
     public Team Owner
     {
         get => owner;
-        set { if (owner != value) { owner = value; OnTileChanged?.Invoke(this); } }
+        set
+        {
+            if (owner == value) return;
+            owner = value;
+
+            // Structures belong to their builder's team. If ownership changes,
+            // clear incompatible structures.
+            if (tileType == TileType.Slime && owner != Team.Mutant)
+            {
+                tileType = TileType.Empty;
+            }
+            if (tileType == TileType.Wall && owner != Team.Robot)
+            {
+                tileType = TileType.Empty;
+                wallHP = 0;
+            }
+
+            OnTileChanged?.Invoke(this);
+        }
     }
 
     public TileType TileType
