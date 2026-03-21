@@ -426,9 +426,8 @@ public class ReplayPlayer : MonoBehaviour
         // Apply tile changes from actions.
         Team team = turn.team == "Robot" ? Team.Robot : Team.Mutant;
 
-        if (turn.action == "BuildCrate" || turn.action == "BuildWall")
+        if (turn.action == "BuildWall")
         {
-            // Use built target if available, else fall back to unit position (old replays).
             var buildCoord = turn.hasBuilt
                 ? new HexCoord(turn.builtQ, turn.builtR)
                 : coord;
@@ -440,7 +439,7 @@ public class ReplayPlayer : MonoBehaviour
                 buildTile.WallHP = 3;
             }
         }
-        else if (turn.action == "SpreadSlime" || turn.action == "PlaceSlime")
+        else if (turn.action == "PlaceSlime")
         {
             var buildCoord = turn.hasBuilt
                 ? new HexCoord(turn.builtQ, turn.builtR)
@@ -479,11 +478,8 @@ public class ReplayPlayer : MonoBehaviour
         {
             "Move" => UnitAction.Move,
             "Attack" => UnitAction.Attack,
-            "Defend" => UnitAction.Defend,
             "Idle" => UnitAction.Idle,
-            "BuildCrate" => UnitAction.BuildWall,
             "BuildWall" => UnitAction.BuildWall,
-            "SpreadSlime" => UnitAction.PlaceSlime,
             "PlaceSlime" => UnitAction.PlaceSlime,
             "DestroyWall" => UnitAction.DestroyWall,
             "Capture" => UnitAction.Capture,

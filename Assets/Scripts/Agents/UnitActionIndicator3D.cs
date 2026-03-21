@@ -31,9 +31,6 @@ public class UnitActionIndicator3D : MonoBehaviour
     // Attack (crossed swords).
     private Transform attackIcon;
 
-    // Defend (shield disc).
-    private Transform defendIcon;
-
     // Capture.
     private Transform captureIcon;
 
@@ -111,7 +108,6 @@ public class UnitActionIndicator3D : MonoBehaviour
         bool showArrow   = arrowTimeLeft > 0f;
         bool showIdle    = action == UnitAction.Idle && idleTimeLeft > 0f;
         bool showAttack  = action == UnitAction.Attack;
-        bool showDefend  = action == UnitAction.Defend;
         bool showCapture = action == UnitAction.Capture;
         bool showBuild   = action == UnitAction.BuildWall || action == UnitAction.PlaceSlime
                           || action == UnitAction.DestroyWall;
@@ -119,7 +115,6 @@ public class UnitActionIndicator3D : MonoBehaviour
         if (moveArrow  != null) moveArrow.gameObject.SetActive(showArrow);
         if (idleRing   != null) idleRing.gameObject.SetActive(showIdle);
         if (attackIcon != null) attackIcon.gameObject.SetActive(showAttack);
-        if (defendIcon != null) defendIcon.gameObject.SetActive(showDefend);
         if (captureIcon!= null) captureIcon.gameObject.SetActive(showCapture);
         if (buildIcon  != null) buildIcon.gameObject.SetActive(showBuild);
 
@@ -142,7 +137,6 @@ public class UnitActionIndicator3D : MonoBehaviour
         moveArrow   = BuildArrow();
         idleRing    = BuildIdleRing();
         attackIcon  = BuildCrossedSwords();
-        defendIcon  = BuildShieldDisc();
         captureIcon = BuildPlusSign();
         buildIcon   = BuildBuildIcon();
 
@@ -150,7 +144,6 @@ public class UnitActionIndicator3D : MonoBehaviour
         moveArrow.gameObject.SetActive(false);
         idleRing.gameObject.SetActive(false);
         attackIcon.gameObject.SetActive(false);
-        defendIcon.gameObject.SetActive(false);
         captureIcon.gameObject.SetActive(false);
         buildIcon.gameObject.SetActive(false);
     }
@@ -226,21 +219,6 @@ public class UnitActionIndicator3D : MonoBehaviour
         bar2.transform.localRotation = Quaternion.Euler(0, 0, -45);
         bar2.GetComponent<Renderer>().material = redMat;
         DestroyCol(bar2);
-
-        return root;
-    }
-
-    private Transform BuildShieldDisc()
-    {
-        var root = new GameObject("DefendIcon").transform;
-        root.SetParent(indicatorRoot, false);
-
-        var disc = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        disc.name = "Shield";
-        disc.transform.SetParent(root, false);
-        disc.transform.localScale = new Vector3(0.04f, 0.04f, 0.01f);
-        disc.GetComponent<Renderer>().material = blueMat;
-        DestroyCol(disc);
 
         return root;
     }

@@ -290,20 +290,6 @@ public class HexMovement : MonoBehaviour
         return true;
     }
 
-    /// <summary>Legacy no-arg build (builds on own tile). Kept for test compatibility.</summary>
-    public bool TryBuild()
-    {
-        if (!unitData.isAlive || grid == null) return false;
-
-        // Try all 6 directions, pick first valid one.
-        for (int dir = 0; dir < 6; dir++)
-        {
-            if (IsValidBuild(dir))
-                return TryBuild(dir);
-        }
-        return false;
-    }
-
     // ── Destroy Wall ─────────────────────────────────────────────────────
 
     /// <summary>
@@ -423,16 +409,6 @@ public class HexMovement : MonoBehaviour
 
         int wallCost = cfg != null ? cfg.wallBuildCost : 4;
         return unitData.Energy >= wallCost;
-    }
-
-    /// <summary>Legacy no-arg IsValidBuild. Returns true if any direction is valid.</summary>
-    public bool IsValidBuild()
-    {
-        for (int dir = 0; dir < 6; dir++)
-        {
-            if (IsValidBuild(dir)) return true;
-        }
-        return false;
     }
 
     /// <summary>Returns true if there is an own wall at the adjacent hex in the given direction.</summary>
