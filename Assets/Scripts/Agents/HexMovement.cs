@@ -5,10 +5,11 @@ using UnityEngine;
 /// Handles discrete hex-to-hex movement, combat, and building for a unit.
 ///
 /// Sequential turn model (v2):
-///   TryMove(dir)        — moves to an adjacent hex. Blocked by enemy territory,
-///                         walls, and occupied hexes. Free capture of neutral hexes.
-///   TryAttack(dir)      — attacks in priority order: unit > wall > enemy hex > neutral hex.
-///   TryBuild(dir)       — builds Wall (Robot) or places Slime (Mutant) on adjacent own empty hex.
+///   TryMove(dir)        — moves to an adjacent hex. Blocked by walls and occupied hexes.
+///                         Any non-own hex (neutral or enemy) is captured on entry.
+///                         Robot entering enemy slime: mine (costs energy, slime destroyed).
+///   TryAttack(dir)      — attacks in priority order: enemy unit > wall (any team's).
+///   TryBuild(dir)       — Robot: wall on adjacent own empty hex. Mutant: slime under self.
 ///   TryDestroyWall(dir) — destroys own wall on adjacent hex.
 ///
 /// Visual position works through a Queue of waypoints so each hop animation
@@ -308,6 +309,7 @@ public class HexMovement : MonoBehaviour
         unitData.Energy -= cost;
         tile.TileType = TileType.Empty;
         tile.WallHP = 0;
+        unitData.lastAction = UnitAction.DestroyWall;
 
         return true;
     }

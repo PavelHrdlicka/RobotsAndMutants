@@ -14,14 +14,14 @@ public class HighlightDetectorTests
         => $"{{\"type\":\"header\",\"match\":{match},\"unitsPerTeam\":{units},\"gridSize\":{grid},\"maxRounds\":{maxRounds},\"winThreshold\":0.60}}";
 
     private static string Turn(int round, string unit, string team, string action,
-        int hp, int q, int r, int rTiles, int mTiles, int rAlive = 3, int mAlive = 3,
+        int energy, int q, int r, int rTiles, int mTiles, int rAlive = 3, int mAlive = 3,
         string targetUnit = null, int tq = 0, int tr = 0, bool killed = false)
     {
         string target = targetUnit != null
             ? $",\"target\":[{tq},{tr}],\"targetUnit\":\"{targetUnit}\",\"killed\":{(killed ? "true" : "false")}"
             : ",\"target\":null,\"targetUnit\":null,\"killed\":false";
         return $"{{\"type\":\"turn\",\"round\":{round},\"unit\":\"{unit}\",\"team\":\"{team}\"," +
-               $"\"action\":\"{action}\",\"hp\":{hp},\"pos\":[{q},{r}]" +
+               $"\"action\":\"{action}\",\"energy\":{energy},\"pos\":[{q},{r}]" +
                $"{target},\"rTiles\":{rTiles},\"mTiles\":{mTiles},\"rAlive\":{rAlive},\"mAlive\":{mAlive}}}";
     }
 

@@ -27,7 +27,7 @@ public class BuildMechanicsTests
                 Object.Destroy(go);
         yield return null;
 
-        LogAssert.ignoreFailingMessages = true;
+        if (!LogAssert.ignoreFailingMessages) LogAssert.ignoreFailingMessages = true;
         Time.timeScale = 1f;
 
         var prefab = new GameObject("HexPrefab");
@@ -370,6 +370,8 @@ public class BuildMechanicsTests
         Assert.AreEqual(0, tile.WallHP);
         Assert.AreEqual(14, robot.Energy, "Destroy own wall costs 1 energy.");
         Assert.AreEqual(Team.Robot, tile.Owner, "Ownership should remain.");
+        Assert.AreEqual(UnitAction.DestroyWall, robot.lastAction,
+            "lastAction should be DestroyWall.");
     }
 
     [UnityTest]

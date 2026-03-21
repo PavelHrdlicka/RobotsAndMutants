@@ -27,7 +27,7 @@ public class MovementMechanicsTests
                 Object.Destroy(go);
         yield return null;
 
-        LogAssert.ignoreFailingMessages = true;
+        if (!LogAssert.ignoreFailingMessages) LogAssert.ignoreFailingMessages = true;
         Time.timeScale = 1f;
 
         var prefab = new GameObject("HexPrefab");

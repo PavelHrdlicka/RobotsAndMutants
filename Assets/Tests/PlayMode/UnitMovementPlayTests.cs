@@ -24,7 +24,7 @@ public class UnitMovementPlayTests
                 Object.Destroy(go);
         yield return null;
 
-        LogAssert.ignoreFailingMessages = true;
+        if (!LogAssert.ignoreFailingMessages) LogAssert.ignoreFailingMessages = true;
         Time.timeScale = 1f;
 
         var prefab = new GameObject("HexPrefab");
@@ -163,10 +163,10 @@ public class UnitMovementPlayTests
         Assert.AreEqual(beforeTo,   unitData.moveTo,   "moveTo should not change on failed move.");
     }
 
-    // ── Move blocked by enemy territory ──────────────────────────────────
+    // ── Move onto enemy territory captures it ─────────────────────────────
 
     [UnityTest]
-    public IEnumerator TryMove_OntoEnemyTile_Blocked()
+    public IEnumerator TryMove_OntoEnemyTile_CapturesIt()
     {
         yield return null;
         var tile = grid.GetTile(new HexCoord(1, 0));
@@ -175,8 +175,9 @@ public class UnitMovementPlayTests
 
         bool moved = movement.TryMove(0); // East → (1,0) enemy territory
 
-        Assert.IsFalse(moved, "Enemy territory should block movement.");
-        Assert.AreEqual(new HexCoord(0, 0), unitData.currentHex, "Unit should stay at origin.");
+        Assert.IsTrue(moved, "Enemy territory should NOT block movement — unit captures it.");
+        Assert.AreEqual(new HexCoord(1, 0), unitData.currentHex, "Unit should move to enemy hex.");
+        Assert.AreEqual(Team.Robot, tile.Owner, "Enemy hex should be captured by moving unit.");
     }
 
     [UnityTest]

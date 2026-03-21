@@ -412,6 +412,7 @@ public class ReplayPlayer : MonoBehaviour
             "BuildWall" => UnitAction.BuildWall,
             "SpreadSlime" => UnitAction.PlaceSlime,
             "PlaceSlime" => UnitAction.PlaceSlime,
+            "DestroyWall" => UnitAction.DestroyWall,
             "Capture" => UnitAction.Capture,
             "Dead" => UnitAction.Dead,
             _ => UnitAction.Idle,

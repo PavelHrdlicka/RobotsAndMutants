@@ -36,7 +36,7 @@ public class BoardSetupPlayTests
                 Object.Destroy(go);
         yield return null;
 
-        LogAssert.ignoreFailingMessages = true;
+        if (!LogAssert.ignoreFailingMessages) LogAssert.ignoreFailingMessages = true;
 
         var prefab = CreatePrefab();
 

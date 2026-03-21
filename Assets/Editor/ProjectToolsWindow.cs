@@ -22,7 +22,7 @@ public class ProjectToolsWindow : EditorWindow
 
     // Foldout states (persisted via EditorPrefs).
     private const string k_AdvancedFoldoutKey = "ProjectTools_AdvancedFoldout";
-    private const string k_SceneSetupFoldoutKey = "ProjectTools_SceneSetupFoldout";
+    private const string k_ConfigDetailFoldoutKey = "ProjectTools_ConfigDetailFoldout";
 
     // Cached per Layout event — must NOT change between Layout and Repaint events
     // or GUILayout will throw "control N's position in group with only N controls".
@@ -291,7 +291,6 @@ public class ProjectToolsWindow : EditorWindow
         DrawReplaySection();
         DrawAnalysisSection();
         DrawTestingSection();
-        DrawSceneSetupSection();
 
         EditorGUILayout.EndScrollView();
     }
@@ -311,47 +310,60 @@ public class ProjectToolsWindow : EditorWindow
 
             EditorGUI.BeginChangeCheck();
 
-            config.boardSide = EditorGUILayout.IntSlider("Board Side", config.boardSide, 3, 15);
-            int tileCount = 3 * config.boardSide * config.boardSide - 3 * config.boardSide + 1;
-            EditorGUILayout.LabelField($"  Total tiles: {tileCount}", EditorStyles.miniLabel);
-
-            config.unitsPerTeam = EditorGUILayout.IntSlider("Units per Team", config.unitsPerTeam, 1, 10);
-            EditorGUILayout.LabelField($"  Base size: {Mathf.Min(config.unitsPerTeam, 4)} tiles/team", EditorStyles.miniLabel);
+            // ── Always visible: frequently adjusted settings ──
+            config.maxSteps = EditorGUILayout.IntSlider("Max Steps", config.maxSteps, 100, 10000);
 
             config.msPerTick = EditorGUILayout.IntSlider("ms / tick", config.msPerTick, 1, 5000);
             float ticksPerSec = 1000f / config.msPerTick;
             EditorGUILayout.LabelField($"  {ticksPerSec:F1} ticks/s  (timeScale = {config.TimeScale:F2})", EditorStyles.miniLabel);
 
-            config.winPercent = EditorGUILayout.IntSlider("Win %", config.winPercent, 10, 100);
-            config.maxSteps = EditorGUILayout.IntSlider("Max Steps", config.maxSteps, 100, 10000);
-
+            // ── All other settings in a collapsible foldout ──
             EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Energy", EditorStyles.miniBoldLabel);
-            config.unitMaxEnergy = EditorGUILayout.IntSlider("Max Energy", config.unitMaxEnergy, 5, 30);
-            config.respawnCooldown = EditorGUILayout.IntSlider("Respawn Cooldown", config.respawnCooldown, 1, 30);
-            config.baseRegenPerStep = EditorGUILayout.IntSlider("Base Regen/step", config.baseRegenPerStep, 0, 10);
+            bool detailOpen = EditorPrefs.GetBool(k_ConfigDetailFoldoutKey, false);
+            bool newDetailOpen = EditorGUILayout.Foldout(detailOpen, "All Parameters", true);
+            if (newDetailOpen != detailOpen)
+                EditorPrefs.SetBool(k_ConfigDetailFoldoutKey, newDetailOpen);
 
-            EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Structures", EditorStyles.miniBoldLabel);
-            config.wallBuildCost = EditorGUILayout.IntSlider("Wall Build Cost", config.wallBuildCost, 1, 10);
-            config.wallMaxHP = EditorGUILayout.IntSlider("Wall Max HP", config.wallMaxHP, 1, 5);
-            config.slimePlaceCost = EditorGUILayout.IntSlider("Slime Place Cost", config.slimePlaceCost, 1, 10);
-            config.destroyOwnWallCost = EditorGUILayout.IntSlider("Destroy Own Wall Cost", config.destroyOwnWallCost, 0, 5);
+            if (newDetailOpen)
+            {
+                EditorGUILayout.LabelField("Board", EditorStyles.miniBoldLabel);
+                config.boardSide = EditorGUILayout.IntSlider("Board Side", config.boardSide, 3, 15);
+                int tileCount = 3 * config.boardSide * config.boardSide - 3 * config.boardSide + 1;
+                EditorGUILayout.LabelField($"  Total tiles: {tileCount}", EditorStyles.miniLabel);
 
-            EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Combat", EditorStyles.miniBoldLabel);
-            config.attackUnitCost = EditorGUILayout.IntSlider("Attack Unit Cost", config.attackUnitCost, 1, 10);
-            config.attackUnitDamage = EditorGUILayout.IntSlider("Attack Unit Damage", config.attackUnitDamage, 1, 10);
-            config.attackWallCost = EditorGUILayout.IntSlider("Attack Wall Cost", config.attackWallCost, 1, 10);
-            config.slimeEntryCostRobot = EditorGUILayout.IntSlider("Slime Entry Cost (Robot)", config.slimeEntryCostRobot, 0, 10);
+                config.unitsPerTeam = EditorGUILayout.IntSlider("Units per Team", config.unitsPerTeam, 1, 10);
+                EditorGUILayout.LabelField($"  Base size: {Mathf.Min(config.unitsPerTeam, 4)} tiles/team", EditorStyles.miniLabel);
 
-            EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Proximity Bonuses", EditorStyles.miniBoldLabel);
-            config.shieldWallMaxReduction = EditorGUILayout.IntSlider("Shield Wall Max Reduction", config.shieldWallMaxReduction, 0, 5);
-            config.swarmMaxBonus = EditorGUILayout.IntSlider("Swarm Max Bonus", config.swarmMaxBonus, 0, 5);
+                config.winPercent = EditorGUILayout.IntSlider("Win %", config.winPercent, 10, 100);
 
-            EditorGUILayout.Space(4);
-            config.replayLogEveryNthGame = EditorGUILayout.IntSlider("Replay: log every Nth game", config.replayLogEveryNthGame, 1, 1000);
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("Energy", EditorStyles.miniBoldLabel);
+                config.unitMaxEnergy = EditorGUILayout.IntSlider("Max Energy", config.unitMaxEnergy, 5, 30);
+                config.respawnCooldown = EditorGUILayout.IntSlider("Respawn Cooldown", config.respawnCooldown, 1, 30);
+                config.baseRegenPerStep = EditorGUILayout.IntSlider("Base Regen/step", config.baseRegenPerStep, 0, 10);
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("Structures", EditorStyles.miniBoldLabel);
+                config.wallBuildCost = EditorGUILayout.IntSlider("Wall Build Cost", config.wallBuildCost, 1, 10);
+                config.wallMaxHP = EditorGUILayout.IntSlider("Wall Max HP", config.wallMaxHP, 1, 5);
+                config.slimePlaceCost = EditorGUILayout.IntSlider("Slime Place Cost", config.slimePlaceCost, 1, 10);
+                config.destroyOwnWallCost = EditorGUILayout.IntSlider("Destroy Own Wall Cost", config.destroyOwnWallCost, 0, 5);
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("Combat", EditorStyles.miniBoldLabel);
+                config.attackUnitCost = EditorGUILayout.IntSlider("Attack Unit Cost", config.attackUnitCost, 1, 10);
+                config.attackUnitDamage = EditorGUILayout.IntSlider("Attack Unit Damage", config.attackUnitDamage, 1, 10);
+                config.attackWallCost = EditorGUILayout.IntSlider("Attack Wall Cost", config.attackWallCost, 1, 10);
+                config.slimeEntryCostRobot = EditorGUILayout.IntSlider("Slime Entry Cost (Robot)", config.slimeEntryCostRobot, 0, 10);
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("Proximity Bonuses", EditorStyles.miniBoldLabel);
+                config.shieldWallMaxReduction = EditorGUILayout.IntSlider("Shield Wall Max Reduction", config.shieldWallMaxReduction, 0, 5);
+                config.swarmMaxBonus = EditorGUILayout.IntSlider("Swarm Max Bonus", config.swarmMaxBonus, 0, 5);
+
+                EditorGUILayout.Space(4);
+                config.replayLogEveryNthGame = EditorGUILayout.IntSlider("Replay: log every Nth game", config.replayLogEveryNthGame, 1, 1000);
+            }
 
             if (EditorGUI.EndChangeCheck())
             {
@@ -854,15 +866,20 @@ public class ProjectToolsWindow : EditorWindow
     {
         DrawSection("Testing", () =>
         {
-            if (GUILayout.Button("Run EditMode Tests", GUILayout.Height(28)))
-                AutoTestRunner.RunEditModeTests();
-
-            if (GUILayout.Button(
-                    EditorApplication.isPlaying ? "Stop Game + Open Test Runner" : "Open Test Runner",
-                    GUILayout.Height(25)))
+            GUI.backgroundColor = new Color(0.3f, 0.8f, 1f);
+            if (GUILayout.Button("Run All Tests", GUILayout.Height(35)))
             {
-                RunPlayModeTestsSafely();
+                if (EditorApplication.isPlaying)
+                {
+                    EditorApplication.isPlaying = false;
+                    EditorApplication.delayCall += () => AutoTestRunner.RunAllTests();
+                }
+                else
+                {
+                    AutoTestRunner.RunAllTests();
+                }
             }
+            GUI.backgroundColor = Color.white;
 
             EditorGUILayout.Space(4);
             bool autoTest = AutoTestRunner.Enabled;
@@ -879,33 +896,6 @@ public class ProjectToolsWindow : EditorWindow
         });
     }
 
-    // ─── 6. Scene Setup (collapsed foldout) ───────────────
-
-    private void DrawSceneSetupSection()
-    {
-        EditorGUILayout.Space(8);
-        bool open = EditorPrefs.GetBool(k_SceneSetupFoldoutKey, false);
-        bool newOpen = EditorGUILayout.Foldout(open, "Scene Setup", true, EditorStyles.boldLabel);
-        if (newOpen != open)
-            EditorPrefs.SetBool(k_SceneSetupFoldoutKey, newOpen);
-
-        if (newOpen)
-        {
-            EditorGUILayout.BeginVertical("box");
-
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Setup Scene", GUILayout.Height(28)))
-                HexGridSetup.SetupScene();
-            if (GUILayout.Button("Reset Scene", GUILayout.Height(28)))
-                HexGridSetup.Reset();
-            EditorGUILayout.EndHorizontal();
-
-            if (GUILayout.Button("Randomize Tile Ownership"))
-                RandomizeTileOwnership();
-
-            EditorGUILayout.EndVertical();
-        }
-    }
 
     // ─── ML Training Logic ────────────────────────────────
 
@@ -1307,34 +1297,6 @@ public class ProjectToolsWindow : EditorWindow
         EditorGUILayout.EndVertical();
     }
 
-    private static void RandomizeTileOwnership()
-    {
-        var grid = Object.FindFirstObjectByType<HexGrid>();
-        if (grid == null || grid.Tiles == null || grid.Tiles.Count == 0)
-        {
-            Debug.LogWarning("[ProjectTools] No HexGrid found. Run Setup Scene and enter Play mode first.");
-            return;
-        }
-
-        var teams = new[] { Team.None, Team.Robot, Team.Mutant };
-        foreach (var tile in grid.Tiles.Values)
-        {
-            Team team = teams[Random.Range(0, teams.Length)];
-            tile.Owner = team;
-
-            if (team == Team.Robot && Random.value < 0.3f)
-            {
-                tile.TileType = TileType.Wall;
-                tile.WallHP = Random.Range(1, 4);
-            }
-            else if (team == Team.Mutant && Random.value < 0.3f)
-                tile.TileType = TileType.Slime;
-            else
-                tile.TileType = TileType.Empty;
-        }
-        Debug.Log("[ProjectTools] Randomized tile ownership and types.");
-    }
-
     private static void ResetGame()
     {
         var gm = Object.FindFirstObjectByType<GameManager>();
@@ -1398,14 +1360,4 @@ public class ProjectToolsWindow : EditorWindow
         Debug.Log("[Reset] All history, models, and replays cleared. Fresh start.");
     }
 
-    private static void RunPlayModeTestsSafely()
-    {
-        EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
-
-        if (EditorApplication.isPlaying)
-        {
-            Debug.Log("[ProjectTools] Stopping game — click 'Run All' in Test Runner once Unity exits Play mode.");
-            EditorApplication.isPlaying = false;
-        }
-    }
 }

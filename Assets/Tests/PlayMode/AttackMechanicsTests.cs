@@ -30,7 +30,7 @@ public class AttackMechanicsTests
                 Object.Destroy(go);
         yield return null;
 
-        LogAssert.ignoreFailingMessages = true;
+        if (!LogAssert.ignoreFailingMessages) LogAssert.ignoreFailingMessages = true;
         Time.timeScale = 1f;
 
         var prefab = new GameObject("HexPrefab");
@@ -538,5 +538,71 @@ public class AttackMechanicsTests
 
         bool attacked = robotMove.TryAttack(0);
         Assert.IsFalse(attacked, "Dead unit cannot attack.");
+    }
+
+    // ── Attack dead enemy ─────────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Attack_DeadEnemy_Fails()
+    {
+        yield return null;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        var (mutant, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        mutant.Die(6);
+
+        bool attacked = robotMove.TryAttack(0);
+        Assert.IsFalse(attacked, "Cannot attack dead enemy unit.");
+    }
+
+    // ── Attack base hex ───────────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Attack_EnemyBaseHex_NoUnitOrWall_Fails()
+    {
+        yield return null;
+
+        // Find a mutant base hex adjacent to a non-base hex.
+        HexCoord baseCoord = default;
+        HexCoord adjacentCoord = default;
+        bool found = false;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (kvp.Value.isBase && kvp.Value.Owner == Team.Mutant)
+            {
+                baseCoord = kvp.Key;
+                for (int d = 0; d < 6; d++)
+                {
+                    var n = baseCoord.Neighbor(d);
+                    var nTile = grid.GetTile(n);
+                    if (nTile != null && !nTile.isBase)
+                    {
+                        adjacentCoord = n;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+
+        if (!found)
+        {
+            Assert.Inconclusive("No mutant base with non-base neighbor found.");
+            yield break;
+        }
+
+        var (robot, move) = SpawnUnit(Team.Robot, adjacentCoord);
+
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (adjacentCoord.Neighbor(d) == baseCoord) { dir = d; break; }
+        }
+        Assert.IsTrue(dir >= 0);
+
+        bool attacked = move.TryAttack(dir);
+        Assert.IsFalse(attacked,
+            "Cannot attack enemy base hex when no unit or wall is there.");
     }
 }

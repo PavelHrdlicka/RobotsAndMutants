@@ -23,7 +23,7 @@ public class HexGridPlayTests
                 Object.Destroy(go);
         yield return null;
 
-        LogAssert.ignoreFailingMessages = true;
+        if (!LogAssert.ignoreFailingMessages) LogAssert.ignoreFailingMessages = true;
 
         var prefab = new GameObject("HexPrefab");
         prefab.AddComponent<MeshFilter>();
