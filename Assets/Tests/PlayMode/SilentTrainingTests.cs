@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 
 /// <summary>
 /// PlayMode tests for Silent Training mode.
-/// When GameManager.SilentTraining is true:
+/// When GameConfig.SilentTraining is true:
 ///   - Camera rendering disabled (frees GPU)
 ///   - No unit visual models (no RobotModelBuilder, MutantModelBuilder)
 ///   - No health bars, action indicators, attack effects, labels
@@ -33,8 +33,8 @@ public class SilentTrainingTests
         if (!LogAssert.ignoreFailingMessages) LogAssert.ignoreFailingMessages = true;
 
         // Save and enable silent mode.
-        originalSilent = GameManager.SilentTraining;
-        GameManager.SilentTraining = true;
+        originalSilent = GameConfig.SilentTraining;
+        GameConfig.SilentTraining = true;
 
         var prefab = new GameObject("HexPrefab");
         prefab.AddComponent<MeshFilter>();
@@ -62,7 +62,7 @@ public class SilentTrainingTests
     [UnityTearDown]
     public IEnumerator TearDown()
     {
-        GameManager.SilentTraining = originalSilent;
+        GameConfig.SilentTraining = originalSilent;
         foreach (var go in objects)
             if (go != null) Object.Destroy(go);
         objects.Clear();

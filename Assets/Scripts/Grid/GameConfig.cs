@@ -175,6 +175,10 @@ public class GameConfig : ScriptableObject
     [Tooltip("Group reward for the trailing team when episode ends by timeout.")]
     public float timeoutLoseReward = -0.5f;
 
+    // --- Silent Training ---
+    /// <summary>When true, skip all visual rendering for maximum training performance.</summary>
+    public static bool SilentTraining;
+
     // --- Singleton ---
 
     private static GameConfig _instance;

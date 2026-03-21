@@ -102,7 +102,7 @@ public class UnitFactory : MonoBehaviour
         go.AddComponent<HexMovement>();
 
         // Skip visual components in test mode and silent training.
-        bool skipVisuals = skipMLAgents || GameManager.SilentTraining;
+        bool skipVisuals = skipMLAgents || GameConfig.SilentTraining;
         if (!skipVisuals)
         {
             if (team == Team.Robot)

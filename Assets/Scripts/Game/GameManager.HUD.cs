@@ -178,9 +178,6 @@ public partial class GameManager
 
     // ── Main HUD ───────────────────────────────────────────────────────────
 
-    /// <summary>When true, only match history table is shown — no 3D rendering.</summary>
-    public static bool SilentTraining;
-
     private void OnGUI()
     {
         if (grid == null) return;
@@ -189,7 +186,7 @@ public partial class GameManager
         RefreshHudCache();
 
         // Silent training: only show match history + session stats, no game visuals.
-        if (SilentTraining)
+        if (GameConfig.SilentTraining)
         {
             DrawSessionStats();
             DrawMatchHistory();

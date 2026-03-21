@@ -56,7 +56,7 @@ public class HexVisuals : MonoBehaviour
     private void Start()
     {
         // Silent training: disable all visual updates and mesh rendering.
-        if (GameManager.SilentTraining)
+        if (GameConfig.SilentTraining)
         {
             var mr = GetComponent<MeshRenderer>();
             if (mr != null) mr.enabled = false;
