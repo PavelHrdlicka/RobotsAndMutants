@@ -8,15 +8,20 @@ using UnityEngine;
 public class ReplayPlayerHUD : MonoBehaviour
 {
     private ReplayPlayer player;
+    private ReplayDebugOverlay debugOverlay;
     private GUIStyle labelStyle;
     private GUIStyle headerStyle;
     private GUIStyle buttonStyle;
     private GUIStyle infoStyle;
+    private GUIStyle toggleButtonOnStyle;
     private Texture2D barBg;
 
     private void Awake()
     {
         player = GetComponent<ReplayPlayer>();
+        debugOverlay = GetComponent<ReplayDebugOverlay>();
+        if (debugOverlay == null)
+            debugOverlay = gameObject.AddComponent<ReplayDebugOverlay>();
     }
 
     private void InitStyles()
@@ -54,6 +59,14 @@ public class ReplayPlayerHUD : MonoBehaviour
             fontSize = 12,
             alignment = TextAnchor.MiddleLeft,
             normal = { textColor = new Color(0.7f, 0.7f, 0.7f) }
+        };
+
+        toggleButtonOnStyle = new GUIStyle(GUI.skin.button)
+        {
+            fontSize = 14,
+            fontStyle = FontStyle.Bold,
+            fixedHeight = 28,
+            normal = { textColor = new Color(1f, 0.84f, 0f) }
         };
     }
 
@@ -143,13 +156,21 @@ public class ReplayPlayerHUD : MonoBehaviour
         }
         btnX += btnW + 15;
 
+        // Show Detail toggle.
+        float detailBtnW = 100;
+        float detailBtnX = barX + barWidth - detailBtnW;
+        bool isDetailOn = debugOverlay != null && debugOverlay.showDetail;
+        var detailStyle = isDetailOn ? toggleButtonOnStyle : buttonStyle;
+        string detailLabel = isDetailOn ? "HIDE DETAIL" : "SHOW DETAIL";
+        if (GUI.Button(new Rect(detailBtnX, y, detailBtnW, 28), detailLabel, detailStyle))
+            debugOverlay?.Toggle();
+
         // Speed label + slider.
         GUI.Label(new Rect(btnX, y, 50, 35), $"{1f / Mathf.Max(player.turnDelay, 0.01f):F0}/s", labelStyle);
         btnX += 50;
-        float sliderWidth = barX + barWidth - btnX - 10;
+        float sliderWidth = detailBtnX - btnX - 10;
         if (sliderWidth > 50)
         {
-            // Map turnDelay: 1.0 (slow) to 0.01 (fast). Slider goes 0.01-1.0, inverted for intuition.
             float speed = GUI.HorizontalSlider(new Rect(btnX, y + 12, sliderWidth, 20), 1f / Mathf.Max(player.turnDelay, 0.01f), 1f, 100f);
             player.turnDelay = 1f / Mathf.Max(speed, 1f);
         }

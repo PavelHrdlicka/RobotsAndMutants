@@ -729,6 +729,20 @@ public class ProjectToolsWindow : EditorWindow
             if (GUILayout.Button("10x"))  cachedReplayPlayer.turnDelay = 0.03f;
             EditorGUILayout.EndHorizontal();
 
+            // ── Show Detail toggle ──
+            EditorGUILayout.Space(4);
+            var overlay = cachedReplayPlayer.GetComponent<ReplayDebugOverlay>();
+            if (overlay != null)
+            {
+                bool isOn = overlay.showDetail;
+                string detailLabel = isOn ? "HIDE DETAIL" : "SHOW DETAIL";
+                GUI.backgroundColor = isOn ? new Color(1f, 0.84f, 0f) : Color.white;
+                if (GUILayout.Button(detailLabel, GUILayout.Height(25)))
+                    overlay.Toggle();
+                GUI.backgroundColor = Color.white;
+                EditorGUILayout.LabelField("Shows unit numbers and hex coordinates (q,r)", EditorStyles.miniLabel);
+            }
+
             // Force repaint while playing so the UI updates.
             if (cachedReplayState == ReplayPlayer.PlaybackState.Playing)
                 Repaint();
