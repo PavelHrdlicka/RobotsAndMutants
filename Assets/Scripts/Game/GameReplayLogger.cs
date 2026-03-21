@@ -98,6 +98,8 @@ public class GameReplayLogger
             {
                 var ah = unit.lastAttackHex;
                 sb.Append($",\"attackHex\":[{ah.q},{ah.r}]");
+                if (unit.lastAttackWallHP >= 0)
+                    sb.Append($",\"wallHP\":{unit.lastAttackWallHP}");
             }
             if (unit.lastAttackTarget != null)
             {

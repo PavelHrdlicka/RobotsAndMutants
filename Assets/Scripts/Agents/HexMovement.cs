@@ -199,6 +199,7 @@ public class HexMovement : MonoBehaviour
 
         unitData.lastAction = UnitAction.Attack;
         unitData.lastAttackTarget = enemy;
+        unitData.lastAttackWallHP = -1; // not a wall attack
 
         int respawnCD = cfg != null ? cfg.respawnCooldown : 6;
 
@@ -233,6 +234,7 @@ public class HexMovement : MonoBehaviour
         unitData.lastAction = UnitAction.Attack;
         unitData.lastAttackTarget = null;
         unitData.lastAttackKilled = false;
+        unitData.lastAttackWallHP = tile.WallHP;
         return true;
     }
 

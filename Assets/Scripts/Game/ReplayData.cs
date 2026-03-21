@@ -38,6 +38,7 @@ public static class ReplayData
         public int builtQ, builtR;
         public bool hasAttackHex;
         public int attackHexQ, attackHexR;
+        public int wallHP; // -1 if not a wall attack
     }
 
     public struct Summary
@@ -131,6 +132,11 @@ public static class ReplayData
                 {
                     turn.attackHexQ = ExtractPosQ(line, "attackHex");
                     turn.attackHexR = ExtractPosR(line, "attackHex");
+                    turn.wallHP = line.Contains("\"wallHP\":") ? ExtractInt(line, "wallHP") : -1;
+                }
+                else
+                {
+                    turn.wallHP = -1;
                 }
 
                 replay.turns.Add(turn);

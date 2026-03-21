@@ -72,8 +72,11 @@ public class ReplayPlayer : MonoBehaviour
             return $"{t.unitName}: {t.action} → ({t.builtQ},{t.builtR})";
         if (t.action == "Attack" && t.hasAttackHex)
         {
-            string target = t.targetUnit ?? "wall";
-            return $"{t.unitName}: Attack {target} → ({t.attackHexQ},{t.attackHexR})";
+            if (t.targetUnit != null)
+                return $"{t.unitName}: Attack {t.targetUnit} → ({t.attackHexQ},{t.attackHexR})";
+            // Wall attack — show remaining HP.
+            string hpInfo = t.wallHP >= 0 ? $" HP:{t.wallHP}" : "";
+            return $"{t.unitName}: Attack wall → ({t.attackHexQ},{t.attackHexR}){hpInfo}";
         }
         return $"{t.unitName}: {t.action} at ({t.q},{t.r})";
     }

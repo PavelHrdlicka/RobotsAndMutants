@@ -31,6 +31,10 @@ public class HexVisuals : MonoBehaviour
     // Per-tile slime overlay child object.
     private GameObject slimeOverlay;
 
+    // Wall HP label.
+    private GameObject wallHPLabel;
+    private TextMesh wallHPText;
+
     private static readonly float WallHPBrightness = 0.05f;
     private const float BaseExtrudeHeight = 0.08f;
     private const float WallExtrudeHeight = 0.12f;
@@ -141,6 +145,7 @@ public class HexVisuals : MonoBehaviour
         UpdateColor();
         UpdateExtrusion();
         UpdateSlimeOverlay();
+        UpdateWallHPLabel();
     }
 
     public void UpdateColor()
@@ -194,6 +199,41 @@ public class HexVisuals : MonoBehaviour
     }
 
     // ── Slime hatched overlay ────────────────────────────────────────────
+
+    private void UpdateWallHPLabel()
+    {
+        bool isWall = tileData.TileType == TileType.Wall && tileData.WallHP > 0;
+
+        if (isWall)
+        {
+            if (wallHPLabel == null)
+            {
+                wallHPLabel = new GameObject("WallHP");
+                wallHPLabel.transform.SetParent(transform, false);
+                wallHPLabel.transform.localPosition = new Vector3(0f, WallExtrudeHeight + 0.02f, 0f);
+
+                wallHPText = wallHPLabel.AddComponent<TextMesh>();
+                wallHPText.fontSize = 60;
+                wallHPText.characterSize = 0.04f;
+                wallHPText.anchor = TextAnchor.MiddleCenter;
+                wallHPText.alignment = TextAlignment.Center;
+                wallHPText.color = Color.white;
+                wallHPText.fontStyle = FontStyle.Bold;
+                var r = wallHPLabel.GetComponent<MeshRenderer>();
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+                wallHPLabel.AddComponent<BillboardLabel>();
+            }
+            wallHPText.text = tileData.WallHP.ToString();
+        }
+        else if (wallHPLabel != null)
+        {
+            wallHPLabel.SetActive(false);
+            Destroy(wallHPLabel);
+            wallHPLabel = null;
+            wallHPText = null;
+        }
+    }
 
     private void UpdateSlimeOverlay()
     {
