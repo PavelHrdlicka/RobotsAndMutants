@@ -14,7 +14,6 @@ public class AttackEffects : MonoBehaviour
     private MutantModelBuilder mutantModel;
     private HexGrid grid;
 
-    private UnitAction prevAction;
     private bool wasAlive;
 
     // Tile flash state — only active during the attack turn.
@@ -23,7 +22,6 @@ public class AttackEffects : MonoBehaviour
     private Color savedAttackerColor;
     private Color savedTargetColor;
     private bool isFlashing;
-    private int flashFrameCount;
 
     private static readonly Color AttackerFlashColor = new Color(0.9f, 0.15f, 0.1f);  // red
     private static readonly Color TargetFlashColor   = new Color(1f, 0.55f, 0.1f);     // orange
@@ -44,8 +42,7 @@ public class AttackEffects : MonoBehaviour
     private void Start()
     {
         grid = Object.FindFirstObjectByType<HexGrid>();
-        prevAction = unitData.lastAction;
-        wasAlive   = unitData.isAlive;
+        wasAlive = unitData.isAlive;
 
         if (robotModel != null) CreateSparkParticles();
         if (mutantModel != null) CreateSlimeParticles();
@@ -53,31 +50,26 @@ public class AttackEffects : MonoBehaviour
         CreateRespawnParticles();
     }
 
-    private static bool IsCombatAction(UnitAction a)
-        => a == UnitAction.Attack || a == UnitAction.DestroyWall;
+    /// <summary>
+    /// Call directly from HexAgent when a combat action is performed.
+    /// This ensures the flash triggers even at high time scales where
+    /// Update() can't detect the lastAction transition.
+    /// </summary>
+    public void TriggerCombatFlash()
+    {
+        UnflashTiles();
+        OnAttack();
+    }
 
     private void Update()
     {
         if (unitData == null) return;
 
-        // Detect combat start (Attack or DestroyWall).
-        if (IsCombatAction(unitData.lastAction) && !IsCombatAction(prevAction))
-            OnAttack();
-
-        // Detect combat end → restore tile colors immediately.
-        if (IsCombatAction(prevAction) && !IsCombatAction(unitData.lastAction))
-            UnflashTiles();
-
-        // Safety: always unflash if action is not combat.
-        if (isFlashing && !IsCombatAction(unitData.lastAction))
-            UnflashTiles();
-
-        // Auto-unflash after 2 frames (handles replay mode where lastAction
-        // can stay Attack across multiple Update cycles).
+        // Auto-unflash after a short duration (flashTimer).
         if (isFlashing)
         {
-            flashFrameCount++;
-            if (flashFrameCount > 2)
+            flashTimer -= Time.deltaTime;
+            if (flashTimer <= 0f)
                 UnflashTiles();
         }
 
@@ -92,9 +84,10 @@ public class AttackEffects : MonoBehaviour
         if (!wasAlive && unitData.isAlive)
             OnRespawn();
 
-        prevAction = unitData.lastAction;
-        wasAlive   = unitData.isAlive;
+        wasAlive = unitData.isAlive;
     }
+
+    private float flashTimer;
 
     private void OnAttack()
     {
@@ -170,7 +163,10 @@ public class AttackEffects : MonoBehaviour
         }
 
         isFlashing = true;
-        flashFrameCount = 0;
+        // Flash duration scales with tick speed so it's visible even at high timeScale.
+        var cfg = GameConfig.Instance;
+        float tickMs = cfg != null ? cfg.msPerTick : 200;
+        flashTimer = Mathf.Max(0.15f, tickMs / 1000f * 2f);
     }
 
     private void UnflashTiles()

@@ -176,10 +176,13 @@ public class HexAgent : Agent
                 if (movement.IsValidAttack(dir))
                 {
                     bool didAttack = movement.TryAttack(dir);
-                    if (didAttack && unitData.lastAttackKilled)
-                        AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
+                    if (didAttack)
+                    {
+                        if (unitData.lastAttackKilled)
+                            AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
+                        TriggerCombatFlash();
+                    }
                 }
-                // else: invalid attack — lastAction stays Idle from reset above.
             }
             else if (action >= 13 && action <= 18)
             {
@@ -215,7 +218,10 @@ public class HexAgent : Agent
                 // Destroy own wall in direction.
                 int dir = action - 19;
                 if (movement.IsValidDestroyWall(dir))
+                {
                     movement.TryDestroyWall(dir);
+                    TriggerCombatFlash();
+                }
             }
 
             // Reward shaping — based on territory analysis (connected groups).
@@ -370,5 +376,11 @@ public class HexAgent : Agent
                 count++;
         }
         return count;
+    }
+
+    private void TriggerCombatFlash()
+    {
+        var fx = GetComponent<AttackEffects>();
+        if (fx != null) fx.TriggerCombatFlash();
     }
 }
