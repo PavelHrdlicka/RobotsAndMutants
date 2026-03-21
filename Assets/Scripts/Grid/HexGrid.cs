@@ -433,15 +433,14 @@ public class HexGrid : MonoBehaviour
         cam.orthographic = true;
         cam.transform.rotation = Quaternion.Euler(45f, 45f, 0f);
 
-        // Offset camera slightly upward in screen space so the board sits
-        // between the top HUD panels and the bottom replay/stats bar.
+        // Offset camera upward so the board sits between top HUD and bottom bar.
         Vector3 center = -cam.transform.forward * 50f;
-        center += cam.transform.up * (boardRadius * 0.08f);
+        center += cam.transform.up * (boardRadius * 0.15f);
         cam.transform.position = center;
 
-        // Ortho size: fill the screen between top HUD and bottom replay bar.
+        // Ortho size: leave room for HUD at top and replay/stats bar at bottom.
         float aspect = cam.aspect;
-        float orthoSize = (boardRadius + padding) * 0.75f;
+        float orthoSize = (boardRadius + padding) * 0.85f;
         cam.orthographicSize = orthoSize;
 
         Debug.Log($"[HexGrid] CenterCamera: boardSide={boardSide}, outerRadius={outerRadius}, " +

@@ -41,7 +41,7 @@ public class ReplayPlayerHUD : MonoBehaviour
 
         headerStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 18,
+            fontSize = 14,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             normal = { textColor = new Color(1f, 0.84f, 0f) }
@@ -49,9 +49,9 @@ public class ReplayPlayerHUD : MonoBehaviour
 
         buttonStyle = new GUIStyle(GUI.skin.button)
         {
-            fontSize = 16,
+            fontSize = 13,
             fontStyle = FontStyle.Bold,
-            fixedHeight = 35
+            fixedHeight = 28
         };
 
         infoStyle = new GUIStyle(GUI.skin.label)
@@ -70,6 +70,40 @@ public class ReplayPlayerHUD : MonoBehaviour
         };
     }
 
+    private void Update()
+    {
+        if (player == null || player.Replay == null) return;
+        if (player.state == ReplayPlayer.PlaybackState.Stopped) return;
+
+        // Keyboard controls.
+        if (Input.GetKeyDown(KeyCode.Space))
+            player.TogglePlayPause();
+
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            player.Pause();
+            player.StepOneTurn();
+        }
+
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            player.Pause();
+            player.StepBackOneTurn();
+        }
+
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            player.Pause();
+            player.StepOneRound();
+        }
+
+        if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            player.Pause();
+            player.StepBackOneRound();
+        }
+    }
+
     private void OnGUI()
     {
         if (player == null || player.state == ReplayPlayer.PlaybackState.Stopped) return;
@@ -77,9 +111,9 @@ public class ReplayPlayerHUD : MonoBehaviour
 
         InitStyles();
 
-        float barHeight = 165;
+        float barHeight = 130;
         float barY = Screen.height - barHeight;
-        float barWidth = Mathf.Min(Screen.width * 0.7f, 700);
+        float barWidth = Mathf.Min(Screen.width * 0.55f, 520);
         float barX = (Screen.width - barWidth) / 2f;
 
         // Background panel.
@@ -122,18 +156,19 @@ public class ReplayPlayerHUD : MonoBehaviour
         y += 4;
 
         // Transport buttons.
-        float btnW = 80;
-        float btnGap = 5;
+        float btnH = 28;
+        float btnW = 60;
+        float btnGap = 3;
         float btnX = barX;
 
         // Play/Pause.
         string playLabel = player.state == ReplayPlayer.PlaybackState.Playing ? "||" : ">";
-        if (GUI.Button(new Rect(btnX, y, 50, 35), playLabel, buttonStyle))
+        if (GUI.Button(new Rect(btnX, y, 36, btnH), playLabel, buttonStyle))
             player.TogglePlayPause();
-        btnX += 55;
+        btnX += 39;
 
         // Step Back.
-        if (GUI.Button(new Rect(btnX, y, btnW, 35), "Back", buttonStyle))
+        if (GUI.Button(new Rect(btnX, y, btnW, btnH), "Back", buttonStyle))
         {
             player.Pause();
             player.StepBackOneTurn();
@@ -141,7 +176,7 @@ public class ReplayPlayerHUD : MonoBehaviour
         btnX += btnW + btnGap;
 
         // Step Turn.
-        if (GUI.Button(new Rect(btnX, y, btnW, 35), "Step", buttonStyle))
+        if (GUI.Button(new Rect(btnX, y, btnW, btnH), "Step", buttonStyle))
         {
             player.Pause();
             player.StepOneTurn();
@@ -149,32 +184,33 @@ public class ReplayPlayerHUD : MonoBehaviour
         btnX += btnW + btnGap;
 
         // Step Round.
-        if (GUI.Button(new Rect(btnX, y, btnW + 10, 35), "Round+", buttonStyle))
+        if (GUI.Button(new Rect(btnX, y, 70, btnH), "Round+", buttonStyle))
         {
             player.Pause();
             player.StepOneRound();
         }
-        btnX += btnW + 15;
+        btnX += 73;
 
-        // Show Detail toggle — sized for longest label "HIDE DETAIL".
-        float detailBtnW = 130;
+        // Speed label + slider.
+        GUI.Label(new Rect(btnX, y, 35, btnH), $"{1f / Mathf.Max(player.turnDelay, 0.01f):F0}/s", labelStyle);
+        btnX += 35;
+
+        // Show Detail toggle.
+        float detailBtnW = 100;
         float detailBtnX = barX + barWidth - detailBtnW;
         bool isDetailOn = debugOverlay != null && debugOverlay.showDetail;
         var detailStyle = isDetailOn ? toggleButtonOnStyle : buttonStyle;
-        string detailLabel = isDetailOn ? "HIDE DETAIL" : "SHOW DETAIL";
-        if (GUI.Button(new Rect(detailBtnX, y, detailBtnW, 28), detailLabel, detailStyle))
+        string detailLabel = isDetailOn ? "HIDE" : "DETAIL";
+        if (GUI.Button(new Rect(detailBtnX, y, detailBtnW, btnH), detailLabel, detailStyle))
             debugOverlay?.Toggle();
 
-        // Speed label + slider.
-        GUI.Label(new Rect(btnX, y, 50, 35), $"{1f / Mathf.Max(player.turnDelay, 0.01f):F0}/s", labelStyle);
-        btnX += 50;
         float sliderWidth = detailBtnX - btnX - 10;
-        if (sliderWidth > 50)
+        if (sliderWidth > 30)
         {
-            float speed = GUI.HorizontalSlider(new Rect(btnX, y + 12, sliderWidth, 20), 1f / Mathf.Max(player.turnDelay, 0.01f), 1f, 100f);
+            float speed = GUI.HorizontalSlider(new Rect(btnX, y + 10, sliderWidth, 20), 1f / Mathf.Max(player.turnDelay, 0.01f), 1f, 100f);
             player.turnDelay = 1f / Mathf.Max(speed, 1f);
         }
-        y += 38;
+        y += 32;
 
         // Round scrubber.
         if (player.TotalRounds > 0)
