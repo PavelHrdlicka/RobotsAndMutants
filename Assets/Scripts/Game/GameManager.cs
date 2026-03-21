@@ -166,23 +166,18 @@ public partial class GameManager : MonoBehaviour
 
     /// <summary>
     /// Build strictly alternating turn order: R, M, R, M, ...
-    /// Starting team alternates each round (or loser starts after a game).
-    /// Dead units are skipped but alternation is preserved — never two
-    /// consecutive turns for the same team.
+    /// ALL units included (alive + dead waiting for respawn).
+    /// Starting team alternates each round.
     /// </summary>
     private void BuildTurnOrder()
     {
         turnOrder.Clear();
 
-        var robots  = new List<UnitData>();
-        var mutants = new List<UnitData>();
-        foreach (var u in unitFactory.robotUnits)  if (u.isAlive) robots.Add(u);
-        foreach (var u in unitFactory.mutantUnits) if (u.isAlive) mutants.Add(u);
-
         bool robotNext = (startingTeam == Team.Robot);
         int ri = 0, mi = 0;
+        var robots  = unitFactory.robotUnits;
+        var mutants = unitFactory.mutantUnits;
 
-        // Interleave alive units strictly.
         while (ri < robots.Count || mi < mutants.Count)
         {
             if (robotNext && ri < robots.Count)
@@ -197,7 +192,6 @@ public partial class GameManager : MonoBehaviour
             }
             else
             {
-                // One team exhausted — add remaining from the other.
                 robotNext = !robotNext;
             }
         }
@@ -211,19 +205,33 @@ public partial class GameManager : MonoBehaviour
 
         if (turnIndex >= turnOrder.Count)
         {
-            unitFactory.RespawnReady();
             turnStarted = false;
-
-            // Alternate starting team each round.
             startingTeam = (startingTeam == Team.Robot) ? Team.Mutant : Team.Robot;
             return;
         }
 
         pendingUnit = turnOrder[turnIndex];
-
-        if (pendingUnit == null || !pendingUnit.isAlive || !pendingUnit.gameObject.activeInHierarchy)
+        if (pendingUnit == null)
         {
             AdvanceTurn();
+            return;
+        }
+
+        // Dead unit: tick cooldown. If ready → respawn. Either way, turn is "used".
+        if (!pendingUnit.isAlive)
+        {
+            if (pendingUnit.TickCooldown())
+            {
+                // Respawn at current base hex with full energy.
+                var worldPos = grid.HexToWorld(pendingUnit.currentHex);
+                pendingUnit.Respawn(pendingUnit.currentHex, worldPos);
+                var movement = pendingUnit.GetComponent<HexMovement>();
+                if (movement != null) movement.Initialize(grid);
+            }
+            pendingUnit.lastAction = UnitAction.Dead;
+            // Signal turn done (same as HexAgent would).
+            pendingUnit.isMyTurn = false;
+            pendingUnit.hasPendingTurnResult = true;
             return;
         }
 
@@ -269,7 +277,58 @@ public partial class GameManager : MonoBehaviour
         unit.lastAttackTarget = null;
         unit.lastAttackKilled = false;
 
+        // Teleport any newly dead units to base immediately.
+        TeleportDeadToBase();
+
         CheckWinCondition();
+    }
+
+    /// <summary>
+    /// Find any dead units not yet on a base hex and teleport them to a free base hex.
+    /// Called after each turn so deaths from combat are handled immediately.
+    /// </summary>
+    private void TeleportDeadToBase()
+    {
+        foreach (var unit in unitFactory.AllUnits)
+        {
+            if (unit.isAlive) continue;
+
+            // Already on a base hex of own team? Skip.
+            var currentTile = grid.GetTile(unit.currentHex);
+            if (currentTile != null && currentTile.isBase && currentTile.baseTeam == unit.team)
+                continue;
+
+            // Find a free base hex.
+            var baseTiles = grid.GetBaseTiles(unit.team);
+            HexCoord freeBase = unit.currentHex; // fallback: stay in place
+            bool found = false;
+            foreach (var bt in baseTiles)
+            {
+                if (!IsHexOccupied(bt.coord))
+                {
+                    freeBase = bt.coord;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found)
+            {
+                unit.currentHex = freeBase;
+                var movement = unit.GetComponent<HexMovement>();
+                if (movement != null) movement.PlaceAt(freeBase);
+            }
+        }
+    }
+
+    private bool IsHexOccupied(HexCoord coord)
+    {
+        foreach (var u in unitFactory.AllUnits)
+        {
+            if (u.currentHex == coord && u.gameObject.activeInHierarchy)
+                return true;
+        }
+        return false;
     }
 
     // ── Win condition ──────────────────────────────────────────────────────

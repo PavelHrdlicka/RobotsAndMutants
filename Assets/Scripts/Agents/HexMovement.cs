@@ -466,7 +466,8 @@ public class HexMovement : MonoBehaviour
         foreach (var unit in UnitCache.GetAll())
         {
             if (unit == unitData) continue;
-            if (!unit.isAlive)    continue;
+            // Dead units on base still block the hex (waiting for respawn).
+            if (!unit.gameObject.activeInHierarchy) continue;
             if (unit.currentHex == coord) return true;
         }
         return false;

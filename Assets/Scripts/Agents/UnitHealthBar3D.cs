@@ -143,14 +143,29 @@ public class UnitHealthBar3D : MonoBehaviour
     }
 
     private static readonly Color GreyColor = new Color(0.25f, 0.25f, 0.25f);
+    private static readonly Color DeadColor = new Color(0.08f, 0.08f, 0.08f);
 
     private void UpdateModelGreying(float energyFrac)
     {
         if (modelRenderers == null) return;
 
+        // Dead unit → fully black.
+        bool isDead = unitData != null && !unitData.isAlive;
+        if (isDead)
+        {
+            for (int i = 0; i < modelRenderers.Length; i++)
+            {
+                if (modelRenderers[i] == null) continue;
+                var mat = modelRenderers[i].material;
+                if (mat.HasProperty("_BaseColor"))
+                    mat.SetColor("_BaseColor", DeadColor);
+                else
+                    mat.color = DeadColor;
+            }
+            return;
+        }
+
         int total = modelRenderers.Length;
-        // How many parts should be fully greyed (from bottom = index 0).
-        // At full energy: 0 greyed. At 0 energy: all greyed.
         float greyFrac = 1f - energyFrac;
         float greyParts = greyFrac * total;
 
@@ -158,15 +173,15 @@ public class UnitHealthBar3D : MonoBehaviour
         {
             if (modelRenderers[i] == null) continue;
 
-            float partProgress = total - 1 - i; // bottom parts first (reversed)
-            float t; // 0 = original, 1 = fully grey
+            float partProgress = total - 1 - i;
+            float t;
 
             if (partProgress < greyParts - 1f)
-                t = 1f; // fully grey
+                t = 1f;
             else if (partProgress < greyParts)
-                t = greyParts - partProgress; // partially grey
+                t = greyParts - partProgress;
             else
-                t = 0f; // original color
+                t = 0f;
 
             Color c = Color.Lerp(originalColors[i], GreyColor, t);
             var mat = modelRenderers[i].material;

@@ -679,4 +679,83 @@ public class GameLoopPlayTests
         Assert.AreEqual(Team.Robot, order[2]);
         Assert.AreEqual(Team.Robot, order[3]);
     }
+
+    // ── Death and respawn ─────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator DeadUnit_StaysVisible()
+    {
+        yield return null;
+
+        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(10);
+
+        Assert.IsFalse(unit.isAlive);
+        Assert.IsTrue(unit.gameObject.activeSelf,
+            "Dead unit must stay visible (not deactivated).");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_BlocksHex()
+    {
+        yield return null;
+
+        var (dead, _) = SpawnUnit(Team.Robot, new HexCoord(1, 0));
+        dead.Die(10);
+
+        // Another unit tries to move onto the dead unit's hex.
+        var (alive, aliveMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        bool moved = aliveMove.TryMove(0);
+
+        Assert.IsFalse(moved,
+            "Dead unit on a hex should block movement onto that hex.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_RespawnsAfterCooldown()
+    {
+        yield return null;
+
+        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(3);
+
+        Assert.IsFalse(unit.TickCooldown()); // 2 remaining
+        Assert.IsFalse(unit.TickCooldown()); // 1 remaining
+        Assert.IsTrue(unit.TickCooldown());  // 0 — ready
+
+        unit.Respawn(unit.currentHex, grid.HexToWorld(unit.currentHex));
+
+        Assert.IsTrue(unit.isAlive);
+        Assert.AreEqual(unit.maxEnergy, unit.Energy,
+            "Respawned unit should have full energy.");
+    }
+
+    [UnityTest]
+    public IEnumerator FriendlyFire_NotPossible()
+    {
+        yield return null;
+
+        var (robot1, move1) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        var (robot2, _) = SpawnUnit(Team.Robot, new HexCoord(1, 0));
+
+        bool attacked = move1.TryAttack(0);
+
+        Assert.IsFalse(attacked,
+            "Friendly fire is not allowed — cannot attack own team.");
+        Assert.AreEqual(15, robot2.Energy, "Friendly unit should not take damage.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_CannotAct()
+    {
+        yield return null;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(10);
+
+        Assert.IsFalse(move.TryMove(0), "Dead unit cannot move.");
+        Assert.IsFalse(move.TryAttack(0), "Dead unit cannot attack.");
+        Assert.IsFalse(move.TryBuild(0), "Dead unit cannot build.");
+        Assert.IsFalse(move.TryDestroyWall(0), "Dead unit cannot destroy wall.");
+    }
 }

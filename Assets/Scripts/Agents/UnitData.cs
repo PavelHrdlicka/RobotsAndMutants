@@ -57,17 +57,20 @@ public class UnitData : MonoBehaviour
         set => energy = Mathf.Clamp(value, 0, maxEnergy);
     }
 
-    /// <summary>Kill this unit: hide it, start respawn cooldown.</summary>
+    /// <summary>
+    /// Kill this unit. Unit stays visible (darkened) and blocks its hex.
+    /// It will be teleported to a base hex by GameManager.
+    /// </summary>
     public void Die(int cooldownSteps = 6)
     {
         isAlive = false;
         energy = 0;
         lastAction = UnitAction.Dead;
         respawnCooldown = cooldownSteps;
-        gameObject.SetActive(false);
+        // DO NOT deactivate — unit stays visible on base, blocks the hex.
     }
 
-    /// <summary>Respawn at given hex with full energy.</summary>
+    /// <summary>Respawn with full energy at current position.</summary>
     public void Respawn(HexCoord hex, Vector3 worldPos)
     {
         ApplyConfigEnergy();
