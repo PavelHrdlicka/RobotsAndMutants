@@ -810,4 +810,98 @@ public class AttackMechanicsTests
         Assert.AreEqual(UnitAction.Idle, robot.lastAction,
             "Failed attack should not change lastAction — stays Idle.");
     }
+
+    // ── Attack always targets adjacent hex ────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Attack_Unit_SetsLastAttackHex_ToAdjacentHex()
+    {
+        yield return null;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        var (mutant, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+
+        robotMove.TryAttack(0); // East → (1,0)
+
+        Assert.AreEqual(new HexCoord(1, 0), robot.lastAttackHex,
+            "lastAttackHex should be the adjacent hex (1,0), not the attacker's hex (0,0).");
+        Assert.AreNotEqual(robot.currentHex, robot.lastAttackHex,
+            "Attack target hex must be different from attacker's own hex.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_Wall_SetsLastAttackHex_ToAdjacentHex()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        robotMove.TryAttack(0);
+
+        Assert.AreEqual(new HexCoord(1, 0), robot.lastAttackHex,
+            "Wall attack target should be the adjacent hex (1,0).");
+        Assert.AreNotEqual(robot.currentHex, robot.lastAttackHex,
+            "Attack hex must never equal attacker position.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_CannotTargetOwnHex()
+    {
+        yield return null;
+
+        // Unit at (0,0) — no enemy on any adjacent hex.
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        // Try all 6 directions — all should fail (no target).
+        for (int dir = 0; dir < 6; dir++)
+        {
+            robot.lastAction = UnitAction.Idle;
+            bool attacked = robotMove.TryAttack(dir);
+            Assert.IsFalse(attacked, $"Attack in direction {dir} should fail — no valid target.");
+            Assert.AreEqual(UnitAction.Idle, robot.lastAction,
+                $"lastAction should remain Idle after failed attack in direction {dir}.");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_AlwaysTargetsNeighborHex_NeverSelf()
+    {
+        yield return null;
+
+        // Place enemies in all 6 directions.
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        for (int dir = 0; dir < 6; dir++)
+        {
+            var nCoord = new HexCoord(0, 0).Neighbor(dir);
+            if (grid.GetTile(nCoord) != null)
+            {
+                var (enemy, _) = SpawnUnit(Team.Mutant, nCoord);
+                enemy.Energy = 15;
+            }
+        }
+
+        // Attack each direction and verify target hex is always adjacent, never self.
+        for (int dir = 0; dir < 6; dir++)
+        {
+            var nCoord = new HexCoord(0, 0).Neighbor(dir);
+            if (grid.GetTile(nCoord) == null) continue;
+
+            robot.Energy = 15;
+            robot.lastAction = UnitAction.Idle;
+            bool attacked = robotMove.TryAttack(dir);
+
+            if (attacked)
+            {
+                Assert.AreEqual(nCoord, robot.lastAttackHex,
+                    $"Attack dir {dir}: target should be neighbor {nCoord}.");
+                Assert.AreNotEqual(new HexCoord(0, 0), robot.lastAttackHex,
+                    $"Attack dir {dir}: target must NOT be attacker's own hex.");
+            }
+        }
+    }
 }

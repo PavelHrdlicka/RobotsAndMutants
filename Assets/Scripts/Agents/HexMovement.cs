@@ -146,6 +146,9 @@ public class HexMovement : MonoBehaviour
 
         var cfg = GameConfig.Instance;
 
+        // Track which hex the attack targets (for replay display).
+        unitData.lastAttackHex = targetCoord;
+
         // Priority 1: Attack enemy unit.
         UnitData enemy = FindEnemyAt(targetCoord);
         if (enemy != null)

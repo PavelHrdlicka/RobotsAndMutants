@@ -30,6 +30,8 @@ public class UnitData : MonoBehaviour
     [HideInInspector] public UnitData lastAttackTarget;
     /// <summary>True if lastAttackTarget died from the attack.</summary>
     [HideInInspector] public bool lastAttackKilled;
+    /// <summary>The adjacent hex that was attacked (unit or wall target location).</summary>
+    [HideInInspector] public HexCoord lastAttackHex;
     /// <summary>The hex that was captured this turn (for Capture actions via attack or move).</summary>
     [HideInInspector] public HexCoord lastCapturedHex;
     /// <summary>The hex where a structure was built this turn (wall or slime).</summary>

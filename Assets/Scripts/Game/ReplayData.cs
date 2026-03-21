@@ -36,6 +36,8 @@ public static class ReplayData
         public int capturedQ, capturedR;
         public bool hasBuilt;
         public int builtQ, builtR;
+        public bool hasAttackHex;
+        public int attackHexQ, attackHexR;
     }
 
     public struct Summary
@@ -122,6 +124,13 @@ public static class ReplayData
                 {
                     turn.builtQ = ExtractPosQ(line, "built");
                     turn.builtR = ExtractPosR(line, "built");
+                }
+
+                turn.hasAttackHex = line.Contains("\"attackHex\":[");
+                if (turn.hasAttackHex)
+                {
+                    turn.attackHexQ = ExtractPosQ(line, "attackHex");
+                    turn.attackHexR = ExtractPosR(line, "attackHex");
                 }
 
                 replay.turns.Add(turn);

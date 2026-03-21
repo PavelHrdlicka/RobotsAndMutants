@@ -70,6 +70,11 @@ public class ReplayPlayer : MonoBehaviour
             return $"{t.unitName}: Capture ({t.capturedQ},{t.capturedR})";
         if ((t.action == "BuildWall" || t.action == "PlaceSlime") && t.hasBuilt)
             return $"{t.unitName}: {t.action} → ({t.builtQ},{t.builtR})";
+        if (t.action == "Attack" && t.hasAttackHex)
+        {
+            string target = t.targetUnit ?? "wall";
+            return $"{t.unitName}: Attack {target} → ({t.attackHexQ},{t.attackHexR})";
+        }
         return $"{t.unitName}: {t.action} at ({t.q},{t.r})";
     }
 

@@ -88,6 +88,11 @@ public class GameReplayLogger
             sb.Append($",\"pos\":[{unit.currentHex.q},{unit.currentHex.r}]");
 
             // Attack target info.
+            if (unit.lastAction == UnitAction.Attack)
+            {
+                var ah = unit.lastAttackHex;
+                sb.Append($",\"attackHex\":[{ah.q},{ah.r}]");
+            }
             if (unit.lastAttackTarget != null)
             {
                 var t = unit.lastAttackTarget;
