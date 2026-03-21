@@ -14,39 +14,40 @@ MonoBehaviour:
   m_EditorClassIdentifier: Grid::GameConfig
   boardSide: 4
   unitsPerTeam: 4
-  msPerTick: 3576
-  winPercent: 60
-  maxSteps: 800
+  msPerTick: 1
+  winPercent: 70
+  maxSteps: 600
   unitMaxEnergy: 15
-  respawnCooldown: 6
-  wallBuildCost: 4
+  respawnCooldown: 10
+  wallBuildCost: 3
   wallMaxHP: 3
   slimePlaceCost: 2
   destroyOwnWallCost: 1
   attackUnitCost: 3
-  attackUnitDamage: 3
-  attackNeutralCost: 1
-  attackEnemyHexCost: 2
+  attackUnitDamage: 4
   attackWallCost: 2
   attackWallDamage: 1
-  shieldWallMaxReduction: 3
-  swarmMaxBonus: 3
-  baseRegenPerStep: 3
+  shieldWallMaxReduction: 2
+  swarmMaxBonus: 2
+  baseRegenPerStep: 2
   slimeRegenPerStep: 1
-  slimeEntryCostRobot: 3
-  replayLogEveryNthGame: 10
-  killBonus: 0.5
-  buildReward: 0.05
+  slimeEntryCostRobot: 2
+  replayLogEveryNthGame: 1
+  killBonus: 0.3
+  buildReward: 0.08
   captureRewardPerTile: 0.1
   enemyLossRewardPerTile: 0.1
   buildAdjacencyBonus: 0.03
   hexCaptureReward: 0.05
   wallPlacementReward: 0.03
+  slimePlacementReward: 0.08
+  slimeNetworkBonus: 0.04
   cohesionBonus: 0.02
   groupSplitBonus: 0.3
   baseConnectionBonus: 0.005
   frontlineBonus: 0.005
   stepPenalty: -0.001
+  idlePenalty: -0.01
   winReward: 1
   loseReward: -1
   timeoutWinReward: 0.5

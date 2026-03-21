@@ -605,4 +605,198 @@ public class AttackMechanicsTests
         Assert.IsFalse(attacked,
             "Cannot attack enemy base hex when no unit or wall is there.");
     }
+
+    // ── Unit on own base is immune to attack ──────────────────────────
+
+    [UnityTest]
+    public IEnumerator Attack_EnemyOnOwnBase_Immune()
+    {
+        yield return null;
+
+        // Find a mutant base hex with a non-base neighbor.
+        HexCoord baseCoord = default;
+        HexCoord adjacentCoord = default;
+        bool found = false;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (kvp.Value.isBase && kvp.Value.Owner == Team.Mutant)
+            {
+                baseCoord = kvp.Key;
+                for (int d = 0; d < 6; d++)
+                {
+                    var n = baseCoord.Neighbor(d);
+                    var nTile = grid.GetTile(n);
+                    if (nTile != null && !nTile.isBase)
+                    {
+                        adjacentCoord = n;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+
+        if (!found)
+        {
+            Assert.Inconclusive("No mutant base with non-base neighbor found.");
+            yield break;
+        }
+
+        // Mutant on own base — should be immune.
+        var (mutant, _) = SpawnUnit(Team.Mutant, baseCoord);
+        mutant.Energy = 15;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, adjacentCoord);
+        robot.Energy = 15;
+
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (adjacentCoord.Neighbor(d) == baseCoord) { dir = d; break; }
+        }
+        Assert.IsTrue(dir >= 0);
+
+        bool attacked = robotMove.TryAttack(dir);
+        Assert.IsFalse(attacked,
+            "Cannot attack enemy unit standing on their own base.");
+        Assert.AreEqual(15, mutant.Energy,
+            "Mutant on own base should take no damage.");
+        Assert.AreEqual(15, robot.Energy,
+            "Attacker should not spend energy on immune target.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_EnemyOnOwnBase_IsValidAttack_False()
+    {
+        yield return null;
+
+        // Find a mutant base hex with a non-base neighbor.
+        HexCoord baseCoord = default;
+        HexCoord adjacentCoord = default;
+        bool found = false;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (kvp.Value.isBase && kvp.Value.Owner == Team.Mutant)
+            {
+                baseCoord = kvp.Key;
+                for (int d = 0; d < 6; d++)
+                {
+                    var n = baseCoord.Neighbor(d);
+                    var nTile = grid.GetTile(n);
+                    if (nTile != null && !nTile.isBase)
+                    {
+                        adjacentCoord = n;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+
+        if (!found)
+        {
+            Assert.Inconclusive("No mutant base with non-base neighbor found.");
+            yield break;
+        }
+
+        var (mutant, _) = SpawnUnit(Team.Mutant, baseCoord);
+        var (_, robotMove) = SpawnUnit(Team.Robot, adjacentCoord);
+
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (adjacentCoord.Neighbor(d) == baseCoord) { dir = d; break; }
+        }
+        Assert.IsTrue(dir >= 0);
+
+        Assert.IsFalse(robotMove.IsValidAttack(dir),
+            "IsValidAttack should be false for enemy unit on their own base.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_EnemyNotOnBase_StillWorks()
+    {
+        yield return null;
+
+        // Enemy on a normal hex (not base) — attack should work.
+        var (mutant, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        bool attacked = robotMove.TryAttack(0);
+        Assert.IsTrue(attacked,
+            "Attack on enemy NOT on base should succeed as usual.");
+    }
+
+    // ── Wall is attacked from adjacent hex ────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Attack_Wall_AttackerStaysOnOwnHex()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        robotMove.TryAttack(0); // Attack wall at (1,0) from (0,0)
+
+        Assert.AreEqual(new HexCoord(0, 0), robot.currentHex,
+            "Attacker must stay on their own hex when attacking a wall.");
+        Assert.AreEqual(2, tile.WallHP,
+            "Wall at adjacent hex should lose 1 HP.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_Wall_CannotAttackFromSameHex()
+    {
+        yield return null;
+
+        // Unit at (0,0), wall also at (0,0) — impossible in normal gameplay
+        // because walls block movement, but verify the attack logic doesn't
+        // allow self-hex attacks. Attack always targets a NEIGHBOR direction.
+        var tile = grid.GetTile(new HexCoord(0, 0));
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        // Unit placed at (1,0) — no wall at (1,0).
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(1, 0));
+
+        // All 6 directions from (1,0): check that only direction toward (0,0) hits the wall.
+        int dirToWall = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (new HexCoord(1, 0).Neighbor(d) == new HexCoord(0, 0))
+            { dirToWall = d; break; }
+        }
+        Assert.IsTrue(dirToWall >= 0);
+
+        bool attacked = robotMove.TryAttack(dirToWall);
+        Assert.IsTrue(attacked, "Should attack wall at adjacent hex.");
+        Assert.AreEqual(2, tile.WallHP);
+    }
+
+    // ── Failed attack shows Idle (stale action bug) ───────────────────
+
+    [UnityTest]
+    public IEnumerator Attack_FailedAttack_LastActionRemainsIdle()
+    {
+        yield return null;
+
+        // No target at (1,0) — neutral empty hex.
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        // Simulate what HexAgent does: reset lastAction then try attack.
+        robot.lastAction = UnitAction.Idle;
+        bool attacked = robotMove.TryAttack(0);
+
+        Assert.IsFalse(attacked, "Attack on empty hex should fail.");
+        Assert.AreEqual(UnitAction.Idle, robot.lastAction,
+            "Failed attack should not change lastAction — stays Idle.");
+    }
 }

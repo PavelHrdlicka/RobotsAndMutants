@@ -62,6 +62,9 @@ public class MutantModelBuilder : MonoBehaviour
         eyeR.localPosition = new Vector3( 0.025f, 0.01f, 0.04f);
         eyeR.GetComponent<Renderer>().material = EyeMaterial();
 
+        // Scale up entire model for better visibility.
+        modelRoot.localScale = Vector3.one * 1.8f;
+
         bobPhase = Random.Range(0f, Mathf.PI * 2f);
     }
 

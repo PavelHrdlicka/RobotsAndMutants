@@ -138,10 +138,17 @@ public class HexAgent : Agent
         {
             int action = actions.DiscreteActions[0];
 
+            // Reset action at start of turn — prevents stale actions showing
+            // in replay when an attempted action (e.g. attack) fails.
+            unitData.lastAction = UnitAction.Idle;
+            unitData.lastAttackTarget = null;
+            unitData.lastAttackKilled = false;
+
             if (action == 0)
             {
-                // Idle
-                unitData.lastAction = UnitAction.Idle;
+                // Idle — penalize to encourage exploration.
+                // lastAction already set to Idle above.
+                AddReward(GameConfig.Instance?.idlePenalty ?? -0.01f);
             }
             else if (action >= 1 && action <= 6)
             {

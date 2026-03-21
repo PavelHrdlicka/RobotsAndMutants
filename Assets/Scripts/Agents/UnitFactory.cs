@@ -116,6 +116,8 @@ public class UnitFactory : MonoBehaviour
                 builder.Build();
             }
 
+            CreateUnitLabel(go, index, team);
+
             go.AddComponent<UnitHealthBar3D>();
             go.AddComponent<UnitActionIndicator3D>();
             go.AddComponent<AttackEffects>();
@@ -194,5 +196,34 @@ public class UnitFactory : MonoBehaviour
                 return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Creates a floating number label above the unit.
+    /// Uses TextMesh with a billboard component so it always faces the camera.
+    /// </summary>
+    private static void CreateUnitLabel(GameObject unitGo, int index, Team team)
+    {
+        var labelGo = new GameObject("Label");
+        labelGo.transform.SetParent(unitGo.transform, false);
+        labelGo.transform.localPosition = new Vector3(0f, 0.85f, 0f);
+
+        var tm = labelGo.AddComponent<TextMesh>();
+        tm.text = index.ToString();
+        tm.fontSize = 100;
+        tm.characterSize = 0.07f;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.color = team == Team.Robot
+            ? new Color(0.3f, 0.5f, 1f)    // blue for robots
+            : new Color(0.2f, 0.85f, 0.2f); // green for mutants
+        tm.fontStyle = FontStyle.Bold;
+
+        // TextMesh default material works in URP — don't replace it.
+        // Just ensure the renderer is on the Transparent queue so it draws on top.
+        var renderer = labelGo.GetComponent<MeshRenderer>();
+        renderer.sortingOrder = 100;
+
+        labelGo.AddComponent<BillboardLabel>();
     }
 }

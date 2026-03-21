@@ -5,10 +5,11 @@ using UnityEngine;
 /// Handles discrete hex-to-hex movement, combat, and building for a unit.
 ///
 /// Sequential turn model (v2):
-///   TryMove(dir)        — moves to an adjacent hex. Blocked by walls and occupied hexes.
-///                         Any non-own hex (neutral or enemy) is captured on entry.
+///   TryMove(dir)        — moves to an adjacent hex. Blocked by walls, occupied hexes,
+///                         and enemy base hexes. Captures non-own hex on entry.
 ///                         Robot entering enemy slime: mine (costs energy, slime destroyed).
 ///   TryAttack(dir)      — attacks in priority order: enemy unit > wall (any team's).
+///                         Units on their own base are immune to attack.
 ///   TryBuild(dir)       — Robot: wall on adjacent own empty hex. Mutant: slime under self.
 ///   TryDestroyWall(dir) — destroys own wall on adjacent hex.
 ///
@@ -91,6 +92,9 @@ public class HexMovement : MonoBehaviour
 
         // Walls block ALL movement (own and enemy).
         if (tile.TileType == TileType.Wall) return false;
+
+        // Enemy base blocks entry — cannot walk onto opponent's base hexes.
+        if (tile.isBase && tile.baseTeam != unitData.team) return false;
 
         Team enemyTeam = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
 
@@ -252,6 +256,7 @@ public class HexMovement : MonoBehaviour
             unitData.Energy -= cost;
             tile.TileType = TileType.Slime;
             unitData.lastAction = UnitAction.PlaceSlime;
+            unitData.lastBuildTarget = unitData.currentHex;
             return true;
         }
 
@@ -269,6 +274,7 @@ public class HexMovement : MonoBehaviour
         wallTile.TileType = TileType.Wall;
         wallTile.WallHP = cfg != null ? cfg.wallMaxHP : 3;
         unitData.lastAction = UnitAction.BuildWall;
+        unitData.lastBuildTarget = targetCoord;
         return true;
     }
 
@@ -332,6 +338,9 @@ public class HexMovement : MonoBehaviour
         var tile = grid.GetTile(target);
         if (tile == null) return false;
         if (tile.TileType == TileType.Wall) return false;
+
+        // Enemy base blocks entry.
+        if (tile.isBase && tile.baseTeam != unitData.team) return false;
 
         // Robot entering enemy slime requires enough energy.
         Team enemyTeam = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
@@ -487,7 +496,14 @@ public class HexMovement : MonoBehaviour
         {
             if (!unit.isAlive)             continue;
             if (unit.team == unitData.team) continue;
-            if (unit.currentHex == coord)  return unit;
+            if (unit.currentHex == coord)
+            {
+                // Units on their own base are immune to attack.
+                var tile = grid.GetTile(coord);
+                if (tile != null && tile.isBase && tile.baseTeam == unit.team)
+                    return null;
+                return unit;
+            }
         }
         return null;
     }

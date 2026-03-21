@@ -34,6 +34,8 @@ public static class ReplayData
         public int rAlive, mAlive;
         public bool hasCaptured;
         public int capturedQ, capturedR;
+        public bool hasBuilt;
+        public int builtQ, builtR;
     }
 
     public struct Summary
@@ -113,6 +115,13 @@ public static class ReplayData
                 {
                     turn.capturedQ = ExtractPosQ(line, "captured");
                     turn.capturedR = ExtractPosR(line, "captured");
+                }
+
+                turn.hasBuilt = line.Contains("\"built\":[");
+                if (turn.hasBuilt)
+                {
+                    turn.builtQ = ExtractPosQ(line, "built");
+                    turn.builtR = ExtractPosR(line, "built");
                 }
 
                 replay.turns.Add(turn);

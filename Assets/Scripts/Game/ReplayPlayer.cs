@@ -68,6 +68,8 @@ public class ReplayPlayer : MonoBehaviour
     {
         if (t.action == "Capture" && t.hasCaptured)
             return $"{t.unitName}: Capture ({t.capturedQ},{t.capturedR})";
+        if ((t.action == "BuildWall" || t.action == "PlaceSlime") && t.hasBuilt)
+            return $"{t.unitName}: {t.action} → ({t.builtQ},{t.builtR})";
         return $"{t.unitName}: {t.action} at ({t.q},{t.r})";
     }
 

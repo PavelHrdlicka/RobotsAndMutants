@@ -107,6 +107,13 @@ public class GameReplayLogger
                 sb.Append($",\"captured\":[{c.q},{c.r}]");
             }
 
+            // Build target info (where wall/slime was placed).
+            if (unit.lastAction == UnitAction.BuildWall || unit.lastAction == UnitAction.PlaceSlime)
+            {
+                var b = unit.lastBuildTarget;
+                sb.Append($",\"built\":[{b.q},{b.r}]");
+            }
+
             sb.Append($",\"rTiles\":{rTiles}");
             sb.Append($",\"mTiles\":{mTiles}");
             sb.Append($",\"rAlive\":{rAlive}");

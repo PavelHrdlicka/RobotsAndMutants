@@ -95,6 +95,78 @@ public class BuildMechanicsTests
     }
 
     [UnityTest]
+    public IEnumerator Build_Robot_Wall_BuiltOnAdjacentHex_NotUnderSelf()
+    {
+        yield return null;
+
+        // Robot at (0,0), own hex at (1,0).
+        var robotTile = grid.GetTile(new HexCoord(0, 0));
+        robotTile.Owner = Team.Robot;
+        var adjacentTile = grid.GetTile(new HexCoord(1, 0));
+        adjacentTile.Owner = Team.Robot;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        move.TryBuild(0); // Build east → (1,0)
+
+        Assert.AreEqual(TileType.Wall, adjacentTile.TileType,
+            "Wall should be built on ADJACENT hex (1,0).");
+        Assert.AreEqual(TileType.Empty, robotTile.TileType,
+            "Robot's own hex (0,0) should remain empty — wall is NOT built under self.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Robot_Wall_SetsLastBuildTarget()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        move.TryBuild(0); // East → (1,0)
+
+        Assert.AreEqual(new HexCoord(1, 0), robot.lastBuildTarget,
+            "lastBuildTarget should point to the adjacent hex where wall was built.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Mutant_Slime_SetsLastBuildTarget()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(0, 0));
+        tile.Owner = Team.Mutant;
+
+        var (mutant, move) = SpawnUnit(Team.Mutant, new HexCoord(0, 0));
+
+        move.TryBuild(0);
+
+        Assert.AreEqual(new HexCoord(0, 0), mutant.lastBuildTarget,
+            "lastBuildTarget should point to mutant's own hex where slime was placed.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Robot_Wall_UnitNotOnWallAfterBuild()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        move.TryBuild(0);
+
+        // Robot is at (0,0), wall is at (1,0) — robot must NOT be on the wall hex.
+        Assert.AreNotEqual(robot.currentHex, robot.lastBuildTarget,
+            "Robot must never stand on the wall it just built.");
+        var wallTile = grid.GetTile(robot.lastBuildTarget);
+        Assert.AreEqual(TileType.Wall, wallTile.TileType);
+    }
+
+    [UnityTest]
     public IEnumerator Build_Robot_Wall_FailsOnEnemyHex()
     {
         yield return null;
@@ -492,5 +564,56 @@ public class BuildMechanicsTests
 
         bool built = move.TryBuild(0);
         Assert.IsFalse(built, "Dead unit cannot build.");
+    }
+
+    // ── Wall blocks movement after build ──────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Build_Wall_ThenMoveOntoIt_Blocked()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        // Build wall at (1,0).
+        move.TryBuild(0);
+        Assert.AreEqual(TileType.Wall, tile.TileType);
+
+        // Now try to move onto the wall — should be blocked.
+        bool moved = move.TryMove(0);
+        Assert.IsFalse(moved, "Unit must not move onto a wall hex it just built.");
+        Assert.AreEqual(new HexCoord(0, 0), robot.currentHex);
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Wall_EnemyCannotMoveOntoIt()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        // Robot builds wall at (1,0).
+        robotMove.TryBuild(0);
+
+        // Enemy tries to move onto the wall.
+        var (mutant, mutantMove) = SpawnUnit(Team.Mutant, new HexCoord(2, 0));
+
+        // Find direction from (2,0) to (1,0).
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (new HexCoord(2, 0).Neighbor(d) == new HexCoord(1, 0))
+            { dir = d; break; }
+        }
+        Assert.IsTrue(dir >= 0);
+
+        bool moved = mutantMove.TryMove(dir);
+        Assert.IsFalse(moved, "Enemy must not move onto a wall hex.");
     }
 }

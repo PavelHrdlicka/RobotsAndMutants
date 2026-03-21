@@ -239,6 +239,54 @@ public class MovementMechanicsTests
         Assert.AreEqual(new HexCoord(0, 0), unit.currentHex);
     }
 
+    [UnityTest]
+    public IEnumerator Move_CannotStandOnWall()
+    {
+        yield return null;
+
+        // Wall at (1,0) — unit at (0,0) tries to move east.
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        bool moved = move.TryMove(0);
+
+        Assert.IsFalse(moved, "Unit must not stand on a wall hex — walls block all movement.");
+        Assert.AreEqual(new HexCoord(0, 0), unit.currentHex);
+    }
+
+    [UnityTest]
+    public IEnumerator Move_WallBlocksAllDirections()
+    {
+        yield return null;
+
+        // Surround unit with walls in all valid directions.
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        for (int d = 0; d < 6; d++)
+        {
+            var nCoord = new HexCoord(0, 0).Neighbor(d);
+            var nTile = grid.GetTile(nCoord);
+            if (nTile != null)
+            {
+                nTile.Owner = Team.Robot;
+                nTile.TileType = TileType.Wall;
+                nTile.WallHP = 3;
+            }
+        }
+
+        for (int d = 0; d < 6; d++)
+        {
+            var nCoord = new HexCoord(0, 0).Neighbor(d);
+            if (grid.GetTile(nCoord) != null)
+            {
+                Assert.IsFalse(move.IsValidMove(d),
+                    $"Direction {d} should be blocked by wall.");
+            }
+        }
+    }
+
     // ── Occupied hex blocking ───────────────────────────────────────────
 
     [UnityTest]
@@ -438,6 +486,153 @@ public class MovementMechanicsTests
         Assert.IsTrue(moved, "Should be able to move onto own base hex.");
         Assert.AreEqual(UnitAction.Move, unit.lastAction,
             "Moving onto base hex should not be Capture — it's already owned.");
+    }
+
+    // ── Enemy base blocks entry ──────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Move_OntoEnemyBase_Blocked()
+    {
+        yield return null;
+
+        // Find a mutant base hex with a non-base neighbor.
+        HexCoord baseCoord = default;
+        HexCoord adjacentCoord = default;
+        bool found = false;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (kvp.Value.isBase && kvp.Value.Owner == Team.Mutant)
+            {
+                baseCoord = kvp.Key;
+                for (int d = 0; d < 6; d++)
+                {
+                    var n = baseCoord.Neighbor(d);
+                    var nTile = grid.GetTile(n);
+                    if (nTile != null && !nTile.isBase)
+                    {
+                        adjacentCoord = n;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+
+        if (!found)
+        {
+            Assert.Inconclusive("No mutant base with non-base neighbor found.");
+            yield break;
+        }
+
+        var (unit, move) = SpawnUnit(Team.Robot, adjacentCoord);
+
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (adjacentCoord.Neighbor(d) == baseCoord) { dir = d; break; }
+        }
+        Assert.IsTrue(dir >= 0);
+
+        bool moved = move.TryMove(dir);
+        Assert.IsFalse(moved, "Robot should NOT be able to enter mutant base hex.");
+        Assert.AreEqual(adjacentCoord, unit.currentHex, "Unit should stay in place.");
+    }
+
+    [UnityTest]
+    public IEnumerator Move_OntoOwnBase_Allowed()
+    {
+        yield return null;
+
+        // Find a robot base hex with a non-base neighbor.
+        HexCoord baseCoord = default;
+        HexCoord adjacentCoord = default;
+        bool found = false;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (kvp.Value.isBase && kvp.Value.Owner == Team.Robot)
+            {
+                baseCoord = kvp.Key;
+                for (int d = 0; d < 6; d++)
+                {
+                    var n = baseCoord.Neighbor(d);
+                    var nTile = grid.GetTile(n);
+                    if (nTile != null && !nTile.isBase)
+                    {
+                        adjacentCoord = n;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+
+        if (!found)
+        {
+            Assert.Inconclusive("No robot base with non-base neighbor found.");
+            yield break;
+        }
+
+        var (unit, move) = SpawnUnit(Team.Robot, adjacentCoord);
+
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (adjacentCoord.Neighbor(d) == baseCoord) { dir = d; break; }
+        }
+        Assert.IsTrue(dir >= 0);
+
+        bool moved = move.TryMove(dir);
+        Assert.IsTrue(moved, "Robot should be able to enter own base hex.");
+    }
+
+    [UnityTest]
+    public IEnumerator IsValidMove_False_ForEnemyBase()
+    {
+        yield return null;
+
+        // Find a mutant base hex with a non-base neighbor.
+        HexCoord baseCoord = default;
+        HexCoord adjacentCoord = default;
+        bool found = false;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (kvp.Value.isBase && kvp.Value.Owner == Team.Mutant)
+            {
+                baseCoord = kvp.Key;
+                for (int d = 0; d < 6; d++)
+                {
+                    var n = baseCoord.Neighbor(d);
+                    var nTile = grid.GetTile(n);
+                    if (nTile != null && !nTile.isBase)
+                    {
+                        adjacentCoord = n;
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+
+        if (!found)
+        {
+            Assert.Inconclusive("No mutant base with non-base neighbor found.");
+            yield break;
+        }
+
+        var (_, move) = SpawnUnit(Team.Robot, adjacentCoord);
+
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (adjacentCoord.Neighbor(d) == baseCoord) { dir = d; break; }
+        }
+        Assert.IsTrue(dir >= 0);
+
+        Assert.IsFalse(move.IsValidMove(dir),
+            "IsValidMove should return false for enemy base hex.");
     }
 
     // ── Dead unit ───────────────────────────────────────────────────────

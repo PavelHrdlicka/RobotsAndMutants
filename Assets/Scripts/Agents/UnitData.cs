@@ -32,6 +32,8 @@ public class UnitData : MonoBehaviour
     [HideInInspector] public bool lastAttackKilled;
     /// <summary>The hex that was captured this turn (for Capture actions via attack or move).</summary>
     [HideInInspector] public HexCoord lastCapturedHex;
+    /// <summary>The hex where a structure was built this turn (wall or slime).</summary>
+    [HideInInspector] public HexCoord lastBuildTarget;
 
     /// <summary>
     /// Set by HexAgent.OnActionReceived to signal GameManager that this unit's

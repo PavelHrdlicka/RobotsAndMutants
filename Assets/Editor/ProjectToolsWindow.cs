@@ -540,48 +540,25 @@ public class ProjectToolsWindow : EditorWindow
     // ─── 3b. Replay ─────────────────────────────────────────
 
     private string selectedReplayPath;
-
-    // Cached replay player reference (only valid during Play mode).
-    private ReplayPlayer cachedReplayPlayer;
-    private bool cachedReplayActive;
-    private int cachedReplayRound;
-    private int cachedReplayTurnIndex;
-    private int cachedReplayTotalRounds;
-    private int cachedReplayTotalTurns;
-    private string cachedReplayFileName;
-    private string cachedReplayTurnDesc;
-    private string cachedReplayPrevTurnDesc;
-    private ReplayPlayer.PlaybackState cachedReplayState;
-    private string cachedReplayWinner;
+    private bool cachedHasReplays;
 
     private void DrawReplaySection()
     {
-        // Cache replay state on Layout to keep controls stable.
+        // Cache replay availability on Layout for stable controls.
         if (Event.current.type == EventType.Layout)
         {
-            cachedReplayPlayer = EditorApplication.isPlaying
-                ? Object.FindFirstObjectByType<ReplayPlayer>()
-                : null;
-            cachedReplayActive = cachedReplayPlayer != null
-                && cachedReplayPlayer.enabled
-                && cachedReplayPlayer.Replay != null;
-            if (cachedReplayActive)
-            {
-                cachedReplayState      = cachedReplayPlayer.state;
-                cachedReplayRound      = cachedReplayPlayer.currentRound;
-                cachedReplayTurnIndex  = cachedReplayPlayer.currentTurnIndex;
-                cachedReplayTotalRounds = cachedReplayPlayer.TotalRounds;
-                cachedReplayTotalTurns  = cachedReplayPlayer.TotalTurns;
-                cachedReplayFileName    = cachedReplayPlayer.FileName;
-                cachedReplayTurnDesc    = cachedReplayPlayer.CurrentTurnDescription;
-                cachedReplayPrevTurnDesc = cachedReplayPlayer.PreviousTurnDescription;
-                cachedReplayWinner      = cachedReplayPlayer.Replay?.summary.winner ?? "";
-            }
+            string dir = System.IO.Path.GetFullPath("Replays");
+            cachedHasReplays = System.IO.Directory.Exists(dir)
+                && System.IO.Directory.GetFiles(dir, "game_*.jsonl").Length > 0;
+
+            // Clear selected path if file was deleted.
+            if (!string.IsNullOrEmpty(selectedReplayPath) && !System.IO.File.Exists(selectedReplayPath))
+                selectedReplayPath = null;
         }
 
         DrawSection("Replay", () =>
         {
-            // ── File selection (always visible) ──
+            // ── File selection ──
             EditorGUILayout.BeginHorizontal();
             string displayName = string.IsNullOrEmpty(selectedReplayPath)
                 ? "(no file selected)"
@@ -599,6 +576,7 @@ public class ProjectToolsWindow : EditorWindow
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
+            GUI.enabled = cachedHasReplays;
             if (GUILayout.Button("Latest"))
             {
                 string dir = System.IO.Path.GetFullPath("Replays");
@@ -616,15 +594,16 @@ public class ProjectToolsWindow : EditorWindow
                         }
                         selectedReplayPath = latest;
                     }
-                    else
-                        Debug.LogWarning("[Replay] No replay files found in Replays/");
                 }
             }
+            GUI.enabled = true;
             if (GUILayout.Button("Open Folder"))
             {
                 string dir = System.IO.Path.GetFullPath("Replays");
                 if (System.IO.Directory.Exists(dir))
                     EditorUtility.RevealInFinder(dir);
+                else
+                    Debug.LogWarning("[Replay] No Replays folder yet.");
             }
             EditorGUILayout.EndHorizontal();
 
@@ -632,130 +611,10 @@ public class ProjectToolsWindow : EditorWindow
             EditorGUILayout.Space(4);
             GUI.enabled = !string.IsNullOrEmpty(selectedReplayPath);
             GUI.backgroundColor = new Color(1f, 0.84f, 0f);
-            if (GUILayout.Button(cachedReplayActive ? "Load New Replay" : "Load Replay", GUILayout.Height(30)))
+            if (GUILayout.Button("Load Replay", GUILayout.Height(30)))
                 LaunchReplay(selectedReplayPath);
             GUI.backgroundColor = Color.white;
             GUI.enabled = true;
-
-            // ── Transport controls (only when replay is active) ──
-            if (!cachedReplayActive) return;
-
-            EditorGUILayout.Space(6);
-            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
-
-            // File info.
-            EditorGUILayout.LabelField($"File: {cachedReplayFileName}", EditorStyles.miniLabel);
-            EditorGUILayout.LabelField(
-                $"Round {cachedReplayRound} / {cachedReplayTotalRounds}   |   " +
-                $"Turn {cachedReplayTurnIndex} / {cachedReplayTotalTurns}",
-                EditorStyles.miniLabel);
-
-            // Status.
-            string stateLabel = cachedReplayState switch
-            {
-                ReplayPlayer.PlaybackState.Playing  => "Playing...",
-                ReplayPlayer.PlaybackState.Paused   => "Paused",
-                ReplayPlayer.PlaybackState.Finished => $"Finished — Winner: {cachedReplayWinner}",
-                _ => "Stopped"
-            };
-            Color stateColor = cachedReplayState switch
-            {
-                ReplayPlayer.PlaybackState.Playing  => new Color(0.3f, 1f, 0.3f),
-                ReplayPlayer.PlaybackState.Finished => new Color(1f, 0.84f, 0f),
-                _ => Color.white
-            };
-            var stateStyle = new GUIStyle(EditorStyles.boldLabel) { normal = { textColor = stateColor } };
-            EditorGUILayout.LabelField(stateLabel, stateStyle);
-
-            // Previous and current turn descriptions.
-            if (!string.IsNullOrEmpty(cachedReplayPrevTurnDesc))
-            {
-                var dimStyle = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = Color.gray } };
-                EditorGUILayout.LabelField($"Prev: {cachedReplayPrevTurnDesc}", dimStyle);
-            }
-            if (!string.IsNullOrEmpty(cachedReplayTurnDesc))
-                EditorGUILayout.LabelField($"Next: {cachedReplayTurnDesc}", EditorStyles.miniLabel);
-
-            EditorGUILayout.Space(4);
-
-            // ── Main transport: |<  <R  <T  Play/Pause  T>  R>  >| ──
-            EditorGUILayout.BeginHorizontal();
-
-            if (GUILayout.Button("|<<", GUILayout.Width(36)))
-                cachedReplayPlayer.JumpToStart();
-
-            if (GUILayout.Button("<<R", GUILayout.Width(36)))
-                cachedReplayPlayer.StepBackOneRound();
-
-            if (GUILayout.Button("BACK", GUILayout.Width(46)))
-                cachedReplayPlayer.StepBackOneTurn();
-
-            // Play/Pause — larger center button.
-            bool isPlaying = cachedReplayState == ReplayPlayer.PlaybackState.Playing;
-            GUI.backgroundColor = isPlaying ? new Color(1f, 0.6f, 0.3f) : new Color(0.3f, 0.8f, 0.3f);
-            string playLabel = isPlaying ? "||" : ">";
-            if (GUILayout.Button(playLabel, GUILayout.Height(28)))
-                cachedReplayPlayer.TogglePlayPause();
-            GUI.backgroundColor = Color.white;
-
-            if (GUILayout.Button("STEP", GUILayout.Width(46)))
-                cachedReplayPlayer.StepOneTurn();
-
-            if (GUILayout.Button("R>>", GUILayout.Width(36)))
-                cachedReplayPlayer.StepOneRound();
-
-            if (GUILayout.Button(">>|", GUILayout.Width(36)))
-                cachedReplayPlayer.JumpToEnd();
-
-            EditorGUILayout.EndHorizontal();
-
-            // ── Round scrubber ──
-            EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Round Scrubber", EditorStyles.miniLabel);
-            int maxRound = Mathf.Max(1, cachedReplayTotalRounds);
-            int newRound = EditorGUILayout.IntSlider(cachedReplayRound, 0, maxRound);
-            if (newRound != cachedReplayRound)
-                cachedReplayPlayer.JumpToRound(newRound);
-
-            // ── Speed control ──
-            EditorGUILayout.Space(2);
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Speed:", GUILayout.Width(45));
-            float delay = cachedReplayPlayer.turnDelay;
-            float newDelay = EditorGUILayout.Slider(delay, 0.01f, 1f);
-            if (!Mathf.Approximately(newDelay, delay))
-                cachedReplayPlayer.turnDelay = newDelay;
-            EditorGUILayout.EndHorizontal();
-
-            float turnsPerSec = 1f / Mathf.Max(0.001f, cachedReplayPlayer.turnDelay);
-            EditorGUILayout.LabelField($"  {turnsPerSec:F1} turns/sec", EditorStyles.miniLabel);
-
-            // Quick speed presets.
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("0.5x")) cachedReplayPlayer.turnDelay = 0.6f;
-            if (GUILayout.Button("1x"))   cachedReplayPlayer.turnDelay = 0.3f;
-            if (GUILayout.Button("2x"))   cachedReplayPlayer.turnDelay = 0.15f;
-            if (GUILayout.Button("5x"))   cachedReplayPlayer.turnDelay = 0.06f;
-            if (GUILayout.Button("10x"))  cachedReplayPlayer.turnDelay = 0.03f;
-            EditorGUILayout.EndHorizontal();
-
-            // ── Show Detail toggle ──
-            EditorGUILayout.Space(4);
-            var overlay = cachedReplayPlayer.GetComponent<ReplayDebugOverlay>();
-            if (overlay != null)
-            {
-                bool isOn = overlay.showDetail;
-                string detailLabel = isOn ? "HIDE DETAIL" : "SHOW DETAIL";
-                GUI.backgroundColor = isOn ? new Color(1f, 0.84f, 0f) : Color.white;
-                if (GUILayout.Button(detailLabel, GUILayout.Height(25)))
-                    overlay.Toggle();
-                GUI.backgroundColor = Color.white;
-                EditorGUILayout.LabelField("Shows unit numbers and hex coordinates (q,r)", EditorStyles.miniLabel);
-            }
-
-            // Force repaint while playing so the UI updates.
-            if (cachedReplayState == ReplayPlayer.PlaybackState.Playing)
-                Repaint();
         });
     }
 
@@ -1315,8 +1174,9 @@ public class ProjectToolsWindow : EditorWindow
                 "• All PlayerPrefs (game counters, match history)\n" +
                 "• Trained ONNX models in Assets/Resources/\n" +
                 "• All replay files in Replays/\n" +
+                "• All training results in results/\n" +
                 "• Training run counter\n\n" +
-                "results/ folder is kept (gitignored). Continue?",
+                "Continue?",
                 "Reset Everything", "Cancel"))
             return;
 
@@ -1352,12 +1212,24 @@ public class ProjectToolsWindow : EditorWindow
             Debug.Log($"[Reset] Deleted {replayDir}");
         }
 
-        // 5. Reset run counter to 1.
+        // 5. Training results.
+        string resultsDir = Path.GetFullPath("results");
+        if (Directory.Exists(resultsDir))
+        {
+            Directory.Delete(resultsDir, true);
+            Debug.Log($"[Reset] Deleted {resultsDir}");
+        }
+
+        // 6. Reset run counter to 1.
         RunCounter = 1;
         runId = "run1";
 
+        // 7. Clear selected replay path in UI.
+        if (HasOpenInstances<ProjectToolsWindow>())
+            GetWindow<ProjectToolsWindow>().selectedReplayPath = null;
+
         AssetDatabase.Refresh();
-        Debug.Log("[Reset] All history, models, and replays cleared. Fresh start.");
+        Debug.Log("[Reset] All history, models, results, and replays cleared. Fresh start.");
     }
 
 }

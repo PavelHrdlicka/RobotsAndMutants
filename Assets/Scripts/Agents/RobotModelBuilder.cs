@@ -59,6 +59,9 @@ public class RobotModelBuilder : MonoBehaviour
         eyeR.localPosition = new Vector3( 0.025f, 0.01f, 0.05f);
         eyeR.GetComponent<Renderer>().material = EyeMaterial();
 
+        // Scale up entire model for better visibility.
+        modelRoot.localScale = Vector3.one * 1.8f;
+
         movement = GetComponent<HexMovement>();
     }
 

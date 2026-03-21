@@ -160,6 +160,9 @@ public class GameConfig : ScriptableObject
     [Tooltip("Small negative reward each step to encourage speed (should be negative).")]
     public float stepPenalty = -0.001f;
 
+    [Tooltip("Extra penalty when unit chooses Idle (should be negative, stronger than stepPenalty).")]
+    public float idlePenalty = -0.01f;
+
     [Tooltip("Group reward for winning team at end of episode.")]
     public float winReward = 1f;
 
