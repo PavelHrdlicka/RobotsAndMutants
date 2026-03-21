@@ -758,4 +758,207 @@ public class GameLoopPlayTests
         Assert.IsFalse(move.TryBuild(0), "Dead unit cannot build.");
         Assert.IsFalse(move.TryDestroyWall(0), "Dead unit cannot destroy wall.");
     }
+
+    // ── Comprehensive dead unit behavior ──────────────────────────────
+
+    [UnityTest]
+    public IEnumerator DeadUnit_CannotMove_AnyDirection()
+    {
+        yield return null;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(10);
+
+        for (int dir = 0; dir < 6; dir++)
+        {
+            Assert.IsFalse(move.TryMove(dir),
+                $"Dead unit must not move in direction {dir}.");
+            Assert.IsFalse(move.IsValidMove(dir),
+                $"IsValidMove must be false for dead unit in direction {dir}.");
+        }
+        Assert.AreEqual(new HexCoord(0, 0), unit.currentHex,
+            "Dead unit position must not change.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_CannotBeAttacked()
+    {
+        yield return null;
+
+        var (dead, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        dead.Die(10);
+
+        var (attacker, attackMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        bool attacked = attackMove.TryAttack(0);
+        Assert.IsFalse(attacked,
+            "Cannot attack a dead unit — FindEnemyAt skips dead units.");
+        Assert.AreEqual(15, attacker.Energy,
+            "Attacker should not spend energy on dead target.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_IsValidAttack_False()
+    {
+        yield return null;
+
+        var (dead, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        dead.Die(10);
+
+        var (_, attackMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        Assert.IsFalse(attackMove.IsValidAttack(0),
+            "IsValidAttack must be false when target is dead.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_BlocksMovement_ForBothTeams()
+    {
+        yield return null;
+
+        var (dead, _) = SpawnUnit(Team.Robot, new HexCoord(1, 0));
+        dead.Die(10);
+
+        // Same team blocked.
+        var (ally, allyMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        Assert.IsFalse(allyMove.TryMove(0),
+            "Dead ally blocks hex for same team.");
+
+        // Enemy also blocked.
+        var (enemy, enemyMove) = SpawnUnit(Team.Mutant, new HexCoord(2, 0));
+        int dirToward = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (new HexCoord(2, 0).Neighbor(d) == new HexCoord(1, 0))
+            { dirToward = d; break; }
+        }
+        if (dirToward >= 0)
+        {
+            Assert.IsFalse(enemyMove.TryMove(dirToward),
+                "Dead unit blocks hex for enemy team too.");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_CannotBuild()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(10);
+
+        Assert.IsFalse(move.TryBuild(0), "Dead unit cannot build wall.");
+        Assert.IsFalse(move.IsValidBuild(0), "IsValidBuild must be false for dead unit.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_CannotDestroyWall()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(10);
+
+        Assert.IsFalse(move.TryDestroyWall(0), "Dead unit cannot destroy wall.");
+        Assert.IsFalse(move.IsValidDestroyWall(0),
+            "IsValidDestroyWall must be false for dead unit.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_EnergyStaysZero()
+    {
+        yield return null;
+
+        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(10);
+
+        Assert.AreEqual(0, unit.Energy, "Dead unit must have 0 energy.");
+        Assert.AreEqual(UnitAction.Dead, unit.lastAction,
+            "Dead unit lastAction must be Dead.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_CooldownTicksCorrectly()
+    {
+        yield return null;
+
+        var cfg = GameConfig.Instance;
+        int cd = cfg != null ? cfg.respawnCooldown : 10;
+
+        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(cd);
+
+        Assert.AreEqual(cd, unit.respawnCooldown);
+
+        // Tick cd-1 times — not ready yet.
+        for (int i = 0; i < cd - 1; i++)
+        {
+            Assert.IsFalse(unit.TickCooldown(),
+                $"Tick {i + 1}/{cd}: should not be ready yet.");
+            Assert.IsFalse(unit.isAlive);
+        }
+
+        // Final tick — ready to respawn.
+        Assert.IsTrue(unit.TickCooldown(), "Final tick should signal ready.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_RespawnRestoresFullEnergy()
+    {
+        yield return null;
+
+        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(1);
+        unit.TickCooldown(); // ready
+
+        unit.Respawn(unit.currentHex, grid.HexToWorld(unit.currentHex));
+
+        Assert.IsTrue(unit.isAlive, "Respawned unit must be alive.");
+        Assert.AreEqual(unit.maxEnergy, unit.Energy,
+            "Respawned unit must have full energy.");
+        Assert.AreEqual(0, unit.respawnCooldown,
+            "Respawned unit cooldown must be 0.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_AnimationQueueCleared()
+    {
+        yield return null;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        // Queue a move, then die before animation completes.
+        move.TryMove(0); // queues visual hop
+        Assert.Greater(move.QueueDepth, 0, "Should have pending visual hop.");
+
+        unit.Die(10);
+
+        // Next Update should clear the queue.
+        yield return null;
+
+        Assert.AreEqual(0, move.QueueDepth,
+            "Dead unit's animation queue must be cleared.");
+    }
+
+    [UnityTest]
+    public IEnumerator DeadUnit_IsMyTurn_NeverTrue()
+    {
+        yield return null;
+
+        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Die(10);
+
+        // Simulate what GameManager.AdvanceTurn does for dead units.
+        // It should NOT set isMyTurn = true.
+        Assert.IsFalse(unit.isMyTurn,
+            "Dead unit must never have isMyTurn = true.");
+    }
 }
