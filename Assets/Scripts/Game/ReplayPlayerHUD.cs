@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>
 /// OnGUI overlay for replay playback controls: play/pause, step, speed, round scrubber.
@@ -71,47 +70,42 @@ public class ReplayPlayerHUD : MonoBehaviour
         };
     }
 
-    private void Update()
-    {
-        if (player == null || player.Replay == null) return;
-        if (player.state == ReplayPlayer.PlaybackState.Stopped) return;
-
-        // Keyboard controls (new Input System).
-        var kb = Keyboard.current;
-        if (kb == null) return;
-
-        if (kb.spaceKey.wasPressedThisFrame)
-            player.TogglePlayPause();
-
-        if (kb.rightArrowKey.wasPressedThisFrame)
-        {
-            player.Pause();
-            player.StepOneTurn();
-        }
-
-        if (kb.leftArrowKey.wasPressedThisFrame)
-        {
-            player.Pause();
-            player.StepBackOneTurn();
-        }
-
-        if (kb.upArrowKey.wasPressedThisFrame)
-        {
-            player.Pause();
-            player.StepOneRound();
-        }
-
-        if (kb.downArrowKey.wasPressedThisFrame)
-        {
-            player.Pause();
-            player.StepBackOneRound();
-        }
-    }
-
     private void OnGUI()
     {
         if (player == null || player.state == ReplayPlayer.PlaybackState.Stopped) return;
         if (player.Replay == null) return;
+
+        // Keyboard controls via Event.current (works with any input backend).
+        if (Event.current.type == EventType.KeyDown)
+        {
+            switch (Event.current.keyCode)
+            {
+                case KeyCode.Space:
+                    player.TogglePlayPause();
+                    Event.current.Use();
+                    break;
+                case KeyCode.RightArrow:
+                    player.Pause();
+                    player.StepOneTurn();
+                    Event.current.Use();
+                    break;
+                case KeyCode.LeftArrow:
+                    player.Pause();
+                    player.StepBackOneTurn();
+                    Event.current.Use();
+                    break;
+                case KeyCode.UpArrow:
+                    player.Pause();
+                    player.StepOneRound();
+                    Event.current.Use();
+                    break;
+                case KeyCode.DownArrow:
+                    player.Pause();
+                    player.StepBackOneRound();
+                    Event.current.Use();
+                    break;
+            }
+        }
 
         InitStyles();
 
