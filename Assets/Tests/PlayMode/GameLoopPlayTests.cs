@@ -493,4 +493,76 @@ public class GameLoopPlayTests
         bool built = move.TryBuild(0);
         Assert.IsFalse(built, "Dead unit should not be able to build.");
     }
+
+    // ── Invalid actions fall through to Idle ──────────────────────────
+
+    [UnityTest]
+    public IEnumerator InvalidAttack_ShowsIdle_NotStaleAction()
+    {
+        yield return null;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        // No enemy or wall at (1,0) — attack should be invalid.
+        robot.lastAction = UnitAction.Idle; // simulate HexAgent reset
+        bool attacked = move.TryAttack(0);
+
+        Assert.IsFalse(attacked, "Attack on empty hex must fail.");
+        Assert.AreEqual(UnitAction.Idle, robot.lastAction,
+            "After failed attack, lastAction should remain Idle (not stale).");
+    }
+
+    [UnityTest]
+    public IEnumerator InvalidDestroyWall_ShowsIdle()
+    {
+        yield return null;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        // No wall at (1,0) — destroy should be invalid.
+        robot.lastAction = UnitAction.Idle;
+        bool destroyed = move.TryDestroyWall(0);
+
+        Assert.IsFalse(destroyed, "DestroyWall on empty hex must fail.");
+        Assert.AreEqual(UnitAction.Idle, robot.lastAction,
+            "After failed DestroyWall, lastAction should remain Idle.");
+    }
+
+    [UnityTest]
+    public IEnumerator InvalidBuild_ShowsIdle()
+    {
+        yield return null;
+
+        // Hex at (1,0) is neutral — robot can't build on neutral hex.
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        robot.lastAction = UnitAction.Idle;
+        bool built = move.TryBuild(0);
+
+        Assert.IsFalse(built, "Build on neutral hex must fail.");
+        Assert.AreEqual(UnitAction.Idle, robot.lastAction,
+            "After failed Build, lastAction should remain Idle.");
+    }
+
+    [UnityTest]
+    public IEnumerator InvalidMove_ShowsIdle()
+    {
+        yield return null;
+
+        // Wall at (1,0) — move should be blocked.
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        robot.lastAction = UnitAction.Idle;
+        bool moved = move.TryMove(0);
+
+        Assert.IsFalse(moved, "Move onto wall must fail.");
+        Assert.AreEqual(UnitAction.Idle, robot.lastAction,
+            "After failed Move, lastAction should remain Idle.");
+    }
 }

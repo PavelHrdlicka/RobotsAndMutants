@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
@@ -154,30 +155,37 @@ public class HexAgent : Agent
             {
                 // Move in direction
                 int dir = action - 1;
-                movement.TryMove(dir);
-
-                // Capture bonus.
-                if (unitData.lastAction == UnitAction.Capture)
+                if (movement.IsValidMove(dir))
                 {
-                    Team enemy = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
-                    int enemyNeighbors = grid.CountTeamNeighbors(unitData.currentHex, enemy);
-                    if (enemyNeighbors > 0)
-                        AddReward((GameConfig.Instance?.hexCaptureReward ?? 0.05f) * enemyNeighbors);
+                    movement.TryMove(dir);
+
+                    // Capture bonus.
+                    if (unitData.lastAction == UnitAction.Capture)
+                    {
+                        Team enemy = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
+                        int enemyNeighbors = grid.CountTeamNeighbors(unitData.currentHex, enemy);
+                        if (enemyNeighbors > 0)
+                            AddReward((GameConfig.Instance?.hexCaptureReward ?? 0.05f) * enemyNeighbors);
+                    }
                 }
             }
             else if (action >= 7 && action <= 12)
             {
                 // Attack in direction (targets: enemy unit, wall).
                 int dir = action - 7;
-                bool didAttack = movement.TryAttack(dir);
-                if (didAttack && unitData.lastAttackKilled)
-                    AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
+                if (movement.IsValidAttack(dir))
+                {
+                    bool didAttack = movement.TryAttack(dir);
+                    if (didAttack && unitData.lastAttackKilled)
+                        AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
+                }
+                // else: invalid attack — lastAction stays Idle from reset above.
             }
             else if (action >= 13 && action <= 18)
             {
                 // Build on adjacent hex in direction.
                 int dir = action - 13;
-                if (movement.TryBuild(dir))
+                if (movement.IsValidBuild(dir) && movement.TryBuild(dir))
                 {
                     var cfgBuild = GameConfig.Instance;
                     AddReward(cfgBuild?.buildReward ?? 0.05f);
@@ -204,9 +212,10 @@ public class HexAgent : Agent
             }
             else if (action >= 19 && action <= 24)
             {
-                // Destroy own wall in direction (Phase 4 implements TryDestroyWall)
+                // Destroy own wall in direction.
                 int dir = action - 19;
-                movement.TryDestroyWall(dir);
+                if (movement.IsValidDestroyWall(dir))
+                    movement.TryDestroyWall(dir);
             }
 
             // Reward shaping — based on territory analysis (connected groups).
@@ -295,8 +304,28 @@ public class HexAgent : Agent
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var da = actionsOut.DiscreteActions;
-        da[0] = Random.Range(0, 25);
+
+        // Build a list of valid actions and pick one randomly.
+        // This respects the same rules as WriteDiscreteActionMask.
+        validActions.Clear();
+        validActions.Add(0); // Idle is always valid.
+
+        if (unitData.isAlive && grid != null)
+        {
+            for (int dir = 0; dir < 6; dir++)
+            {
+                if (movement.IsValidMove(dir))        validActions.Add(1 + dir);
+                if (movement.IsValidAttack(dir))      validActions.Add(7 + dir);
+                if (movement.IsValidBuild(dir))       validActions.Add(13 + dir);
+                if (movement.IsValidDestroyWall(dir)) validActions.Add(19 + dir);
+            }
+        }
+
+        da[0] = validActions[Random.Range(0, validActions.Count)];
     }
+
+    // Pre-allocated list for Heuristic to avoid GC.
+    private readonly List<int> validActions = new List<int>(25);
 
     // ── Private helpers ───────────────────────────────────────────────────
 
