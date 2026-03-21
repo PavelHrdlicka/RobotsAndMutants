@@ -455,6 +455,21 @@ public class ReplayPlayer : MonoBehaviour
                 buildTile.TileType = TileType.Slime;
             }
         }
+        else if (turn.action == "Attack" && turn.hasAttackHex && turn.wallHP >= 0)
+        {
+            // Wall attack — reduce HP, destroy if 0.
+            var wallCoord = new HexCoord(turn.attackHexQ, turn.attackHexR);
+            var wallTile = grid.GetTile(wallCoord);
+            if (wallTile != null && wallTile.TileType == TileType.Wall)
+            {
+                wallTile.WallHP = turn.wallHP;
+                if (wallTile.WallHP <= 0)
+                {
+                    wallTile.TileType = TileType.Empty;
+                    wallTile.WallHP = 0;
+                }
+            }
+        }
         else if (turn.action == "DestroyWall" && turn.hasBuilt)
         {
             var destroyCoord = new HexCoord(turn.builtQ, turn.builtR);
