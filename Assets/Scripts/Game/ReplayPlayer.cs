@@ -317,8 +317,28 @@ public class ReplayPlayer : MonoBehaviour
                 tile.WallHP = 0;
             }
         }
-        foreach (var unit in unitFactory.AllUnits)
+        // Reset units to alive + full energy, then place back on base hexes.
+        var robotBases = grid.GetBaseTiles(Team.Robot);
+        var mutantBases = grid.GetBaseTiles(Team.Mutant);
+
+        for (int i = 0; i < unitFactory.robotUnits.Count; i++)
+        {
+            var unit = unitFactory.robotUnits[i];
             unit.ResetUnit();
+            var baseTile = robotBases[i % robotBases.Count];
+            unit.currentHex = baseTile.coord;
+            if (movementMap.TryGetValue(unit.gameObject.name, out var move))
+                move.PlaceAt(baseTile.coord);
+        }
+        for (int i = 0; i < unitFactory.mutantUnits.Count; i++)
+        {
+            var unit = unitFactory.mutantUnits[i];
+            unit.ResetUnit();
+            var baseTile = mutantBases[i % mutantBases.Count];
+            unit.currentHex = baseTile.coord;
+            if (movementMap.TryGetValue(unit.gameObject.name, out var move))
+                move.PlaceAt(baseTile.coord);
+        }
 
         currentTurnIndex = 0;
         currentRound = 0;
