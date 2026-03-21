@@ -144,7 +144,7 @@ public class ReplayPlayer : MonoBehaviour
         {
             gm.gameOver = true;
             gm.autoRestart = false;
-            gm.maxRounds = replay.header.maxRounds;
+            gm.maxRounds = replay.maxRound;
         }
 
         // Disable all ML-Agents.

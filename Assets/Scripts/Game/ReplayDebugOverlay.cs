@@ -43,7 +43,7 @@ public class ReplayDebugOverlay : MonoBehaviour
                     $"UnitLabel_{unit.gameObject.name}",
                     unit.unitIndex.ToString(),
                     unit.team == Team.Robot ? new Color(0.5f, 0.7f, 1f) : new Color(0.5f, 1f, 0.5f),
-                    0.15f);
+                    0.10f);
                 label.transform.SetParent(unit.transform, false);
                 label.transform.localPosition = new Vector3(0f, 0.65f, 0f);
                 unitLabels.Add(label);
