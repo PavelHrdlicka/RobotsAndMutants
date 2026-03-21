@@ -33,22 +33,7 @@ public class ReplayDebugOverlay : MonoBehaviour
         built = true;
         cam = Camera.main;
 
-        // Unit labels.
-        var factory = FindFirstObjectByType<UnitFactory>();
-        if (factory != null)
-        {
-            foreach (var unit in factory.AllUnits)
-            {
-                var label = CreateLabel(
-                    $"UnitLabel_{unit.gameObject.name}",
-                    unit.unitIndex.ToString(),
-                    unit.team == Team.Robot ? new Color(0.5f, 0.7f, 1f) : new Color(0.5f, 1f, 0.5f),
-                    0.10f);
-                label.transform.SetParent(unit.transform, false);
-                label.transform.localPosition = new Vector3(0f, 0.65f, 0f);
-                unitLabels.Add(label);
-            }
-        }
+        // Unit labels are already created by UnitFactory.CreateUnitLabel — skip here.
 
         // Hex coordinate labels.
         var grid = FindFirstObjectByType<HexGrid>();
