@@ -113,22 +113,22 @@ public class LargestConnectedGroupTests
     }
 
     [Test]
-    public void BaseTilesConnectButDontCount()
+    public void BaseTilesConnectAndCount()
     {
         AddTile(-1, 0, Team.Robot);
         AddTile(0, 0, Team.Robot, isBase: true);
         AddTile(1, 0, Team.Robot);
 
-        Assert.AreEqual(2, grid.LargestConnectedGroup(Team.Robot));
+        Assert.AreEqual(3, grid.LargestConnectedGroup(Team.Robot));
     }
 
     [Test]
-    public void BaseTileOnly_ReturnsZero()
+    public void BaseTileOnly_CountsInTerritory()
     {
         AddTile(0, 0, Team.Robot, isBase: true);
         AddTile(1, 0, Team.Robot, isBase: true);
 
-        Assert.AreEqual(0, grid.LargestConnectedGroup(Team.Robot));
+        Assert.AreEqual(2, grid.LargestConnectedGroup(Team.Robot));
     }
 
     [Test]
@@ -225,7 +225,7 @@ public class LargestConnectedGroupTests
 
         var info = grid.GetTerritoryInfo(Team.Robot);
         Assert.IsTrue(info.largestTouchesBase);
-        Assert.AreEqual(2, info.largestGroup); // base doesn't count
+        Assert.AreEqual(3, info.largestGroup); // base counts
     }
 
     [Test]
@@ -233,16 +233,17 @@ public class LargestConnectedGroupTests
     {
         // Base is in a small island, largest group is elsewhere.
         AddTile(0, 0, Team.Robot, isBase: true);
-        AddTile(1, 0, Team.Robot);  // group A: 1 tile + base
+        AddTile(1, 0, Team.Robot);  // group A: 2 tiles (base + 1)
 
-        AddTile(5, 0, Team.Robot);  // group B: 2 tiles (largest)
+        AddTile(5, 0, Team.Robot);  // group B: 3 tiles (largest)
         AddTile(5, -1, Team.Robot);
+        AddTile(5, 1, Team.Robot);
 
         // Gaps.
         AddTile(2, 0); AddTile(3, 0); AddTile(4, 0);
 
         var info = grid.GetTerritoryInfo(Team.Robot);
-        Assert.AreEqual(2, info.largestGroup);
+        Assert.AreEqual(3, info.largestGroup);
         Assert.IsFalse(info.largestTouchesBase);
     }
 
