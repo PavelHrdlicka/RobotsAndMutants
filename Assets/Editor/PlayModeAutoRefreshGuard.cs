@@ -14,15 +14,25 @@ public static class PlayModeAutoRefreshGuard
     static PlayModeAutoRefreshGuard()
     {
         EditorApplication.playModeStateChanged += OnPlayModeChanged;
+
+        // Fix stale counter from previous abnormal exit (crash, force stop).
+        // If we're in Edit mode but the flag says we disabled refresh, restore it.
+        if (!EditorApplication.isPlayingOrWillChangePlaymode
+            && SessionState.GetBool(k_ActiveKey, false))
+        {
+            AssetDatabase.AllowAutoRefresh();
+            SessionState.EraseBool(k_ActiveKey);
+        }
     }
+
+    private const string k_ActiveKey = "AutoRefreshGuard_Active";
 
     private static void OnPlayModeChanged(PlayModeStateChange state)
     {
         switch (state)
         {
             case PlayModeStateChange.EnteredPlayMode:
-                // Save current setting and disable auto-refresh.
-                int current = (int)AssetDatabase.DesiredWorkerCount;
+                SessionState.SetBool(k_ActiveKey, true);
                 EditorPrefs.SetInt(PrefKey, EditorPrefs.GetInt("kAutoRefreshMode", 1));
                 EditorPrefs.SetInt("kAutoRefreshMode", 0);
                 AssetDatabase.DisallowAutoRefresh();
@@ -30,11 +40,10 @@ public static class PlayModeAutoRefreshGuard
                 break;
 
             case PlayModeStateChange.ExitingPlayMode:
-                // Restore original setting.
+                SessionState.EraseBool(k_ActiveKey);
                 int prev = EditorPrefs.GetInt(PrefKey, 1);
                 EditorPrefs.SetInt("kAutoRefreshMode", prev);
                 AssetDatabase.AllowAutoRefresh();
-                Debug.Log("[AutoRefreshGuard] Auto-refresh restored.");
                 break;
         }
     }
