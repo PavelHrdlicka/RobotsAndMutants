@@ -125,7 +125,7 @@ public class AbilitySystemTests
 
         abilitySystem.UpdateAbilities(new List<UnitData> { unit });
 
-        Assert.AreEqual(15, unit.Energy, "Already at max energy — no regen.");
+        Assert.AreEqual(unit.maxEnergy, unit.Energy, "Already at max energy — no regen.");
     }
 
     // ── Slime regeneration ────────────────────────────────────────────────
@@ -171,7 +171,7 @@ public class AbilitySystemTests
 
         abilitySystem.UpdateAbilities(new List<UnitData> { unit });
 
-        Assert.AreEqual(15, unit.Energy, "Slime regen should not exceed maxEnergy.");
+        Assert.AreEqual(unit.maxEnergy, unit.Energy, "Slime regen should not exceed maxEnergy.");
     }
 
     // ── Combined regen ────────────────────────────────────────────────────

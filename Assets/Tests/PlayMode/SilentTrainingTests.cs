@@ -169,7 +169,7 @@ public class SilentTrainingTests
 
         var unit = factory.robotUnits[0];
         var move = unit.GetComponent<HexMovement>();
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         HexCoord start = unit.currentHex;
         bool moved = move.TryMove(0);
@@ -195,8 +195,8 @@ public class SilentTrainingTests
         var mutantMove = mutant.GetComponent<HexMovement>();
         robotMove.PlaceAt(new HexCoord(0, 0));
         mutantMove.PlaceAt(new HexCoord(1, 0));
-        robot.Energy = 15;
-        mutant.Energy = 15;
+        robot.Energy = robot.maxEnergy;
+        mutant.Energy = mutant.maxEnergy;
 
         bool attacked = robotMove.TryAttack(0);
 
@@ -204,7 +204,7 @@ public class SilentTrainingTests
         {
             var cfg = GameConfig.Instance;
             int dmg = cfg != null ? cfg.attackUnitDamage : 4;
-            Assert.AreEqual(15 - dmg, mutant.Energy,
+            Assert.AreEqual(mutant.maxEnergy - dmg, mutant.Energy,
                 "Attack should deal damage even in silent mode.");
         }
     }
@@ -217,7 +217,7 @@ public class SilentTrainingTests
         var unit = factory.robotUnits[0];
         var move = unit.GetComponent<HexMovement>();
         move.PlaceAt(new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         // Move onto neutral hex — should capture.
         bool moved = move.TryMove(0);
@@ -240,7 +240,7 @@ public class SilentTrainingTests
         var unit = factory.robotUnits[0];
         var move = unit.GetComponent<HexMovement>();
         move.PlaceAt(new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         // Set adjacent hex as owned.
         var adjTile = grid.GetTile(new HexCoord(1, 0));

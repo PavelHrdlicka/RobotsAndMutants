@@ -409,7 +409,8 @@ public class ReplayPlayer : MonoBehaviour
 
             // Kill target if needed.
             if (turn.killed && unit.lastAttackTarget != null && unit.lastAttackTarget.isAlive)
-                unit.lastAttackTarget.Die(12);
+                int respawnCD = GameConfig.Instance != null ? GameConfig.Instance.respawnCooldown : 10;
+                unit.lastAttackTarget.Die(respawnCD);
         }
         else
         {
@@ -419,7 +420,8 @@ public class ReplayPlayer : MonoBehaviour
 
         // Die if HP dropped to 0.
         if (turn.energy <= 0 && unit.isAlive)
-            unit.Die(12);
+            int replayCd = GameConfig.Instance != null ? GameConfig.Instance.respawnCooldown : 10;
+            unit.Die(replayCd);
 
         // Apply tile changes from actions.
         Team team = turn.team == "Robot" ? Team.Robot : Team.Mutant;

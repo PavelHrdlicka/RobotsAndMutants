@@ -66,7 +66,7 @@ public class AttackMechanicsTests
         data.team = team;
         data.isAlive = true;
         data.currentHex = hex;
-        data.Energy = 15;
+        data.Energy = data.maxEnergy;
 
         var move = go.AddComponent<HexMovement>();
         move.Initialize(grid);
@@ -96,8 +96,8 @@ public class AttackMechanicsTests
         bool attacked = robotMove.TryAttack(0);
 
         Assert.IsTrue(attacked);
-        Assert.AreEqual(15 - AtkCost, robot.Energy, $"Attacker pays {AtkCost} energy.");
-        Assert.AreEqual(15 - AtkDmg, mutant.Energy, $"Defender loses {AtkDmg} energy.");
+        Assert.AreEqual(robot.maxEnergy - AtkCost, robot.Energy, $"Attacker pays {AtkCost} energy.");
+        Assert.AreEqual(mutant.maxEnergy - AtkDmg, mutant.Energy, $"Defender loses {AtkDmg} energy.");
     }
 
     [UnityTest]
@@ -110,7 +110,7 @@ public class AttackMechanicsTests
 
         robotMove.TryAttack(0);
 
-        Assert.AreEqual(15 - AtkCost, robot.Energy,
+        Assert.AreEqual(robot.maxEnergy - AtkCost, robot.Energy,
             "Attacker should only lose attack cost, no counter-damage.");
     }
 
@@ -157,7 +157,7 @@ public class AttackMechanicsTests
 
         Assert.IsFalse(attacked, "Attack should fail with insufficient energy.");
         Assert.AreEqual(notEnough, robot.Energy, "Energy should not change.");
-        Assert.AreEqual(15, mutant.Energy, "Target should not take damage.");
+        Assert.AreEqual(mutant.maxEnergy, mutant.Energy, "Target should not take damage.");
     }
 
     [UnityTest]
@@ -207,7 +207,7 @@ public class AttackMechanicsTests
 
         Assert.IsTrue(attacked);
         Assert.AreEqual(2, tile.WallHP, "Wall HP should decrease by 1.");
-        Assert.AreEqual(15 - WallAtkCost, robot.Energy, $"Wall attack costs {WallAtkCost} energy.");
+        Assert.AreEqual(robot.maxEnergy - WallAtkCost, robot.Energy, $"Wall attack costs {WallAtkCost} energy.");
     }
 
     [UnityTest]
@@ -403,7 +403,7 @@ public class AttackMechanicsTests
         // Base damage reduced by min(2 allies, shieldMax).
         int reduction = Mathf.Min(2, ShieldMax);
         int expectedDmg = Mathf.Max(0, AtkDmg - reduction);
-        Assert.AreEqual(15 - expectedDmg, target.Energy,
+        Assert.AreEqual(target.maxEnergy - expectedDmg, target.Energy,
             $"Shield Wall: 2 allies, reduction={reduction}, damage={AtkDmg}-{reduction}={expectedDmg}.");
     }
 
@@ -434,7 +434,7 @@ public class AttackMechanicsTests
         // Base damage + min(2 allies, swarmMax) bonus.
         int bonus = Mathf.Min(2, SwarmMax);
         int swarmDmg = AtkDmg + bonus;
-        Assert.AreEqual(15 - swarmDmg, target.Energy,
+        Assert.AreEqual(target.maxEnergy - swarmDmg, target.Energy,
             $"Swarm: 2 allies, bonus={bonus}, damage={AtkDmg}+{bonus}={swarmDmg}.");
     }
 
@@ -656,10 +656,10 @@ public class AttackMechanicsTests
 
         // Mutant on own base — should be immune.
         var (mutant, _) = SpawnUnit(Team.Mutant, baseCoord);
-        mutant.Energy = 15;
+        mutant.Energy = mutant.maxEnergy;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, adjacentCoord);
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         int dir = -1;
         for (int d = 0; d < 6; d++)
@@ -671,9 +671,9 @@ public class AttackMechanicsTests
         bool attacked = robotMove.TryAttack(dir);
         Assert.IsFalse(attacked,
             "Cannot attack enemy unit standing on their own base.");
-        Assert.AreEqual(15, mutant.Energy,
+        Assert.AreEqual(mutant.maxEnergy, mutant.Energy,
             "Mutant on own base should take no damage.");
-        Assert.AreEqual(15, robot.Energy,
+        Assert.AreEqual(robot.maxEnergy, robot.Energy,
             "Attacker should not spend energy on immune target.");
     }
 
@@ -881,7 +881,7 @@ public class AttackMechanicsTests
             if (grid.GetTile(nCoord) != null)
             {
                 var (enemy, _) = SpawnUnit(Team.Mutant, nCoord);
-                enemy.Energy = 15;
+                enemy.Energy = enemy.maxEnergy;
             }
         }
 
@@ -891,7 +891,7 @@ public class AttackMechanicsTests
             var nCoord = new HexCoord(0, 0).Neighbor(dir);
             if (grid.GetTile(nCoord) == null) continue;
 
-            robot.Energy = 15;
+            robot.Energy = robot.maxEnergy;
             robot.lastAction = UnitAction.Idle;
             bool attacked = robotMove.TryAttack(dir);
 
@@ -916,7 +916,7 @@ public class AttackMechanicsTests
         int maxDmg = AtkDmg + SwarmMax;
 
         var (target, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        target.Energy = 15;
+        target.Energy = target.maxEnergy;
 
         // Mutant with max allies (swarm bonus).
         var (mutant, mutantMove) = SpawnUnit(Team.Mutant, new HexCoord(-1, 0));
@@ -951,7 +951,7 @@ public class AttackMechanicsTests
 
         // Robot target with max shield wall allies.
         var (target, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        target.Energy = 15;
+        target.Energy = target.maxEnergy;
         // Place shield allies.
         var shieldPositions = new[] {
             new HexCoord(1, 0), new HexCoord(0, -1), new HexCoord(1, -1)
@@ -1001,7 +1001,7 @@ public class AttackMechanicsTests
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (_, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         int before = robot.Energy;
         robotMove.TryAttack(0);

@@ -125,8 +125,8 @@ public class GameLoopPlayTests
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _)        = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
 
-        robot.Energy  = 15;
-        mutant.Energy = 15;
+        robot.Energy  = robot.maxEnergy;
+        mutant.Energy = mutant.maxEnergy;
 
         bool attacked = robotMove.TryAttack(0); // East → hits mutant at (1,0)
 
@@ -134,8 +134,8 @@ public class GameLoopPlayTests
         int atkCost = cfg != null ? cfg.attackUnitCost : 3;
         int atkDmg = cfg != null ? cfg.attackUnitDamage : 3;
         Assert.IsTrue(attacked, "Attack should succeed against adjacent enemy.");
-        Assert.AreEqual(15 - atkCost, robot.Energy, $"Attacker should pay {atkCost} energy (no counter-damage).");
-        Assert.AreEqual(15 - atkDmg, mutant.Energy, $"Defender should lose {atkDmg} energy from attack.");
+        Assert.AreEqual(robot.maxEnergy - atkCost, robot.Energy, $"Attacker should pay {atkCost} energy (no counter-damage).");
+        Assert.AreEqual(mutant.maxEnergy - atkDmg, mutant.Energy, $"Defender should lose {atkDmg} energy from attack.");
     }
 
     [UnityTest]
@@ -148,7 +148,7 @@ public class GameLoopPlayTests
 
         int atkCostVal = GameConfig.Instance != null ? GameConfig.Instance.attackUnitCost : 3;
         robot.Energy  = atkCostVal - 1; // Not enough
-        mutant.Energy = 15;
+        mutant.Energy = mutant.maxEnergy;
 
         bool attacked = robotMove.TryAttack(0);
 
@@ -164,7 +164,7 @@ public class GameLoopPlayTests
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _)        = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
 
-        robot.Energy  = 15;
+        robot.Energy  = robot.maxEnergy;
         var cfg2 = GameConfig.Instance;
         int dmg = cfg2 != null ? cfg2.attackUnitDamage : 3;
         int cost = cfg2 != null ? cfg2.attackUnitCost : 3;
@@ -174,7 +174,7 @@ public class GameLoopPlayTests
 
         Assert.IsFalse(mutant.isAlive, $"Mutant at {dmg - 1} energy should die after taking {dmg} damage.");
         Assert.IsTrue(robot.isAlive,   "Robot should survive (no counter-damage).");
-        Assert.AreEqual(15 - cost, robot.Energy);
+        Assert.AreEqual(robot.maxEnergy - cost, robot.Energy);
     }
 
     // ── Combat (wall attacks) ─────────────────────────────────────────────
@@ -190,14 +190,14 @@ public class GameLoopPlayTests
         tile.WallHP = 3;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         bool attacked = robotMove.TryAttack(0);
 
         Assert.IsTrue(attacked, "Attack on wall should succeed.");
         Assert.AreEqual(2, tile.WallHP, "Wall HP should decrease by 1.");
         int wCost = GameConfig.Instance != null ? GameConfig.Instance.attackWallCost : 2;
-        Assert.AreEqual(15 - wCost, robot.Energy, $"Wall attack costs {wCost} energy.");
+        Assert.AreEqual(robot.maxEnergy - wCost, robot.Energy, $"Wall attack costs {wCost} energy.");
     }
 
     [UnityTest]
@@ -211,7 +211,7 @@ public class GameLoopPlayTests
         tile.WallHP = 1;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         robotMove.TryAttack(0);
 
@@ -231,7 +231,7 @@ public class GameLoopPlayTests
         tile.Owner = Team.Robot;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         bool built = robotMove.TryBuild(0); // East → (1,0)
 
@@ -239,7 +239,7 @@ public class GameLoopPlayTests
         Assert.AreEqual(TileType.Wall, tile.TileType);
         Assert.AreEqual(3, tile.WallHP);
         int wallCost = GameConfig.Instance != null ? GameConfig.Instance.wallBuildCost : 4;
-        Assert.AreEqual(15 - wallCost, robot.Energy, $"Wall build costs {wallCost} energy.");
+        Assert.AreEqual(robot.maxEnergy - wallCost, robot.Energy, $"Wall build costs {wallCost} energy.");
     }
 
     [UnityTest]
@@ -252,14 +252,14 @@ public class GameLoopPlayTests
         tile.Owner = Team.Mutant;
 
         var (mutant, mutantMove) = SpawnUnit(Team.Mutant, new HexCoord(0, 0));
-        mutant.Energy = 15;
+        mutant.Energy = mutant.maxEnergy;
 
         bool built = mutantMove.TryBuild(0); // direction ignored for mutant
 
         Assert.IsTrue(built);
         Assert.AreEqual(TileType.Slime, tile.TileType, "Slime should be placed on mutant's current hex.");
         int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimePlaceCost : 2;
-        Assert.AreEqual(15 - slimeCost, mutant.Energy, $"Slime place costs {slimeCost} energy.");
+        Assert.AreEqual(mutant.maxEnergy - slimeCost, mutant.Energy, $"Slime place costs {slimeCost} energy.");
     }
 
     [UnityTest]
@@ -271,7 +271,7 @@ public class GameLoopPlayTests
         tile.Owner = Team.Mutant;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         bool built = robotMove.TryBuild(0);
         Assert.IsFalse(built, "Cannot build on enemy hex.");
@@ -290,14 +290,14 @@ public class GameLoopPlayTests
         tile.WallHP = 3;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         bool destroyed = robotMove.TryDestroyWall(0);
 
         Assert.IsTrue(destroyed);
         Assert.AreEqual(TileType.Empty, tile.TileType);
         int destroyCost = GameConfig.Instance != null ? GameConfig.Instance.destroyOwnWallCost : 1;
-        Assert.AreEqual(15 - destroyCost, robot.Energy, $"Destroy own wall costs {destroyCost} energy.");
+        Assert.AreEqual(robot.maxEnergy - destroyCost, robot.Energy, $"Destroy own wall costs {destroyCost} energy.");
         Assert.AreEqual(Team.Robot, tile.Owner, "Tile keeps team ownership.");
     }
 
@@ -312,7 +312,7 @@ public class GameLoopPlayTests
         tile.WallHP = 3;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         bool destroyed = robotMove.TryDestroyWall(0);
         Assert.IsFalse(destroyed, "Cannot destroy enemy wall with TryDestroyWall.");
@@ -326,7 +326,7 @@ public class GameLoopPlayTests
         yield return null;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         bool moved = move.TryMove(0); // East → (1,0)
 
@@ -346,7 +346,7 @@ public class GameLoopPlayTests
         // Calling TryMove twice at the code level moves twice. This proves
         // the enforcement lives in the turn system, not in HexMovement.
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         move.TryMove(0); // East → (1,0)
         Assert.AreEqual(new HexCoord(1, 0), unit.currentHex);
@@ -385,7 +385,7 @@ public class GameLoopPlayTests
 
         // HexMovement.TryMove does NOT touch isMyTurn — only HexAgent does.
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
         unit.isMyTurn = true;
 
         move.TryMove(0);
@@ -403,8 +403,8 @@ public class GameLoopPlayTests
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
-        robot.Energy = 15;
-        mutant.Energy = 15;
+        robot.Energy = robot.maxEnergy;
+        mutant.Energy = mutant.maxEnergy;
         robot.isMyTurn = true;
 
         robotMove.TryAttack(0);
@@ -424,7 +424,7 @@ public class GameLoopPlayTests
         tile.Owner = Team.Robot;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
         robot.isMyTurn = true;
 
         robotMove.TryBuild(0);
@@ -486,7 +486,7 @@ public class GameLoopPlayTests
         yield return null;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
         unit.Die(6);
 
         bool moved = move.TryMove(0);
@@ -494,7 +494,7 @@ public class GameLoopPlayTests
 
         // Set up adjacent enemy for attack test.
         var (enemy, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
-        enemy.Energy = 15;
+        enemy.Energy = enemy.maxEnergy;
 
         bool attacked = move.TryAttack(0);
         Assert.IsFalse(attacked, "Dead unit should not be able to attack.");
@@ -513,7 +513,7 @@ public class GameLoopPlayTests
         yield return null;
 
         var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
+        robot.Energy = robot.maxEnergy;
 
         // No enemy or wall at (1,0) — attack should be invalid.
         robot.lastAction = UnitAction.Idle; // simulate HexAgent reset

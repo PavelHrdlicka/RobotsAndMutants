@@ -63,7 +63,7 @@ public class BuildMechanicsTests
         data.team = team;
         data.isAlive = true;
         data.currentHex = hex;
-        data.Energy = 15;
+        data.Energy = data.maxEnergy;
 
         var move = go.AddComponent<HexMovement>();
         move.Initialize(grid);
@@ -91,7 +91,7 @@ public class BuildMechanicsTests
         Assert.AreEqual(TileType.Wall, tile.TileType);
         Assert.AreEqual(3, tile.WallHP, "Wall should start with 3 HP.");
         int wallCost = GameConfig.Instance != null ? GameConfig.Instance.wallBuildCost : 4;
-        Assert.AreEqual(15 - wallCost, robot.Energy, $"Wall build costs {wallCost} energy.");
+        Assert.AreEqual(robot.maxEnergy - wallCost, robot.Energy, $"Wall build costs {wallCost} energy.");
         Assert.AreEqual(UnitAction.BuildWall, robot.lastAction);
     }
 
@@ -329,7 +329,7 @@ public class BuildMechanicsTests
         Assert.AreEqual(TileType.Slime, tile.TileType,
             "Slime should be placed on mutant's current hex.");
         int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimePlaceCost : 2;
-        Assert.AreEqual(15 - slimeCost, mutant.Energy, $"Slime placement costs {slimeCost} energy.");
+        Assert.AreEqual(mutant.maxEnergy - slimeCost, mutant.Energy, $"Slime placement costs {slimeCost} energy.");
         Assert.AreEqual(UnitAction.PlaceSlime, mutant.lastAction);
     }
 
@@ -445,7 +445,7 @@ public class BuildMechanicsTests
         Assert.AreEqual(TileType.Empty, tile.TileType, "Wall should be destroyed.");
         Assert.AreEqual(0, tile.WallHP);
         int destroyCost = GameConfig.Instance != null ? GameConfig.Instance.destroyOwnWallCost : 1;
-        Assert.AreEqual(15 - destroyCost, robot.Energy, $"Destroy own wall costs {destroyCost} energy.");
+        Assert.AreEqual(robot.maxEnergy - destroyCost, robot.Energy, $"Destroy own wall costs {destroyCost} energy.");
         Assert.AreEqual(Team.Robot, tile.Owner, "Ownership should remain.");
         Assert.AreEqual(UnitAction.DestroyWall, robot.lastAction,
             "lastAction should be DestroyWall.");

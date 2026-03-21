@@ -63,7 +63,7 @@ public class MovementMechanicsTests
         data.team = team;
         data.isAlive = true;
         data.currentHex = hex;
-        data.Energy = 15;
+        data.Energy = data.maxEnergy;
 
         var move = go.AddComponent<HexMovement>();
         move.Initialize(grid);
@@ -97,10 +97,10 @@ public class MovementMechanicsTests
         yield return null;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
         move.TryMove(0);
 
-        Assert.AreEqual(15, unit.Energy,
+        Assert.AreEqual(unit.maxEnergy, unit.Energy,
             "Capturing neutral hex by moving should cost no energy.");
     }
 
@@ -145,10 +145,10 @@ public class MovementMechanicsTests
         tile.Owner = Team.Mutant;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
         move.TryMove(0);
 
-        Assert.AreEqual(15, unit.Energy,
+        Assert.AreEqual(unit.maxEnergy, unit.Energy,
             "Capturing enemy empty hex should cost no energy.");
     }
 
@@ -327,13 +327,13 @@ public class MovementMechanicsTests
         tile.TileType = TileType.Slime;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         bool moved = move.TryMove(0);
 
         int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimeEntryCostRobot : 3;
         Assert.IsTrue(moved, "Robot should be able to enter enemy slime.");
-        Assert.AreEqual(15 - slimeCost, unit.Energy,
+        Assert.AreEqual(unit.maxEnergy - slimeCost, unit.Energy,
             $"Entering enemy slime should cost {slimeCost} energy (slimeEntryCostRobot).");
     }
 
@@ -347,7 +347,7 @@ public class MovementMechanicsTests
         tile.TileType = TileType.Slime;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         move.TryMove(0);
 
@@ -365,7 +365,7 @@ public class MovementMechanicsTests
         tile.TileType = TileType.Slime;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         move.TryMove(0);
 
@@ -406,7 +406,7 @@ public class MovementMechanicsTests
         tile.TileType = TileType.Slime;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         move.TryMove(0);
 
@@ -426,12 +426,12 @@ public class MovementMechanicsTests
         tile.TileType = TileType.Slime;
 
         var (unit, move) = SpawnUnit(Team.Mutant, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
 
         bool moved = move.TryMove(0);
 
         Assert.IsTrue(moved, "Mutant should move freely on own slime.");
-        Assert.AreEqual(15, unit.Energy, "Moving on own slime costs no energy.");
+        Assert.AreEqual(unit.maxEnergy, unit.Energy, "Moving on own slime costs no energy.");
         Assert.AreEqual(TileType.Slime, tile.TileType,
             "Own slime should remain intact.");
     }
@@ -727,7 +727,7 @@ public class MovementMechanicsTests
         tile.TileType = TileType.Slime;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 15;
+        unit.Energy = unit.maxEnergy;
         Assert.IsTrue(move.IsValidMove(0),
             "IsValidMove should be true for enemy slime with enough energy.");
     }

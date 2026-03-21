@@ -187,13 +187,13 @@ public class UnitMovementPlayTests
         var tile = grid.GetTile(new HexCoord(1, 0));
         tile.Owner    = Team.Mutant;
         tile.TileType = TileType.Slime;
-        unitData.Energy = 15;
+        unitData.Energy = unitData.maxEnergy;
 
         bool moved = movement.TryMove(0); // East → (1,0) enemy slime
 
         int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimeEntryCostRobot : 3;
         Assert.IsTrue(moved, "Robot should be able to enter enemy slime (paying energy).");
-        Assert.AreEqual(15 - slimeCost, unitData.Energy, $"Robot pays {slimeCost} energy to enter enemy slime.");
+        Assert.AreEqual(unitData.maxEnergy - slimeCost, unitData.Energy, $"Robot pays {slimeCost} energy to enter enemy slime.");
         Assert.AreEqual(TileType.Empty, tile.TileType, "Slime should be destroyed.");
         Assert.AreEqual(Team.Robot, tile.Owner, "Robot claims tile after destroying slime (free capture).");
     }
@@ -212,8 +212,8 @@ public class UnitMovementPlayTests
         enemy.currentHex = new HexCoord(1, 0);
         enemyGo.transform.position = grid.HexToWorld(enemy.currentHex);
 
-        unitData.Energy = 15;
-        enemy.Energy = 15;
+        unitData.Energy = unitData.maxEnergy;
+        enemy.Energy = enemy.maxEnergy;
 
         bool attacked = movement.TryAttack(0); // East → (1,0)
         Assert.IsTrue(attacked, "Attack toward adjacent enemy should succeed.");
@@ -221,8 +221,8 @@ public class UnitMovementPlayTests
         var cfg = GameConfig.Instance;
         int atkCost = cfg != null ? cfg.attackUnitCost : 3;
         int atkDmg = cfg != null ? cfg.attackUnitDamage : 3;
-        Assert.AreEqual(15 - atkCost, unitData.Energy, $"Attacker pays {atkCost} energy cost (no counter-damage).");
-        Assert.AreEqual(15 - atkDmg, enemy.Energy, $"Defender loses {atkDmg} energy from attack.");
+        Assert.AreEqual(unitData.maxEnergy - atkCost, unitData.Energy, $"Attacker pays {atkCost} energy cost (no counter-damage).");
+        Assert.AreEqual(enemy.maxEnergy - atkDmg, enemy.Energy, $"Defender loses {atkDmg} energy from attack.");
         // Attacker stays in place.
         Assert.AreEqual(new HexCoord(0, 0), unitData.currentHex, "Attacker should not move.");
 
@@ -239,7 +239,7 @@ public class UnitMovementPlayTests
         var tile = grid.GetTile(new HexCoord(1, 0));
         Assert.IsNotNull(tile);
         tile.Owner = Team.Robot;
-        unitData.Energy = 15;
+        unitData.Energy = unitData.maxEnergy;
 
         bool built = movement.TryBuild(0); // Build east → (1,0)
         Assert.IsTrue(built, "Build on own empty adjacent tile should succeed.");
@@ -247,7 +247,7 @@ public class UnitMovementPlayTests
         Assert.AreEqual(TileType.Wall, tile.TileType, "Tile type should be Wall.");
         Assert.AreEqual(3, tile.WallHP, "Wall should have max HP.");
         int wallCost = GameConfig.Instance != null ? GameConfig.Instance.wallBuildCost : 4;
-        Assert.AreEqual(15 - wallCost, unitData.Energy, $"Wall build costs {wallCost} energy.");
+        Assert.AreEqual(unitData.maxEnergy - wallCost, unitData.Energy, $"Wall build costs {wallCost} energy.");
         Assert.AreEqual(UnitAction.BuildWall, unitData.lastAction);
     }
 
