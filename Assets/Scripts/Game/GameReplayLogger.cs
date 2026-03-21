@@ -60,7 +60,8 @@ public class GameReplayLogger
             sb.Append($",\"unitsPerTeam\":{units}");
             sb.Append($",\"gridSize\":{boardSide}");
             sb.Append($",\"maxRounds\":{maxRounds}");
-            sb.Append($",\"winThreshold\":{winThreshold:F2}");
+            sb.Append(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                ",\"winThreshold\":{0:F2}", winThreshold));
             sb.Append("}");
             writer.WriteLine(sb.ToString());
         }
@@ -161,7 +162,8 @@ public class GameReplayLogger
             sb.Append($",\"mDeaths\":{mDeaths}");
             sb.Append($",\"rBuilds\":{rBuilds}");
             sb.Append($",\"mBuilds\":{mBuilds}");
-            sb.Append($",\"duration_sec\":{duration:F1}");
+            sb.Append(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                ",\"duration_sec\":{0:F1}", duration));
             sb.Append("}");
             writer.WriteLine(sb.ToString());
 
