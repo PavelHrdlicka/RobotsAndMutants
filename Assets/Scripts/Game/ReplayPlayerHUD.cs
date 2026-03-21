@@ -64,7 +64,7 @@ public class ReplayPlayerHUD : MonoBehaviour
 
         InitStyles();
 
-        float barHeight = 130;
+        float barHeight = 165;
         float barY = Screen.height - barHeight;
         float barWidth = Mathf.Min(Screen.width * 0.7f, 700);
         float barX = (Screen.width - barWidth) / 2f;
@@ -78,7 +78,7 @@ public class ReplayPlayerHUD : MonoBehaviour
         GUI.Label(new Rect(barX, y, barWidth, 25), $"REPLAY — {player.FileName} (match #{player.Replay.header.match})", headerStyle);
         y += 25;
 
-        // Round info + turn description.
+        // Round info + state.
         string stateLabel = player.state switch
         {
             ReplayPlayer.PlaybackState.Playing => "Playing",
@@ -87,9 +87,26 @@ public class ReplayPlayerHUD : MonoBehaviour
             _ => ""
         };
         GUI.Label(new Rect(barX, y, barWidth, 20),
-            $"Round {player.currentRound}/{player.TotalRounds}  |  Turn {player.currentTurnIndex}/{player.TotalTurns}  |  {stateLabel}  |  {player.CurrentTurnDescription}",
+            $"Round {player.currentRound}/{player.TotalRounds}  |  Turn {player.currentTurnIndex}/{player.TotalTurns}  |  {stateLabel}",
             labelStyle);
-        y += 22;
+        y += 20;
+
+        // Previous + current turn descriptions.
+        string prevDesc = player.PreviousTurnDescription;
+        string curDesc = player.CurrentTurnDescription;
+        if (!string.IsNullOrEmpty(prevDesc))
+        {
+            var dimStyle = new GUIStyle(infoStyle) { normal = { textColor = new Color(0.5f, 0.5f, 0.5f) }, alignment = TextAnchor.MiddleCenter };
+            GUI.Label(new Rect(barX, y, barWidth, 16), $"Prev: {prevDesc}", dimStyle);
+            y += 16;
+        }
+        if (!string.IsNullOrEmpty(curDesc))
+        {
+            var nextStyle = new GUIStyle(infoStyle) { normal = { textColor = new Color(0.9f, 0.9f, 0.7f) }, alignment = TextAnchor.MiddleCenter };
+            GUI.Label(new Rect(barX, y, barWidth, 16), $"Next: {curDesc}", nextStyle);
+            y += 16;
+        }
+        y += 4;
 
         // Transport buttons.
         float btnW = 80;
@@ -101,6 +118,14 @@ public class ReplayPlayerHUD : MonoBehaviour
         if (GUI.Button(new Rect(btnX, y, 50, 35), playLabel, buttonStyle))
             player.TogglePlayPause();
         btnX += 55;
+
+        // Step Back.
+        if (GUI.Button(new Rect(btnX, y, btnW, 35), "Back", buttonStyle))
+        {
+            player.Pause();
+            player.StepBackOneTurn();
+        }
+        btnX += btnW + btnGap;
 
         // Step Turn.
         if (GUI.Button(new Rect(btnX, y, btnW, 35), "Step", buttonStyle))

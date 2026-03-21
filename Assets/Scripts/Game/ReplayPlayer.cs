@@ -55,6 +55,17 @@ public class ReplayPlayer : MonoBehaviour
         }
     }
 
+    /// <summary>Previous turn description (the last applied turn).</summary>
+    public string PreviousTurnDescription
+    {
+        get
+        {
+            if (replay == null || currentTurnIndex <= 0) return "";
+            var t = replay.turns[currentTurnIndex - 1];
+            return $"{t.unitName}: {t.action} at ({t.q},{t.r})";
+        }
+    }
+
     // ── Lifecycle ───────────────────────────────────────────────────────
 
     private void Awake()
@@ -128,11 +139,12 @@ public class ReplayPlayer : MonoBehaviour
         Debug.Log($"[Replay] Loaded {replayFileName}: match #{replay.header.match}, " +
                   $"{replay.turns.Count} turns, {replay.maxRound} rounds, winner: {replay.summary.winner}");
 
-        // Disable GameManager's game loop.
+        // Disable GameManager's game loop and sync maxRounds for HUD.
         if (gm != null)
         {
             gm.gameOver = true;
             gm.autoRestart = false;
+            gm.maxRounds = replay.header.maxRounds;
         }
 
         // Disable all ML-Agents.

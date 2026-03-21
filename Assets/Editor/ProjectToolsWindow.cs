@@ -540,6 +540,7 @@ public class ProjectToolsWindow : EditorWindow
     private int cachedReplayTotalTurns;
     private string cachedReplayFileName;
     private string cachedReplayTurnDesc;
+    private string cachedReplayPrevTurnDesc;
     private ReplayPlayer.PlaybackState cachedReplayState;
     private string cachedReplayWinner;
 
@@ -563,6 +564,7 @@ public class ProjectToolsWindow : EditorWindow
                 cachedReplayTotalTurns  = cachedReplayPlayer.TotalTurns;
                 cachedReplayFileName    = cachedReplayPlayer.FileName;
                 cachedReplayTurnDesc    = cachedReplayPlayer.CurrentTurnDescription;
+                cachedReplayPrevTurnDesc = cachedReplayPlayer.PreviousTurnDescription;
                 cachedReplayWinner      = cachedReplayPlayer.Replay?.summary.winner ?? "";
             }
         }
@@ -655,9 +657,14 @@ public class ProjectToolsWindow : EditorWindow
             var stateStyle = new GUIStyle(EditorStyles.boldLabel) { normal = { textColor = stateColor } };
             EditorGUILayout.LabelField(stateLabel, stateStyle);
 
-            // Current turn description.
+            // Previous and current turn descriptions.
+            if (!string.IsNullOrEmpty(cachedReplayPrevTurnDesc))
+            {
+                var dimStyle = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = Color.gray } };
+                EditorGUILayout.LabelField($"Prev: {cachedReplayPrevTurnDesc}", dimStyle);
+            }
             if (!string.IsNullOrEmpty(cachedReplayTurnDesc))
-                EditorGUILayout.LabelField(cachedReplayTurnDesc, EditorStyles.miniLabel);
+                EditorGUILayout.LabelField($"Next: {cachedReplayTurnDesc}", EditorStyles.miniLabel);
 
             EditorGUILayout.Space(4);
 
@@ -670,7 +677,7 @@ public class ProjectToolsWindow : EditorWindow
             if (GUILayout.Button("<<R", GUILayout.Width(36)))
                 cachedReplayPlayer.StepBackOneRound();
 
-            if (GUILayout.Button("<T", GUILayout.Width(36)))
+            if (GUILayout.Button("BACK", GUILayout.Width(46)))
                 cachedReplayPlayer.StepBackOneTurn();
 
             // Play/Pause — larger center button.
@@ -681,7 +688,7 @@ public class ProjectToolsWindow : EditorWindow
                 cachedReplayPlayer.TogglePlayPause();
             GUI.backgroundColor = Color.white;
 
-            if (GUILayout.Button("T>", GUILayout.Width(36)))
+            if (GUILayout.Button("STEP", GUILayout.Width(46)))
                 cachedReplayPlayer.StepOneTurn();
 
             if (GUILayout.Button("R>>", GUILayout.Width(36)))
