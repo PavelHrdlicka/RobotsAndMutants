@@ -43,7 +43,7 @@ public class ReplayDebugOverlay : MonoBehaviour
                     $"UnitLabel_{unit.gameObject.name}",
                     unit.unitIndex.ToString(),
                     unit.team == Team.Robot ? new Color(0.5f, 0.7f, 1f) : new Color(0.5f, 1f, 0.5f),
-                    0.08f);
+                    0.15f);
                 label.transform.SetParent(unit.transform, false);
                 label.transform.localPosition = new Vector3(0f, 0.65f, 0f);
                 unitLabels.Add(label);
@@ -61,8 +61,8 @@ public class ReplayDebugOverlay : MonoBehaviour
                 var label = CreateLabel(
                     $"HexLabel_{coord.q}_{coord.r}",
                     $"{coord.q},{coord.r}",
-                    new Color(1f, 1f, 1f, 0.7f),
-                    0.04f);
+                    new Color(1f, 1f, 1f, 0.8f),
+                    0.06f);
                 // Place slightly above tile surface.
                 Vector3 pos = grid.HexToWorld(coord);
                 pos.y = tile.isBase ? 0.15f : 0.05f;
@@ -92,15 +92,14 @@ public class ReplayDebugOverlay : MonoBehaviour
         var tm = go.AddComponent<TextMesh>();
         tm.text = text;
         tm.characterSize = charSize;
-        tm.fontSize = 64;
+        tm.fontSize = 80;
         tm.anchor = TextAnchor.MiddleCenter;
         tm.alignment = TextAlignment.Center;
         tm.color = color;
         tm.fontStyle = FontStyle.Bold;
 
-        // Use unlit shader so labels are always visible.
+        // Keep default font material (works in URP). Just disable shadows.
         var renderer = go.GetComponent<MeshRenderer>();
-        renderer.material = new Material(Shader.Find("GUI/Text Shader"));
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         renderer.receiveShadows = false;
 

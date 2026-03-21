@@ -16,7 +16,7 @@ MonoBehaviour:
   unitsPerTeam: 4
   msPerTick: 3576
   winPercent: 60
-  maxSteps: 2000
+  maxSteps: 800
   unitMaxEnergy: 15
   respawnCooldown: 6
   wallBuildCost: 4
