@@ -16,6 +16,8 @@ public class GameReplayLogger
     private int turnCounter;
     private float gameStartTime;
     private bool isLogging;
+    private bool gameFinished;
+    private string currentFilePath;
 
     // Write OUTSIDE Assets/ to avoid triggering Unity Asset Pipeline imports.
     // Path.GetFullPath("Replays") resolves to project root (working dir).
@@ -29,6 +31,8 @@ public class GameReplayLogger
     {
         Close();
         isLogging = false;
+        gameFinished = false;
+        currentFilePath = null;
 
         if (matchNum % logEveryNthGame != 0) return;
 
@@ -42,6 +46,7 @@ public class GameReplayLogger
             string fileName = $"game_{matchNum}_{timestamp}.jsonl";
             string filePath = Path.Combine(replayDir, fileName);
 
+            currentFilePath = filePath;
             writer = new StreamWriter(filePath, false, Encoding.UTF8) { AutoFlush = false };
             isLogging = true;
             turnCounter = 0;
@@ -169,6 +174,8 @@ public class GameReplayLogger
 
             // Territory snapshot: all owned tiles for each team + winning connected group.
             WriteTerritorySnapshot(grid, winner);
+
+            gameFinished = true;
         }
         catch (System.Exception ex)
         {
@@ -286,6 +293,22 @@ public class GameReplayLogger
             catch { /* ignore */ }
             writer = null;
         }
+
+        // Delete incomplete replay files (no summary = interrupted game).
+        if (isLogging && !gameFinished && !string.IsNullOrEmpty(currentFilePath))
+        {
+            try
+            {
+                if (File.Exists(currentFilePath))
+                {
+                    File.Delete(currentFilePath);
+                    Debug.Log($"[Replay] Deleted incomplete replay: {Path.GetFileName(currentFilePath)}");
+                }
+            }
+            catch { /* ignore */ }
+        }
+
         isLogging = false;
+        currentFilePath = null;
     }
 }
