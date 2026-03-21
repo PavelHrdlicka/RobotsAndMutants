@@ -59,11 +59,11 @@ public class GameConfig : ScriptableObject
     [Header("Structures")]
     [Tooltip("Energy cost to build a wall on adjacent own hex.")]
     [Range(1, 10)]
-    public int wallBuildCost = 4;
+    public int wallBuildCost = 2;
 
     [Tooltip("Wall hit points (attacks needed to destroy).")]
     [Range(1, 5)]
-    public int wallMaxHP = 3;
+    public int wallMaxHP = 4;
 
     [Tooltip("Energy cost to place slime on adjacent own hex.")]
     [Range(1, 10)]
@@ -71,7 +71,7 @@ public class GameConfig : ScriptableObject
 
     [Tooltip("Energy cost to destroy own wall from adjacent hex.")]
     [Range(0, 5)]
-    public int destroyOwnWallCost = 1;
+    public int destroyOwnWallCost = 0;
 
     [Header("Combat")]
     [Tooltip("Energy cost to attack an enemy unit.")]
@@ -80,7 +80,7 @@ public class GameConfig : ScriptableObject
 
     [Tooltip("Base damage dealt to enemy unit per attack.")]
     [Range(1, 10)]
-    public int attackUnitDamage = 3;
+    public int attackUnitDamage = 4;
 
     [Tooltip("Energy cost to attack an enemy wall.")]
     [Range(1, 10)]
@@ -110,7 +110,7 @@ public class GameConfig : ScriptableObject
 
     [Tooltip("Energy cost for Robot entering enemy slime hex (slime destroyed on entry).")]
     [Range(0, 10)]
-    public int slimeEntryCostRobot = 3;
+    public int slimeEntryCostRobot = 1;
 
     [Header("Replay Logging")]
     [Tooltip("Log every Nth game to a JSONL replay file. 1 = every game, 10 = every 10th game.")]
@@ -131,13 +131,13 @@ public class GameConfig : ScriptableObject
     public float enemyLossRewardPerTile = 0.1f;
 
     [Tooltip("Per-neighbor bonus when building on a tile adjacent to own tiles (encourages clustering).")]
-    public float buildAdjacencyBonus = 0.03f;
+    public float buildAdjacencyBonus = 0.05f;
 
     [Tooltip("Reward for capturing a hex via attack (neutral or enemy).")]
     public float hexCaptureReward = 0.05f;
 
     [Tooltip("Reward for placing a wall in a strategic position.")]
-    public float wallPlacementReward = 0.03f;
+    public float wallPlacementReward = 0.10f;
 
     [Tooltip("Extra reward for Mutants placing slime (on top of buildReward).")]
     public float slimePlacementReward = 0.08f;

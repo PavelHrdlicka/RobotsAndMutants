@@ -19,10 +19,10 @@ MonoBehaviour:
   maxSteps: 600
   unitMaxEnergy: 15
   respawnCooldown: 10
-  wallBuildCost: 3
-  wallMaxHP: 3
+  wallBuildCost: 2
+  wallMaxHP: 4
   slimePlaceCost: 2
-  destroyOwnWallCost: 1
+  destroyOwnWallCost: 0
   attackUnitCost: 3
   attackUnitDamage: 4
   attackWallCost: 2
@@ -31,15 +31,15 @@ MonoBehaviour:
   swarmMaxBonus: 2
   baseRegenPerStep: 2
   slimeRegenPerStep: 1
-  slimeEntryCostRobot: 2
+  slimeEntryCostRobot: 1
   replayLogEveryNthGame: 1
   killBonus: 0.3
   buildReward: 0.08
   captureRewardPerTile: 0.1
   enemyLossRewardPerTile: 0.1
-  buildAdjacencyBonus: 0.03
+  buildAdjacencyBonus: 0.05
   hexCaptureReward: 0.05
-  wallPlacementReward: 0.03
+  wallPlacementReward: 0.10
   slimePlacementReward: 0.08
   slimeNetworkBonus: 0.04
   cohesionBonus: 0.02

@@ -490,17 +490,37 @@ public class BuildMechanicsTests
     {
         yield return null;
 
+        int destroyCost = GameConfig.Instance != null ? GameConfig.Instance.destroyOwnWallCost : 1;
+
+        // If cost is 0, destroying a wall is always free — verify that instead.
+        if (destroyCost == 0)
+        {
+            var tile0 = grid.GetTile(new HexCoord(1, 0));
+            tile0.Owner = Team.Robot;
+            tile0.TileType = TileType.Wall;
+            tile0.WallHP = 3;
+
+            var (robot0, move0) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+            robot0.Energy = 0;
+
+            bool destroyed0 = move0.TryDestroyWall(0);
+            Assert.IsTrue(destroyed0,
+                "With destroyOwnWallCost=0, destroy should succeed even at 0 energy.");
+            yield break;
+        }
+
         var tile = grid.GetTile(new HexCoord(1, 0));
         tile.Owner = Team.Robot;
         tile.TileType = TileType.Wall;
         tile.WallHP = 3;
 
         var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 0;
+        robot.Energy = destroyCost - 1;
 
         bool destroyed = move.TryDestroyWall(0);
 
-        Assert.IsFalse(destroyed, "Cannot destroy wall with 0 energy.");
+        Assert.IsFalse(destroyed,
+            $"Cannot destroy wall with {destroyCost - 1} energy (cost={destroyCost}).");
     }
 
     // ── IsValidBuild consistency ────────────────────────────────────────

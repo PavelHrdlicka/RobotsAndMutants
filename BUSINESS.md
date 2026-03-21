@@ -89,7 +89,7 @@ Jednoduchý diskrétní branch s 25 akcemi:
 - **Neutrální hex:** volný vstup + automatický capture (zdarma).
 - **Vlastní hex:** volný vstup.
 - **Nepřátelský hex:** volný vstup + automatický capture (zdarma).
-- **Robot vstup na nepřátelský sliz:** stojí slimeEntryCostRobot (default: 2) energie, sliz se zničí, hex přechází na robota.
+- **Robot vstup na nepřátelský sliz:** stojí slimeEntryCostRobot (default: 1) energie, sliz se zničí, hex přechází na robota.
 - **Mutant na vlastním slimu:** volný vstup (regen řeší AbilitySystem).
 
 ## Boj (Combat)
@@ -137,17 +137,17 @@ Jednoduchý diskrétní branch s 25 akcemi:
 
 ### Zdi (Robot)
 - Stavba na **sousední vlastní prázdný hex** (ne base, ne obsazený).
-- Cena: **3 energie**.
-- Zeď HP: **3** (max). Zobrazeno číslem nad zdí.
+- Cena: **2 energie**.
+- Zeď HP: **4** (max). Zobrazeno číslem nad zdí.
 - Zdi **blokují veškerý pohyb** (vlastní i nepřátelský).
-- Zničení vlastní zdi: **1 energie**.
+- Zničení vlastní zdi: **zdarma (0 energie)**.
 - Vizuálně: vyvýšený hex (0.12), tmavší šedo-modrá, jasnější dle HP.
 
 ### Sliz (Mutant)
 - Umístění na **vlastní hex pod jednotkou** (ne base, ne obsazený strukturou).
 - Cena: **2 energie**.
 - Mutant na vlastním slimu: **+1 energie/krok** regenerace.
-- Robot vstup na nepřátelský sliz: **2 energie**, sliz zničen.
+- Robot vstup na nepřátelský sliz: **1 energie**, sliz zničen.
 - Vizuálně: žlutozelená barva + šrafovaný overlay (diagonální pruhy) + mírná extruze (0.04).
 
 ## Herní smyčka (Game Loop)
@@ -238,11 +238,11 @@ Sekvenční tahový model se striktní alternací R/M:
 | attackUnitDamage | 4 | Damage útoku na jednotku |
 | attackWallCost | 2 | Cena útoku na zeď |
 | attackWallDamage | 1 | Damage útoku na zeď |
-| wallBuildCost | 3 | Cena stavby zdi |
-| wallMaxHP | 3 | Max HP zdi |
+| wallBuildCost | 2 | Cena stavby zdi |
+| wallMaxHP | 4 | Max HP zdi |
 | slimePlaceCost | 2 | Cena umístění slizu |
-| destroyOwnWallCost | 1 | Cena zničení vlastní zdi |
-| slimeEntryCostRobot | 2 | Cena vstupu Robota na nepřátelský sliz |
+| destroyOwnWallCost | 0 | Cena zničení vlastní zdi |
+| slimeEntryCostRobot | 1 | Cena vstupu Robota na nepřátelský sliz |
 | baseRegenPerStep | 2 | Regenerace na base hexu |
 | slimeRegenPerStep | 1 | Regenerace Mutanta na slimu |
 | shieldWallMaxReduction | 2 | Max Shield Wall redukce |
@@ -271,6 +271,7 @@ Sekvenční tahový model se striktní alternací R/M:
 - Panel dole s transport controls.
 - DETAIL overlay: souřadnice hexů.
 - Správné zobrazení: "Attack wall → (1,0) HP:2", "BuildWall → (1,0)".
+- **Dead unit guard:** Mrtvá jednotka (energy ≤ 0) je v replay vždy přeskočena — nepohybuje se, neprovádí akci, je teleportována na base. Platí i pro zabité jednotky z útoku.
 
 ## Silent Training mode
 
