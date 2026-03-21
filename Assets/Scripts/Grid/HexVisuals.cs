@@ -194,6 +194,7 @@ public class HexVisuals : MonoBehaviour
             CreateSlimeOverlay();
         else if (!needsOverlay && slimeOverlay != null)
         {
+            slimeOverlay.SetActive(false); // Hide immediately (Destroy is deferred).
             Destroy(slimeOverlay);
             slimeOverlay = null;
         }
