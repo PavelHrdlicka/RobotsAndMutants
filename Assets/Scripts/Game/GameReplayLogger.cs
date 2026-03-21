@@ -100,6 +100,13 @@ public class GameReplayLogger
                 sb.Append(",\"target\":null,\"targetUnit\":null,\"killed\":false");
             }
 
+            // Captured hex info (for Capture actions — the actual hex that was captured).
+            if (unit.lastAction == UnitAction.Capture)
+            {
+                var c = unit.lastCapturedHex;
+                sb.Append($",\"captured\":[{c.q},{c.r}]");
+            }
+
             sb.Append($",\"rTiles\":{rTiles}");
             sb.Append($",\"mTiles\":{mTiles}");
             sb.Append($",\"rAlive\":{rAlive}");
@@ -208,7 +215,7 @@ public class GameReplayLogger
         bool first = true;
         foreach (var kvp in grid.Tiles)
         {
-            if (kvp.Value.isBase || kvp.Value.Owner != team) continue;
+            if (kvp.Value.Owner != team) continue;
             if (!first) sb.Append(',');
             sb.Append($"[{kvp.Key.q},{kvp.Key.r}]");
             first = false;
@@ -235,7 +242,7 @@ public class GameReplayLogger
             {
                 var coord = queue.Dequeue();
                 var tile = grid.GetTile(coord);
-                if (tile != null && !tile.isBase)
+                if (tile != null)
                     group.Add(coord);
 
                 for (int i = 0; i < 6; i++)

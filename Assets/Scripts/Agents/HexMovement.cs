@@ -119,6 +119,7 @@ public class HexMovement : MonoBehaviour
         {
             tile.Owner = unitData.team;
             unitData.lastAction = UnitAction.Capture;
+            unitData.lastCapturedHex = target;
         }
 
         // Enqueue visual hop.
@@ -244,6 +245,7 @@ public class HexMovement : MonoBehaviour
         tile.WallHP = 0;
 
         unitData.lastAction = UnitAction.Capture;
+        unitData.lastCapturedHex = tile.coord;
         unitData.lastAttackTarget = null;
         unitData.lastAttackKilled = false;
         return true;
@@ -258,6 +260,7 @@ public class HexMovement : MonoBehaviour
         tile.Owner = unitData.team;
 
         unitData.lastAction = UnitAction.Capture;
+        unitData.lastCapturedHex = tile.coord;
         unitData.lastAttackTarget = null;
         unitData.lastAttackKilled = false;
         return true;

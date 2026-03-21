@@ -30,6 +30,8 @@ public class UnitData : MonoBehaviour
     [HideInInspector] public UnitData lastAttackTarget;
     /// <summary>True if lastAttackTarget died from the attack.</summary>
     [HideInInspector] public bool lastAttackKilled;
+    /// <summary>The hex that was captured this turn (for Capture actions via attack or move).</summary>
+    [HideInInspector] public HexCoord lastCapturedHex;
 
     /// <summary>
     /// Set by HexAgent.OnActionReceived to signal GameManager that this unit's

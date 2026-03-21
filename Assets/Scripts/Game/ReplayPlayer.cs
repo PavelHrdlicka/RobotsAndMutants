@@ -50,8 +50,7 @@ public class ReplayPlayer : MonoBehaviour
         get
         {
             if (replay == null || currentTurnIndex >= replay.turns.Count) return "";
-            var t = replay.turns[currentTurnIndex];
-            return $"{t.unitName}: {t.action} at ({t.q},{t.r})";
+            return FormatTurnDescription(replay.turns[currentTurnIndex]);
         }
     }
 
@@ -61,9 +60,15 @@ public class ReplayPlayer : MonoBehaviour
         get
         {
             if (replay == null || currentTurnIndex <= 0) return "";
-            var t = replay.turns[currentTurnIndex - 1];
-            return $"{t.unitName}: {t.action} at ({t.q},{t.r})";
+            return FormatTurnDescription(replay.turns[currentTurnIndex - 1]);
         }
+    }
+
+    private static string FormatTurnDescription(ReplayData.Turn t)
+    {
+        if (t.action == "Capture" && t.hasCaptured)
+            return $"{t.unitName}: Capture ({t.capturedQ},{t.capturedR})";
+        return $"{t.unitName}: {t.action} at ({t.q},{t.r})";
     }
 
     // ── Lifecycle ───────────────────────────────────────────────────────

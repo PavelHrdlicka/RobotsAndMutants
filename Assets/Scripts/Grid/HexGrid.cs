@@ -238,12 +238,12 @@ public class HexGrid : MonoBehaviour
         tile.Owner = team;
     }
 
-    /// <summary>Count non-base tiles owned by the given team.</summary>
+    /// <summary>Count all tiles owned by the given team (including base hexes).</summary>
     public int CountTiles(Team team)
     {
         int count = 0;
         foreach (var tile in tiles.Values)
-            if (!tile.isBase && tile.Owner == team) count++;
+            if (tile.Owner == team) count++;
         return count;
     }
 
@@ -319,10 +319,9 @@ public class HexGrid : MonoBehaviour
                 var coord = _bfsQueue.Dequeue();
                 var tile = tiles[coord];
 
+                groupSize++;
                 if (tile.isBase)
                     touchesBase = true;
-                else
-                    groupSize++;
 
                 for (int i = 0; i < 6; i++)
                 {
@@ -358,18 +357,15 @@ public class HexGrid : MonoBehaviour
     private int _contestableTileCount = -1;
 
     /// <summary>
-    /// Total number of non-base (contestable) tiles. Computed once after grid generation.
+    /// Total number of tiles on the board (including base hexes).
+    /// Base hexes count as owned territory, so they're part of the total.
     /// </summary>
     public int ContestableTileCount
     {
         get
         {
             if (_contestableTileCount < 0)
-            {
-                _contestableTileCount = 0;
-                foreach (var tile in tiles.Values)
-                    if (!tile.isBase) _contestableTileCount++;
-            }
+                _contestableTileCount = tiles.Count;
             return _contestableTileCount;
         }
     }

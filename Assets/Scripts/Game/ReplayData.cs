@@ -32,6 +32,8 @@ public static class ReplayData
         public bool killed;
         public int rTiles, mTiles;
         public int rAlive, mAlive;
+        public bool hasCaptured;
+        public int capturedQ, capturedR;
     }
 
     public struct Summary
@@ -103,6 +105,14 @@ public static class ReplayData
                 {
                     turn.targetQ = ExtractPosQ(line, "target");
                     turn.targetR = ExtractPosR(line, "target");
+                }
+
+                // Parse captured hex position.
+                turn.hasCaptured = line.Contains("\"captured\":[");
+                if (turn.hasCaptured)
+                {
+                    turn.capturedQ = ExtractPosQ(line, "captured");
+                    turn.capturedR = ExtractPosR(line, "captured");
                 }
 
                 replay.turns.Add(turn);
