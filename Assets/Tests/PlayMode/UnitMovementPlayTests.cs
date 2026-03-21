@@ -191,8 +191,9 @@ public class UnitMovementPlayTests
 
         bool moved = movement.TryMove(0); // East → (1,0) enemy slime
 
+        int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimeEntryCostRobot : 3;
         Assert.IsTrue(moved, "Robot should be able to enter enemy slime (paying energy).");
-        Assert.AreEqual(12, unitData.Energy, "Robot pays 3 energy to enter enemy slime.");
+        Assert.AreEqual(15 - slimeCost, unitData.Energy, $"Robot pays {slimeCost} energy to enter enemy slime.");
         Assert.AreEqual(TileType.Empty, tile.TileType, "Slime should be destroyed.");
         Assert.AreEqual(Team.Robot, tile.Owner, "Robot claims tile after destroying slime (free capture).");
     }

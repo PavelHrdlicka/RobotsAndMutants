@@ -331,9 +331,10 @@ public class MovementMechanicsTests
 
         bool moved = move.TryMove(0);
 
+        int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimeEntryCostRobot : 3;
         Assert.IsTrue(moved, "Robot should be able to enter enemy slime.");
-        Assert.AreEqual(12, unit.Energy,
-            "Entering enemy slime should cost 3 energy (slimeEntryCostRobot).");
+        Assert.AreEqual(15 - slimeCost, unit.Energy,
+            $"Entering enemy slime should cost {slimeCost} energy (slimeEntryCostRobot).");
     }
 
     [UnityTest]
@@ -382,7 +383,8 @@ public class MovementMechanicsTests
         tile.TileType = TileType.Slime;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 2; // Not enough (costs 3)
+        int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimeEntryCostRobot : 3;
+        unit.Energy = slimeCost - 1; // Not enough
 
         bool moved = move.TryMove(0);
 
@@ -740,7 +742,8 @@ public class MovementMechanicsTests
         tile.TileType = TileType.Slime;
 
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        unit.Energy = 2;
+        int slimeCost = GameConfig.Instance != null ? GameConfig.Instance.slimeEntryCostRobot : 3;
+        unit.Energy = slimeCost - 1;
         Assert.IsFalse(move.IsValidMove(0),
             "IsValidMove should be false for enemy slime without enough energy.");
     }

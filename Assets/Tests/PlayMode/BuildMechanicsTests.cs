@@ -302,7 +302,8 @@ public class BuildMechanicsTests
         tile.Owner = Team.Robot;
 
         var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 3; // Not enough (costs 4)
+        int wallCostVal = GameConfig.Instance != null ? GameConfig.Instance.wallBuildCost : 4;
+        robot.Energy = wallCostVal - 1; // Not enough
 
         bool built = move.TryBuild(0);
 
