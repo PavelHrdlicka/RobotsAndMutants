@@ -53,20 +53,23 @@ public class AttackEffects : MonoBehaviour
         CreateRespawnParticles();
     }
 
+    private static bool IsCombatAction(UnitAction a)
+        => a == UnitAction.Attack || a == UnitAction.DestroyWall;
+
     private void Update()
     {
         if (unitData == null) return;
 
-        // Detect attack start.
-        if (unitData.lastAction == UnitAction.Attack && prevAction != UnitAction.Attack)
+        // Detect combat start (Attack or DestroyWall).
+        if (IsCombatAction(unitData.lastAction) && !IsCombatAction(prevAction))
             OnAttack();
 
-        // Detect attack end → restore tile colors immediately.
-        if (prevAction == UnitAction.Attack && unitData.lastAction != UnitAction.Attack)
+        // Detect combat end → restore tile colors immediately.
+        if (IsCombatAction(prevAction) && !IsCombatAction(unitData.lastAction))
             UnflashTiles();
 
-        // Safety: always unflash if action is not Attack (catch edge cases).
-        if (isFlashing && unitData.lastAction != UnitAction.Attack)
+        // Safety: always unflash if action is not combat.
+        if (isFlashing && !IsCombatAction(unitData.lastAction))
             UnflashTiles();
 
         // Auto-unflash after 2 frames (handles replay mode where lastAction
@@ -97,8 +100,13 @@ public class AttackEffects : MonoBehaviour
     {
         if (grid == null) return;
 
-        // Direction toward the attack target hex.
-        Vector3 targetWorld = grid.HexToWorld(unitData.lastAttackHex);
+        // Target hex: Attack uses lastAttackHex, DestroyWall uses lastBuildTarget.
+        HexCoord targetHex = unitData.lastAction == UnitAction.DestroyWall
+            ? unitData.lastBuildTarget
+            : unitData.lastAttackHex;
+
+        // Direction toward the target hex.
+        Vector3 targetWorld = grid.HexToWorld(targetHex);
         Vector3 dir = targetWorld - transform.position;
         dir.y = 0;
         if (dir.sqrMagnitude < 0.001f) dir = transform.forward;
@@ -145,8 +153,11 @@ public class AttackEffects : MonoBehaviour
             }
         }
 
-        // Target tile → orange (the adjacent hex being attacked — unit or wall).
-        var tTile = grid.GetTile(unitData.lastAttackHex);
+        // Target tile → orange (the adjacent hex being attacked or destroyed).
+        HexCoord flashTarget = unitData.lastAction == UnitAction.DestroyWall
+            ? unitData.lastBuildTarget
+            : unitData.lastAttackHex;
+        var tTile = grid.GetTile(flashTarget);
         if (tTile != null)
         {
             var meshGen2 = tTile.GetComponent<HexMeshGenerator>();
