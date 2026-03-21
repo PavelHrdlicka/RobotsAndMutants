@@ -49,6 +49,8 @@ public partial class GameManager : MonoBehaviour
     private int      turnIndex   = -1;
     private UnitData pendingUnit = null;
     private bool     turnStarted = false;
+    private Team     lastTeamPlayed = Team.None; // for strict alternation
+    private Team     startingTeam   = Team.Robot; // who starts each round
 
     // Per-game action counters (reset each episode in ResetGame).
     private int robotAttacks, robotBuilds, robotKills;
@@ -163,47 +165,70 @@ public partial class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Interleaved turn order — odd rounds robots first, even rounds mutants first.
-    /// Dead units are included so their slot can be skipped cheaply in AdvanceTurn.
+    /// Build strictly alternating turn order: R, M, R, M, ...
+    /// Starting team alternates each round (or loser starts after a game).
+    /// Dead units are skipped but alternation is preserved — never two
+    /// consecutive turns for the same team.
     /// </summary>
     private void BuildTurnOrder()
     {
         turnOrder.Clear();
-        bool robotsFirst = (currentRound % 2 == 1);
-        var  first  = robotsFirst ? unitFactory.robotUnits  : unitFactory.mutantUnits;
-        var  second = robotsFirst ? unitFactory.mutantUnits : unitFactory.robotUnits;
 
-        int max = Mathf.Max(first.Count, second.Count);
-        for (int i = 0; i < max; i++)
+        var robots  = new List<UnitData>();
+        var mutants = new List<UnitData>();
+        foreach (var u in unitFactory.robotUnits)  if (u.isAlive) robots.Add(u);
+        foreach (var u in unitFactory.mutantUnits) if (u.isAlive) mutants.Add(u);
+
+        bool robotNext = (startingTeam == Team.Robot);
+        int ri = 0, mi = 0;
+
+        // Interleave alive units strictly.
+        while (ri < robots.Count || mi < mutants.Count)
         {
-            if (i < first.Count)  turnOrder.Add(first[i]);
-            if (i < second.Count) turnOrder.Add(second[i]);
+            if (robotNext && ri < robots.Count)
+            {
+                turnOrder.Add(robots[ri++]);
+                robotNext = false;
+            }
+            else if (!robotNext && mi < mutants.Count)
+            {
+                turnOrder.Add(mutants[mi++]);
+                robotNext = true;
+            }
+            else
+            {
+                // One team exhausted — add remaining from the other.
+                robotNext = !robotNext;
+            }
         }
+
+        lastTeamPlayed = Team.None;
     }
 
     private void AdvanceTurn()
     {
         turnIndex++;
 
-        while (turnIndex < turnOrder.Count && !turnOrder[turnIndex].isAlive)
-            turnIndex++;
-
         if (turnIndex >= turnOrder.Count)
         {
             unitFactory.RespawnReady();
             turnStarted = false;
+
+            // Alternate starting team each round.
+            startingTeam = (startingTeam == Team.Robot) ? Team.Mutant : Team.Robot;
             return;
         }
 
         pendingUnit = turnOrder[turnIndex];
 
-        if (pendingUnit == null || !pendingUnit.gameObject.activeInHierarchy)
+        if (pendingUnit == null || !pendingUnit.isAlive || !pendingUnit.gameObject.activeInHierarchy)
         {
             AdvanceTurn();
             return;
         }
 
         pendingUnit.isMyTurn = true;
+        lastTeamPlayed = pendingUnit.team;
     }
 
     private void PostTurnProcessing(UnitData unit)

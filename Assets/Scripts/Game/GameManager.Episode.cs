@@ -31,6 +31,14 @@ public partial class GameManager
 
     public void ResetGame()
     {
+        // Loser of previous game starts next. First game or draw → random.
+        if (winner == Team.Robot)
+            startingTeam = Team.Mutant;
+        else if (winner == Team.Mutant)
+            startingTeam = Team.Robot;
+        else
+            startingTeam = Random.value < 0.5f ? Team.Robot : Team.Mutant;
+
         currentRound  = 0;
         gameOver      = false;
         winner        = Team.None;

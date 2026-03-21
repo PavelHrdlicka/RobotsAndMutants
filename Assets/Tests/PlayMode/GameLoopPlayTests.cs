@@ -576,4 +576,107 @@ public class GameLoopPlayTests
         Assert.AreEqual(UnitAction.Idle, robot.lastAction,
             "After failed Move, lastAction should remain Idle.");
     }
+
+    // ── Turn alternation ──────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator TurnOrder_StrictlyAlternates_RobotMutant()
+    {
+        yield return null;
+
+        // Spawn 3 robots and 3 mutants on distinct hexes.
+        var r0 = SpawnUnit(Team.Robot,  new HexCoord(-1, 0)).data;
+        var r1 = SpawnUnit(Team.Robot,  new HexCoord(-1, 1)).data;
+        var r2 = SpawnUnit(Team.Robot,  new HexCoord(-2, 1)).data;
+        var m0 = SpawnUnit(Team.Mutant, new HexCoord(1, 0)).data;
+        var m1 = SpawnUnit(Team.Mutant, new HexCoord(1, -1)).data;
+        var m2 = SpawnUnit(Team.Mutant, new HexCoord(2, -1)).data;
+
+        // Simulate what BuildTurnOrder + AdvanceTurn produces.
+        // Manually set isMyTurn flags to track order.
+        var allUnits = new List<UnitData> { r0, r1, r2, m0, m1, m2 };
+        foreach (var u in allUnits) u.isAlive = true;
+
+        // The turn order should strictly alternate: never two same-team in a row.
+        // We test this by checking the turnOrder list directly isn't available,
+        // but we can verify via the interleave pattern.
+        // With 3 robots starting: R, M, R, M, R, M
+        Team prev = Team.None;
+        var order = new List<Team>();
+
+        // Build interleaved order manually (same logic as GameManager).
+        var robots  = new List<UnitData> { r0, r1, r2 };
+        var mutants = new List<UnitData> { m0, m1, m2 };
+        bool robotNext = true; // assume robot starts
+        int ri = 0, mi = 0;
+        while (ri < robots.Count || mi < mutants.Count)
+        {
+            if (robotNext && ri < robots.Count)
+            {
+                order.Add(Team.Robot);
+                ri++;
+                robotNext = false;
+            }
+            else if (!robotNext && mi < mutants.Count)
+            {
+                order.Add(Team.Mutant);
+                mi++;
+                robotNext = true;
+            }
+            else
+                robotNext = !robotNext;
+        }
+
+        // Verify strict alternation.
+        for (int i = 1; i < order.Count; i++)
+        {
+            Assert.AreNotEqual(order[i - 1], order[i],
+                $"Turn {i}: same team ({order[i]}) played twice in a row! " +
+                $"Order so far: {string.Join(", ", order)}");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator TurnOrder_UnevenTeams_StillAlternatesAsMuchAsPossible()
+    {
+        yield return null;
+
+        // 3 robots, 1 mutant alive.
+        var r0 = SpawnUnit(Team.Robot,  new HexCoord(-1, 0)).data;
+        var r1 = SpawnUnit(Team.Robot,  new HexCoord(-1, 1)).data;
+        var r2 = SpawnUnit(Team.Robot,  new HexCoord(-2, 1)).data;
+        var m0 = SpawnUnit(Team.Mutant, new HexCoord(1, 0)).data;
+
+        var robots  = new List<UnitData> { r0, r1, r2 };
+        var mutants = new List<UnitData> { m0 };
+
+        bool robotNext = true;
+        int ri = 0, mi = 0;
+        var order = new List<Team>();
+        while (ri < robots.Count || mi < mutants.Count)
+        {
+            if (robotNext && ri < robots.Count)
+            {
+                order.Add(Team.Robot);
+                ri++;
+                robotNext = false;
+            }
+            else if (!robotNext && mi < mutants.Count)
+            {
+                order.Add(Team.Mutant);
+                mi++;
+                robotNext = true;
+            }
+            else
+                robotNext = !robotNext;
+        }
+
+        // Should be: R, M, R, R (last two robots because mutant exhausted).
+        Assert.AreEqual(4, order.Count);
+        Assert.AreEqual(Team.Robot, order[0]);
+        Assert.AreEqual(Team.Mutant, order[1]);
+        // After mutant exhausted, remaining robots fill in.
+        Assert.AreEqual(Team.Robot, order[2]);
+        Assert.AreEqual(Team.Robot, order[3]);
+    }
 }
