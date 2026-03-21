@@ -256,6 +256,15 @@ public class HexGrid : MonoBehaviour
         return count;
     }
 
+    /// <summary>Count all structures of a given type on the board (any team).</summary>
+    public int CountStructures(TileType structureType)
+    {
+        int count = 0;
+        foreach (var tile in tiles.Values)
+            if (tile.TileType == structureType) count++;
+        return count;
+    }
+
     // ── Territory analysis (BFS) ───────────────────────────────────────────
 
     /// <summary>

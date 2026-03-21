@@ -134,6 +134,7 @@ Jednoduchý diskrétní branch s 25 akcemi:
 ### Invarianty
 - **Sliz může existovat jen na Mutant území.** Při změně vlastníka se automaticky smaže.
 - **Zeď může existovat jen na Robot území.** Při změně vlastníka se automaticky smaže.
+- **Globální cap:** Max **8 zdí** a max **8 slizů** na mapě současně. Při dosažení capu je stavba zamaskována (akce nedostupná).
 
 ### Zdi (Robot)
 - Stavba na **sousední vlastní prázdný hex** (ne base, ne obsazený).
@@ -242,6 +243,8 @@ Sekvenční tahový model se striktní alternací R/M:
 | wallMaxHP | 4 | Max HP zdi |
 | slimePlaceCost | 2 | Cena umístění slizu |
 | destroyOwnWallCost | 0 | Cena zničení vlastní zdi |
+| maxWalls | 8 | Max zdí na mapě (0 = neomezeno) |
+| maxSlime | 8 | Max slizů na mapě (0 = neomezeno) |
 | slimeEntryCostRobot | 1 | Cena vstupu Robota na nepřátelský sliz |
 | baseRegenPerStep | 2 | Regenerace na base hexu |
 | slimeRegenPerStep | 1 | Regenerace Mutanta na slimu |

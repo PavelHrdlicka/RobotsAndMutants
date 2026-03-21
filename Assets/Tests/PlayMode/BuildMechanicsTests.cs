@@ -735,4 +735,148 @@ public class BuildMechanicsTests
         bool built = move.TryBuild(0);
         Assert.IsFalse(built, "Cannot build wall on hex with dead unit waiting for respawn.");
     }
+
+    // ── Structure cap ────────────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Build_Wall_AtCap_Blocked()
+    {
+        yield return null;
+
+        int maxWalls = GameConfig.Instance != null ? GameConfig.Instance.maxWalls : 0;
+        if (maxWalls <= 0)
+        {
+            Assert.Inconclusive("maxWalls is unlimited — cap test not applicable.");
+            yield break;
+        }
+
+        // Fill up to cap by setting tiles to Wall directly.
+        int placed = 0;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (placed >= maxWalls) break;
+            if (kvp.Value.isBase) continue;
+            kvp.Value.Owner = Team.Robot;
+            kvp.Value.TileType = TileType.Wall;
+            kvp.Value.WallHP = 3;
+            placed++;
+        }
+        Assert.AreEqual(maxWalls, grid.CountStructures(TileType.Wall),
+            "Should have exactly maxWalls walls placed.");
+
+        // Find an empty robot hex to build on.
+        HexCoord buildTarget = default;
+        bool found = false;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (!kvp.Value.isBase && kvp.Value.TileType == TileType.Empty)
+            {
+                kvp.Value.Owner = Team.Robot;
+                buildTarget = kvp.Key;
+                found = true;
+                break;
+            }
+        }
+        if (!found) { Assert.Inconclusive("No free hex for build test."); yield break; }
+
+        // Place robot adjacent to that hex.
+        HexCoord robotHex = default;
+        bool foundAdj = false;
+        for (int d = 0; d < 6; d++)
+        {
+            var n = buildTarget.Neighbor(d);
+            var nTile = grid.GetTile(n);
+            if (nTile != null && nTile.TileType != TileType.Wall)
+            {
+                robotHex = n;
+                foundAdj = true;
+                break;
+            }
+        }
+        if (!foundAdj) { Assert.Inconclusive("No adjacent hex for robot."); yield break; }
+
+        var (robot, move) = SpawnUnit(Team.Robot, robotHex);
+
+        // Find direction from robot to buildTarget.
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (robotHex.Neighbor(d) == buildTarget) { dir = d; break; }
+        }
+        Assert.IsTrue(dir >= 0);
+
+        Assert.IsFalse(move.IsValidBuild(dir),
+            "IsValidBuild should return false when wall cap is reached.");
+        Assert.IsFalse(move.TryBuild(dir),
+            "TryBuild should fail when wall cap is reached.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Slime_AtCap_Blocked()
+    {
+        yield return null;
+
+        int maxSlime = GameConfig.Instance != null ? GameConfig.Instance.maxSlime : 0;
+        if (maxSlime <= 0)
+        {
+            Assert.Inconclusive("maxSlime is unlimited — cap test not applicable.");
+            yield break;
+        }
+
+        // Fill up to cap.
+        int placed = 0;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (placed >= maxSlime) break;
+            if (kvp.Value.isBase) continue;
+            kvp.Value.Owner = Team.Mutant;
+            kvp.Value.TileType = TileType.Slime;
+            placed++;
+        }
+        Assert.AreEqual(maxSlime, grid.CountStructures(TileType.Slime));
+
+        // Find an empty mutant hex for the mutant to stand on.
+        HexCoord mutantHex = default;
+        bool found = false;
+        foreach (var kvp in grid.Tiles)
+        {
+            if (!kvp.Value.isBase && kvp.Value.TileType == TileType.Empty)
+            {
+                kvp.Value.Owner = Team.Mutant;
+                mutantHex = kvp.Key;
+                found = true;
+                break;
+            }
+        }
+        if (!found) { Assert.Inconclusive("No free hex for slime test."); yield break; }
+
+        var (mutant, move) = SpawnUnit(Team.Mutant, mutantHex);
+
+        Assert.IsFalse(move.IsValidBuild(0),
+            "IsValidBuild should return false when slime cap is reached.");
+        Assert.IsFalse(move.TryBuild(0),
+            "TryBuild should fail when slime cap is reached.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Wall_UnderCap_Succeeds()
+    {
+        yield return null;
+
+        int maxWalls = GameConfig.Instance != null ? GameConfig.Instance.maxWalls : 0;
+        if (maxWalls <= 0)
+        {
+            Assert.Inconclusive("maxWalls is unlimited — cap test not applicable.");
+            yield break;
+        }
+
+        // No walls placed yet — should succeed.
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        Assert.IsTrue(move.IsValidBuild(0), "Build should be valid under cap.");
+        Assert.IsTrue(move.TryBuild(0), "Build should succeed under cap.");
+    }
 }

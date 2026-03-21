@@ -263,6 +263,11 @@ public class HexMovement : MonoBehaviour
             if (tile.Owner != unitData.team)     return false;
             if (tile.TileType != TileType.Empty) return false;
 
+            // Global slime cap.
+            int maxSlime = cfg != null ? cfg.maxSlime : 0;
+            if (maxSlime > 0 && grid.CountStructures(TileType.Slime) >= maxSlime)
+                return false;
+
             int cost = cfg != null ? cfg.slimePlaceCost : 2;
             if (unitData.Energy < cost) return false;
             unitData.Energy -= cost;
@@ -279,6 +284,11 @@ public class HexMovement : MonoBehaviour
         if (wallTile.Owner != unitData.team)         return false;
         if (wallTile.TileType != TileType.Empty)     return false;
         if (IsOccupied(targetCoord))                 return false;
+
+        // Global wall cap.
+        int maxWalls = cfg != null ? cfg.maxWalls : 0;
+        if (maxWalls > 0 && grid.CountStructures(TileType.Wall) >= maxWalls)
+            return false;
 
         int wallCost = cfg != null ? cfg.wallBuildCost : 4;
         if (unitData.Energy < wallCost) return false;
@@ -395,6 +405,11 @@ public class HexMovement : MonoBehaviour
             if (tile.Owner != unitData.team)     return false;
             if (tile.TileType != TileType.Empty) return false;
 
+            // Global slime cap.
+            int maxSlime = cfg != null ? cfg.maxSlime : 0;
+            if (maxSlime > 0 && grid.CountStructures(TileType.Slime) >= maxSlime)
+                return false;
+
             int cost = cfg != null ? cfg.slimePlaceCost : 2;
             return unitData.Energy >= cost;
         }
@@ -406,6 +421,11 @@ public class HexMovement : MonoBehaviour
         if (tile2.Owner != unitData.team)      return false;
         if (tile2.TileType != TileType.Empty)  return false;
         if (IsOccupied(target))                return false;
+
+        // Global wall cap.
+        int maxWalls = cfg != null ? cfg.maxWalls : 0;
+        if (maxWalls > 0 && grid.CountStructures(TileType.Wall) >= maxWalls)
+            return false;
 
         int wallCost = cfg != null ? cfg.wallBuildCost : 4;
         return unitData.Energy >= wallCost;

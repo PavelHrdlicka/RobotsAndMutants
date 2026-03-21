@@ -23,6 +23,8 @@ MonoBehaviour:
   wallMaxHP: 4
   slimePlaceCost: 2
   destroyOwnWallCost: 0
+  maxWalls: 8
+  maxSlime: 8
   attackUnitCost: 3
   attackUnitDamage: 4
   attackWallCost: 2

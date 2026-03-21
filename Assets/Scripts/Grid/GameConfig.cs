@@ -73,6 +73,14 @@ public class GameConfig : ScriptableObject
     [Range(0, 5)]
     public int destroyOwnWallCost = 0;
 
+    [Tooltip("Maximum walls allowed on the board at once. 0 = unlimited.")]
+    [Range(0, 50)]
+    public int maxWalls = 8;
+
+    [Tooltip("Maximum slime tiles allowed on the board at once. 0 = unlimited.")]
+    [Range(0, 50)]
+    public int maxSlime = 8;
+
     [Header("Combat")]
     [Tooltip("Energy cost to attack an enemy unit.")]
     [Range(1, 10)]
