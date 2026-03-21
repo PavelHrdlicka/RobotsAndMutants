@@ -83,7 +83,18 @@ public partial class GameManager : MonoBehaviour
         {
             maxRounds     = config.maxSteps;
             winThreshold  = config.WinThreshold;
-            Time.timeScale = config.TimeScale;
+
+            // Silent training: max speed — no rendering overhead.
+            if (GameConfig.SilentTraining)
+            {
+                Time.timeScale = 100f;
+                QualitySettings.vSyncCount = 0;
+                Application.targetFrameRate = -1; // uncapped
+            }
+            else
+            {
+                Time.timeScale = config.TimeScale;
+            }
         }
 
         grid        = FindFirstObjectByType<HexGrid>();
