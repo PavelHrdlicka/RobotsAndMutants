@@ -98,9 +98,9 @@ Jednoduchý diskrétní branch s 25 akcemi:
 
 ### Priorita útoku
 1. **Nepřátelská jednotka** → útok na jednotku
-2. **Zeď (jakéhokoliv týmu)** → útok na zeď
+2. **Nepřátelská zeď** → útok na zeď
 
-**Neplatné cíle (útok selže):** neutrální hex, nepřátelský prázdný hex, sliz, vlastní jednotka, mrtvá jednotka, vlastní prázdný hex.
+**Neplatné cíle (útok selže):** neutrální hex, nepřátelský prázdný hex, sliz, vlastní jednotka, vlastní zeď, mrtvá jednotka, vlastní prázdný hex.
 
 ### Friendly fire
 - **Zakázáno.** Jednotky nemohou útočit na spoluhráče.

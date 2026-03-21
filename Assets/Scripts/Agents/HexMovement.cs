@@ -161,9 +161,9 @@ public class HexMovement : MonoBehaviour
         if (enemy != null)
             return AttackUnit(enemy, cfg);
 
-        // Priority 2: Attack wall (any team's wall).
+        // Priority 2: Attack enemy wall (own walls use DestroyWall instead).
         var tile = grid.GetTile(targetCoord);
-        if (tile != null && tile.TileType == TileType.Wall)
+        if (tile != null && tile.TileType == TileType.Wall && tile.Owner != unitData.team)
             return AttackWall(tile, cfg);
 
         return false;
@@ -371,9 +371,9 @@ public class HexMovement : MonoBehaviour
         if (FindEnemyAt(target) != null)
             return unitData.Energy >= (cfg != null ? cfg.attackUnitCost : 3);
 
-        // Wall (any team's)?
+        // Enemy wall only (own walls use DestroyWall).
         var tile = grid.GetTile(target);
-        if (tile != null && tile.TileType == TileType.Wall)
+        if (tile != null && tile.TileType == TileType.Wall && tile.Owner != unitData.team)
             return unitData.Energy >= (cfg != null ? cfg.attackWallCost : 2);
 
         return false;

@@ -230,7 +230,7 @@ public class AttackMechanicsTests
     }
 
     [UnityTest]
-    public IEnumerator Attack_OwnWall_Succeeds()
+    public IEnumerator Attack_OwnWall_Fails()
     {
         yield return null;
 
@@ -243,9 +243,44 @@ public class AttackMechanicsTests
 
         bool attacked = robotMove.TryAttack(0);
 
-        Assert.IsTrue(attacked,
-            "Should be able to attack own wall (any team's wall is valid target).");
+        Assert.IsFalse(attacked,
+            "Cannot attack own wall — use DestroyWall instead.");
+        Assert.AreEqual(3, tile.WallHP, "Own wall HP should not change.");
+        Assert.AreEqual(robot.maxEnergy, robot.Energy, "Energy should not change.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_EnemyWall_Succeeds()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        bool attacked = robotMove.TryAttack(0);
+
+        Assert.IsTrue(attacked, "Should be able to attack enemy wall.");
         Assert.AreEqual(2, tile.WallHP);
+    }
+
+    [UnityTest]
+    public IEnumerator IsValidAttack_OwnWall_False()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (_, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        Assert.IsFalse(move.IsValidAttack(0),
+            "IsValidAttack should be false for own wall.");
     }
 
     [UnityTest]
