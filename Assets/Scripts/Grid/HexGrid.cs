@@ -32,8 +32,8 @@ public class HexGrid : MonoBehaviour
 
     private void Awake()
     {
-        // Skip camera setup in test mode — URP initialization in empty InitTestScene blocks.
-        if (!TestModeDetector.IsTestMode())
+        // Skip camera setup in test mode and silent training.
+        if (!TestModeDetector.IsTestMode() && !GameConfig.SilentTraining)
             EnsureCamera();
     }
 

@@ -68,12 +68,20 @@ public partial class GameManager : MonoBehaviour
         gameOver, winner
     );
 
-    private IEnumerator Start()
+    /// <summary>
+    /// Runs before ANY Awake — ensures SilentTraining flag is set before
+    /// HexGrid.Awake creates camera or UnitFactory creates visuals.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void InitSilentTraining()
     {
-        // Read silent training flag (set by ProjectToolsWindow before Play mode).
 #if UNITY_EDITOR
         GameConfig.SilentTraining = UnityEditor.SessionState.GetBool("SilentTraining", false);
 #endif
+    }
+
+    private IEnumerator Start()
+    {
 
         yield return null;
         yield return null;
