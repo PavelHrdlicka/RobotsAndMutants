@@ -17,14 +17,15 @@ public class AttackEffects : MonoBehaviour
     private UnitAction prevAction;
     private bool wasAlive;
 
-    // Tile flash state.
+    // Tile flash state — only active during the attack turn.
     private HexTileData flashedAttackerTile;
-    private HexTileData flashedDefenderTile;
+    private HexTileData flashedTargetTile;
     private Color savedAttackerColor;
-    private Color savedDefenderColor;
+    private Color savedTargetColor;
+    private bool isFlashing;
 
     private static readonly Color AttackerFlashColor = new Color(0.9f, 0.15f, 0.1f);  // red
-    private static readonly Color DefenderFlashColor = new Color(1f, 0.55f, 0.1f);     // orange
+    private static readonly Color TargetFlashColor   = new Color(1f, 0.55f, 0.1f);     // orange
 
     // Particle system references (created once, reused).
     private ParticleSystem sparkPS;
@@ -59,8 +60,12 @@ public class AttackEffects : MonoBehaviour
         if (unitData.lastAction == UnitAction.Attack && prevAction != UnitAction.Attack)
             OnAttack();
 
-        // Detect attack end → restore tile colors.
-        if (unitData.lastAction != UnitAction.Attack && prevAction == UnitAction.Attack)
+        // Detect attack end → restore tile colors immediately.
+        if (prevAction == UnitAction.Attack && unitData.lastAction != UnitAction.Attack)
+            UnflashTiles();
+
+        // Safety: always unflash if action is not Attack (catch edge cases).
+        if (isFlashing && unitData.lastAction != UnitAction.Attack)
             UnflashTiles();
 
         // Detect death.
@@ -80,26 +85,13 @@ public class AttackEffects : MonoBehaviour
 
     private void OnAttack()
     {
-        // Find target direction (look at the last attack target — use moveTo as proxy,
-        // but for attack the unit stays in place, so we look at adjacent enemy).
-        Vector3 dir = transform.forward;
-        // Try to find the enemy we attacked (the one with Defend state).
-        var allUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
-        foreach (var u in allUnits)
-        {
-            if (u == unitData || !u.isAlive) continue;
-            if (u.lastAction == UnitAction.Defend && u.team != unitData.team)
-            {
-                int dist = HexCoord.Distance(unitData.currentHex, u.currentHex);
-                if (dist == 1)
-                {
-                    Vector3 enemyPos = u.transform.position;
-                    dir = (enemyPos - transform.position);
-                    dir.y = 0;
-                    break;
-                }
-            }
-        }
+        if (grid == null) return;
+
+        // Direction toward the attack target hex.
+        Vector3 targetWorld = grid.HexToWorld(unitData.lastAttackHex);
+        Vector3 dir = targetWorld - transform.position;
+        dir.y = 0;
+        if (dir.sqrMagnitude < 0.001f) dir = transform.forward;
 
         if (robotModel != null)
         {
@@ -130,7 +122,7 @@ public class AttackEffects : MonoBehaviour
     {
         if (grid == null) return;
 
-        // Attacker tile → red.
+        // Attacker tile → red (under the attacking unit).
         var aTile = grid.GetTile(unitData.currentHex);
         if (aTile != null)
         {
@@ -143,28 +135,20 @@ public class AttackEffects : MonoBehaviour
             }
         }
 
-        // Defender tile → orange (find adjacent enemy with Defend state).
-        var allUnits = FindObjectsByType<UnitData>(FindObjectsSortMode.None);
-        foreach (var u in allUnits)
+        // Target tile → orange (the adjacent hex being attacked — unit or wall).
+        var tTile = grid.GetTile(unitData.lastAttackHex);
+        if (tTile != null)
         {
-            if (u == unitData || u.team == unitData.team) continue;
-            if (u.lastAction == UnitAction.Defend &&
-                HexCoord.Distance(unitData.currentHex, u.currentHex) == 1)
+            var meshGen2 = tTile.GetComponent<HexMeshGenerator>();
+            if (meshGen2 != null)
             {
-                var dTile = grid.GetTile(u.currentHex);
-                if (dTile != null)
-                {
-                    var meshGen2 = dTile.GetComponent<HexMeshGenerator>();
-                    if (meshGen2 != null)
-                    {
-                        savedDefenderColor = GetCurrentColor(dTile);
-                        meshGen2.SetColor(DefenderFlashColor);
-                        flashedDefenderTile = dTile;
-                    }
-                }
-                break;
+                savedTargetColor = GetCurrentColor(tTile);
+                meshGen2.SetColor(TargetFlashColor);
+                flashedTargetTile = tTile;
             }
         }
+
+        isFlashing = true;
     }
 
     private void UnflashTiles()
@@ -175,12 +159,13 @@ public class AttackEffects : MonoBehaviour
             if (meshGen != null) meshGen.SetColor(savedAttackerColor);
             flashedAttackerTile = null;
         }
-        if (flashedDefenderTile != null)
+        if (flashedTargetTile != null)
         {
-            var meshGen = flashedDefenderTile.GetComponent<HexMeshGenerator>();
-            if (meshGen != null) meshGen.SetColor(savedDefenderColor);
-            flashedDefenderTile = null;
+            var meshGen = flashedTargetTile.GetComponent<HexMeshGenerator>();
+            if (meshGen != null) meshGen.SetColor(savedTargetColor);
+            flashedTargetTile = null;
         }
+        isFlashing = false;
     }
 
     private static Color GetCurrentColor(HexTileData tile)
