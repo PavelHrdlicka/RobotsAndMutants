@@ -95,7 +95,7 @@ public partial class GameManager : MonoBehaviour
             // Silent training: max speed — no rendering overhead.
             if (GameConfig.SilentTraining)
             {
-                Time.timeScale = 100f;
+                Time.timeScale = 20f;
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = -1; // uncapped
             }
