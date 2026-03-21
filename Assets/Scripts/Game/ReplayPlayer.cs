@@ -73,6 +73,21 @@ public class ReplayPlayer : MonoBehaviour
         return $"{t.unitName}: {t.action} at ({t.q},{t.r})";
     }
 
+    /// <summary>
+    /// Initialize replay player for testing — bypasses Start() coroutine.
+    /// Call after grid and units are ready.
+    /// </summary>
+    public void TestInitialize(ReplayData.ReplayFile replayFile, HexGrid hexGrid, UnitFactory factory)
+    {
+        replay = replayFile;
+        grid = hexGrid;
+        unitFactory = factory;
+        replayFileName = "test_replay";
+        BuildUnitMap();
+        ResetToStart();
+        state = PlaybackState.Paused;
+    }
+
     // ── Lifecycle ───────────────────────────────────────────────────────
 
     private void Awake()
