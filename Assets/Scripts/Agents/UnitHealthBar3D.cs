@@ -14,7 +14,13 @@ public class UnitHealthBar3D : MonoBehaviour
     private Transform barBg;
     private Renderer fillRenderer;
     private Renderer bgRenderer;
+    private TextMesh energyText;
     private Camera cam;
+
+    // Model greying.
+    private Renderer[] modelRenderers;
+    private Color[] originalColors;
+    private float prevFrac = -1f;
 
     private static Material barMaterial;
 
@@ -66,6 +72,39 @@ public class UnitHealthBar3D : MonoBehaviour
         fillRenderer = fillGo.GetComponent<Renderer>();
         fillRenderer.material = new Material(barMaterial);
         barFill = fillGo.transform;
+
+        // Energy number text.
+        var textGo = new GameObject("EnergyText");
+        textGo.transform.SetParent(barRoot, false);
+        textGo.transform.localPosition = new Vector3(BarWidth * 0.5f + 0.02f, 0f, 0f);
+        energyText = textGo.AddComponent<TextMesh>();
+        energyText.fontSize = 40;
+        energyText.characterSize = 0.025f;
+        energyText.anchor = TextAnchor.MiddleLeft;
+        energyText.alignment = TextAlignment.Left;
+        energyText.color = Color.white;
+        energyText.fontStyle = FontStyle.Bold;
+        var tr = textGo.GetComponent<MeshRenderer>();
+        tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+    }
+
+    private void Start()
+    {
+        // Cache model part renderers for greying effect.
+        // ModelRoot is the child containing all visual parts.
+        var modelRoot = transform.Find("ModelRoot");
+        if (modelRoot != null)
+        {
+            modelRenderers = modelRoot.GetComponentsInChildren<Renderer>();
+            originalColors = new Color[modelRenderers.Length];
+            for (int i = 0; i < modelRenderers.Length; i++)
+            {
+                var mat = modelRenderers[i].material;
+                originalColors[i] = mat.HasProperty("_BaseColor")
+                    ? mat.GetColor("_BaseColor")
+                    : mat.color;
+            }
+        }
     }
 
     private void LateUpdate()
@@ -90,6 +129,52 @@ public class UnitHealthBar3D : MonoBehaviour
         float fillWidth = BarWidth * frac;
         barFill.localScale = new Vector3(fillWidth, BarHeight, BarDepth + 0.001f);
         barFill.localPosition = new Vector3((fillWidth - BarWidth) * 0.5f, 0f, 0f);
+
+        // Energy number.
+        if (energyText != null)
+            energyText.text = unitData.Energy.ToString();
+
+        // Grey out model parts from bottom to top based on lost energy.
+        if (modelRenderers != null && Mathf.Abs(frac - prevFrac) > 0.01f)
+        {
+            prevFrac = frac;
+            UpdateModelGreying(frac);
+        }
+    }
+
+    private static readonly Color GreyColor = new Color(0.25f, 0.25f, 0.25f);
+
+    private void UpdateModelGreying(float energyFrac)
+    {
+        if (modelRenderers == null) return;
+
+        int total = modelRenderers.Length;
+        // How many parts should be fully greyed (from bottom = index 0).
+        // At full energy: 0 greyed. At 0 energy: all greyed.
+        float greyFrac = 1f - energyFrac;
+        float greyParts = greyFrac * total;
+
+        for (int i = 0; i < total; i++)
+        {
+            if (modelRenderers[i] == null) continue;
+
+            float partProgress = total - 1 - i; // bottom parts first (reversed)
+            float t; // 0 = original, 1 = fully grey
+
+            if (partProgress < greyParts - 1f)
+                t = 1f; // fully grey
+            else if (partProgress < greyParts)
+                t = greyParts - partProgress; // partially grey
+            else
+                t = 0f; // original color
+
+            Color c = Color.Lerp(originalColors[i], GreyColor, t);
+            var mat = modelRenderers[i].material;
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", c);
+            else
+                mat.color = c;
+        }
     }
 
     private static void EnsureMaterial()
