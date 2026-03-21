@@ -319,6 +319,7 @@ public class HexMovement : MonoBehaviour
         tile.TileType = TileType.Empty;
         tile.WallHP = 0;
         unitData.lastAction = UnitAction.DestroyWall;
+        unitData.lastBuildTarget = target; // reuse for "target of structure action"
 
         return true;
     }

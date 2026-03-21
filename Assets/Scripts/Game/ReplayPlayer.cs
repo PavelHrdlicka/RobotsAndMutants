@@ -68,7 +68,7 @@ public class ReplayPlayer : MonoBehaviour
     {
         if (t.action == "Capture" && t.hasCaptured)
             return $"{t.unitName}: Capture ({t.capturedQ},{t.capturedR})";
-        if ((t.action == "BuildWall" || t.action == "PlaceSlime") && t.hasBuilt)
+        if ((t.action == "BuildWall" || t.action == "PlaceSlime" || t.action == "DestroyWall") && t.hasBuilt)
             return $"{t.unitName}: {t.action} → ({t.builtQ},{t.builtR})";
         if (t.action == "Attack" && t.hasAttackHex)
         {
@@ -445,6 +445,16 @@ public class ReplayPlayer : MonoBehaviour
             {
                 buildTile.Owner = team;
                 buildTile.TileType = TileType.Slime;
+            }
+        }
+        else if (turn.action == "DestroyWall" && turn.hasBuilt)
+        {
+            var destroyCoord = new HexCoord(turn.builtQ, turn.builtR);
+            var destroyTile = grid.GetTile(destroyCoord);
+            if (destroyTile != null)
+            {
+                destroyTile.TileType = TileType.Empty;
+                destroyTile.WallHP = 0;
             }
         }
         else if (turn.action == "Capture" && turn.hasCaptured)
