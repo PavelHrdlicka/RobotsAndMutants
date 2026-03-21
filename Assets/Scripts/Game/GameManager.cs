@@ -230,7 +230,10 @@ public partial class GameManager : MonoBehaviour
         if (turnIndex >= turnOrder.Count)
         {
             turnStarted = false;
-            startingTeam = (startingTeam == Team.Robot) ? Team.Mutant : Team.Robot;
+            // Next round starts with the OPPOSITE team of whoever played last,
+            // so there's never two same-team turns across round boundaries.
+            if (lastTeamPlayed != Team.None)
+                startingTeam = (lastTeamPlayed == Team.Robot) ? Team.Mutant : Team.Robot;
             return;
         }
 
