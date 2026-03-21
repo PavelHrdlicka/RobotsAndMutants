@@ -44,6 +44,13 @@ public class HexMovement : MonoBehaviour
 
     private void Update()
     {
+        // Dead units don't animate — clear any pending visual hops.
+        if (unitData != null && !unitData.isAlive)
+        {
+            if (moveQueue.Count > 0) moveQueue.Clear();
+            return;
+        }
+
         if (moveQueue.Count == 0) return;
 
         float speed = baseSpeed;
