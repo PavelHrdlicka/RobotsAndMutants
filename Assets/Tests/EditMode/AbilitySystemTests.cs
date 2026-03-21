@@ -76,7 +76,9 @@ public class AbilitySystemTests
 
         abilitySystem.UpdateAbilities(new List<UnitData> { unit });
 
-        Assert.AreEqual(13, unit.Energy, "Robot on own base should gain 3 energy.");
+        int regen = GameConfig.Instance != null ? GameConfig.Instance.baseRegenPerStep : 3;
+        Assert.AreEqual(10 + regen, unit.Energy,
+            $"Robot on own base should gain {regen} energy (baseRegenPerStep).");
     }
 
     [Test]
@@ -87,7 +89,9 @@ public class AbilitySystemTests
 
         abilitySystem.UpdateAbilities(new List<UnitData> { unit });
 
-        Assert.AreEqual(13, unit.Energy, "Mutant on own base should gain 3 energy.");
+        int regen = GameConfig.Instance != null ? GameConfig.Instance.baseRegenPerStep : 3;
+        Assert.AreEqual(10 + regen, unit.Energy,
+            $"Mutant on own base should gain {regen} energy (baseRegenPerStep).");
     }
 
     [Test]
@@ -180,9 +184,10 @@ public class AbilitySystemTests
 
         abilitySystem.UpdateAbilities(new List<UnitData> { unit });
 
-        // Base regen +3 and slime regen +1 = +4 total.
-        Assert.AreEqual(9, unit.Energy,
-            "Mutant on own base with slime should get both regens (+3 base + +1 slime).");
+        int baseRegen = GameConfig.Instance != null ? GameConfig.Instance.baseRegenPerStep : 3;
+        int slimeRegen = GameConfig.Instance != null ? GameConfig.Instance.slimeRegenPerStep : 1;
+        Assert.AreEqual(5 + baseRegen + slimeRegen, unit.Energy,
+            $"Mutant on own base with slime should get both regens (+{baseRegen} base + +{slimeRegen} slime).");
     }
 
     // ── Dead unit ─────────────────────────────────────────────────────────

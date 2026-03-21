@@ -76,6 +76,13 @@ public class AttackMechanicsTests
         return (data, move);
     }
 
+    // Config helpers to avoid hardcoded values.
+    private static int AtkCost => GameConfig.Instance != null ? GameConfig.Instance.attackUnitCost : 3;
+    private static int AtkDmg  => GameConfig.Instance != null ? GameConfig.Instance.attackUnitDamage : 3;
+    private static int WallAtkCost => GameConfig.Instance != null ? GameConfig.Instance.attackWallCost : 2;
+    private static int ShieldMax => GameConfig.Instance != null ? GameConfig.Instance.shieldWallMaxReduction : 3;
+    private static int SwarmMax  => GameConfig.Instance != null ? GameConfig.Instance.swarmMaxBonus : 3;
+
     // ── Attack enemy unit ───────────────────────────────────────────────
 
     [UnityTest]
@@ -89,8 +96,8 @@ public class AttackMechanicsTests
         bool attacked = robotMove.TryAttack(0);
 
         Assert.IsTrue(attacked);
-        Assert.AreEqual(12, robot.Energy, "Attacker pays 3 energy.");
-        Assert.AreEqual(12, mutant.Energy, "Defender loses 3 energy.");
+        Assert.AreEqual(15 - AtkCost, robot.Energy, $"Attacker pays {AtkCost} energy.");
+        Assert.AreEqual(15 - AtkDmg, mutant.Energy, $"Defender loses {AtkDmg} energy.");
     }
 
     [UnityTest]
@@ -103,8 +110,7 @@ public class AttackMechanicsTests
 
         robotMove.TryAttack(0);
 
-        // Robot only loses attackCost (3), no counter-damage.
-        Assert.AreEqual(12, robot.Energy,
+        Assert.AreEqual(15 - AtkCost, robot.Energy,
             "Attacker should only lose attack cost, no counter-damage.");
     }
 
@@ -115,11 +121,11 @@ public class AttackMechanicsTests
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
-        mutant.Energy = 3;
+        mutant.Energy = AtkDmg;
 
         robotMove.TryAttack(0);
 
-        Assert.IsFalse(mutant.isAlive, "Unit at 3 energy should die from 3 damage.");
+        Assert.IsFalse(mutant.isAlive, $"Unit at {AtkDmg} energy should die from {AtkDmg} damage.");
         Assert.IsTrue(robot.lastAttackKilled);
     }
 
@@ -160,7 +166,7 @@ public class AttackMechanicsTests
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
-        robot.Energy = 3; // Will drop to 0 after paying attack cost.
+        robot.Energy = AtkCost; // Will drop to 0 after paying attack cost.
 
         robotMove.TryAttack(0);
 
@@ -200,7 +206,7 @@ public class AttackMechanicsTests
 
         Assert.IsTrue(attacked);
         Assert.AreEqual(2, tile.WallHP, "Wall HP should decrease by 1.");
-        Assert.AreEqual(13, robot.Energy, "Wall attack costs 2 energy.");
+        Assert.AreEqual(15 - WallAtkCost, robot.Energy, $"Wall attack costs {WallAtkCost} energy.");
     }
 
     [UnityTest]
@@ -393,9 +399,11 @@ public class AttackMechanicsTests
 
         mutantMove.TryAttack(dir);
 
-        // Base damage 3, reduced by 2 (2 allies) = 1 damage.
-        Assert.AreEqual(14, target.Energy,
-            "Shield Wall: 2 adjacent robot allies should reduce damage by 2 (3-2=1).");
+        // Base damage reduced by min(2 allies, shieldMax).
+        int reduction = Mathf.Min(2, ShieldMax);
+        int expectedDmg = Mathf.Max(0, AtkDmg - reduction);
+        Assert.AreEqual(15 - expectedDmg, target.Energy,
+            $"Shield Wall: 2 allies, reduction={reduction}, damage={AtkDmg}-{reduction}={expectedDmg}.");
     }
 
     // ── Swarm (Mutant attacker) ─────────────────────────────────────────
@@ -422,9 +430,11 @@ public class AttackMechanicsTests
 
         mutantMove.TryAttack(dir);
 
-        // Base damage 3 + 2 (2 allies) = 5 damage.
-        Assert.AreEqual(10, target.Energy,
-            "Swarm: 2 adjacent mutant allies should increase damage by 2 (3+2=5).");
+        // Base damage + min(2 allies, swarmMax) bonus.
+        int bonus = Mathf.Min(2, SwarmMax);
+        int swarmDmg = AtkDmg + bonus;
+        Assert.AreEqual(15 - swarmDmg, target.Energy,
+            $"Swarm: 2 allies, bonus={bonus}, damage={AtkDmg}+{bonus}={swarmDmg}.");
     }
 
     // ── IsValidAttack consistency ───────────────────────────────────────

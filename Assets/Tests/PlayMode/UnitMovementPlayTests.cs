@@ -217,8 +217,11 @@ public class UnitMovementPlayTests
         bool attacked = movement.TryAttack(0); // East → (1,0)
         Assert.IsTrue(attacked, "Attack toward adjacent enemy should succeed.");
         Assert.AreEqual(UnitAction.Attack, unitData.lastAction);
-        Assert.AreEqual(12, unitData.Energy, "Attacker pays 3 energy cost (no counter-damage).");
-        Assert.AreEqual(12, enemy.Energy, "Defender loses 3 energy from attack.");
+        var cfg = GameConfig.Instance;
+        int atkCost = cfg != null ? cfg.attackUnitCost : 3;
+        int atkDmg = cfg != null ? cfg.attackUnitDamage : 3;
+        Assert.AreEqual(15 - atkCost, unitData.Energy, $"Attacker pays {atkCost} energy cost (no counter-damage).");
+        Assert.AreEqual(15 - atkDmg, enemy.Energy, $"Defender loses {atkDmg} energy from attack.");
         // Attacker stays in place.
         Assert.AreEqual(new HexCoord(0, 0), unitData.currentHex, "Attacker should not move.");
 
@@ -242,7 +245,8 @@ public class UnitMovementPlayTests
         Assert.AreEqual(Team.Robot, tile.Owner, "Tile should remain owned by Robot.");
         Assert.AreEqual(TileType.Wall, tile.TileType, "Tile type should be Wall.");
         Assert.AreEqual(3, tile.WallHP, "Wall should have max HP.");
-        Assert.AreEqual(11, unitData.Energy, "Wall build costs 4 energy.");
+        int wallCost = GameConfig.Instance != null ? GameConfig.Instance.wallBuildCost : 4;
+        Assert.AreEqual(15 - wallCost, unitData.Energy, $"Wall build costs {wallCost} energy.");
         Assert.AreEqual(UnitAction.BuildWall, unitData.lastAction);
     }
 

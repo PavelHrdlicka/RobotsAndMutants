@@ -90,7 +90,8 @@ public class BuildMechanicsTests
         Assert.IsTrue(built);
         Assert.AreEqual(TileType.Wall, tile.TileType);
         Assert.AreEqual(3, tile.WallHP, "Wall should start with 3 HP.");
-        Assert.AreEqual(11, robot.Energy, "Wall build costs 4 energy.");
+        int wallCost = GameConfig.Instance != null ? GameConfig.Instance.wallBuildCost : 4;
+        Assert.AreEqual(15 - wallCost, robot.Energy, $"Wall build costs {wallCost} energy.");
         Assert.AreEqual(UnitAction.BuildWall, robot.lastAction);
     }
 
