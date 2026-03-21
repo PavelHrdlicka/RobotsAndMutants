@@ -82,14 +82,6 @@ public class GameConfig : ScriptableObject
     [Range(1, 10)]
     public int attackUnitDamage = 3;
 
-    [Tooltip("Energy cost to attack (flip) a neutral hex.")]
-    [Range(0, 5)]
-    public int attackNeutralCost = 1;
-
-    [Tooltip("Energy cost to attack (flip) an enemy hex.")]
-    [Range(1, 10)]
-    public int attackEnemyHexCost = 2;
-
     [Tooltip("Energy cost to attack an enemy wall.")]
     [Range(1, 10)]
     public int attackWallCost = 2;

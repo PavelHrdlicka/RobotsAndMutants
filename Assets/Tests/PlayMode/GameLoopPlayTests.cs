@@ -84,7 +84,7 @@ public class GameLoopPlayTests
     }
 
     [UnityTest]
-    public IEnumerator Move_BlockedByEnemyTerritory()
+    public IEnumerator Move_CapturesEnemyTerritory()
     {
         yield return null;
 
@@ -94,8 +94,9 @@ public class GameLoopPlayTests
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         bool moved = move.TryMove(0); // East → (1,0) enemy territory
 
-        Assert.IsFalse(moved, "Robot should not be able to move into Mutant territory.");
-        Assert.AreEqual(new HexCoord(0, 0), unit.currentHex);
+        Assert.IsTrue(moved, "Robot should be able to move into Mutant territory.");
+        Assert.AreEqual(new HexCoord(1, 0), unit.currentHex);
+        Assert.AreEqual(Team.Robot, tile.Owner, "Enemy hex should be captured on entry.");
     }
 
     [UnityTest]
@@ -208,44 +209,6 @@ public class GameLoopPlayTests
 
         Assert.AreEqual(TileType.Empty, tile.TileType, "Wall at 1 HP should be destroyed.");
         Assert.AreEqual(0, tile.WallHP);
-    }
-
-    // ── Combat (hex attacks) ─────────────────────────────────────────────
-
-    [UnityTest]
-    public IEnumerator Combat_AttackEnemyHex_FlipsOwner()
-    {
-        yield return null;
-
-        var tile = grid.GetTile(new HexCoord(1, 0));
-        tile.Owner = Team.Mutant;
-
-        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
-
-        bool attacked = robotMove.TryAttack(0);
-
-        Assert.IsTrue(attacked);
-        Assert.AreEqual(Team.Robot, tile.Owner, "Enemy hex should flip to attacker's team.");
-        Assert.AreEqual(13, robot.Energy, "Enemy hex attack costs 2 energy.");
-    }
-
-    [UnityTest]
-    public IEnumerator Combat_AttackNeutralHex_ClaimsIt()
-    {
-        yield return null;
-
-        var tile = grid.GetTile(new HexCoord(1, 0));
-        Assert.AreEqual(Team.None, tile.Owner); // neutral
-
-        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-        robot.Energy = 15;
-
-        bool attacked = robotMove.TryAttack(0);
-
-        Assert.IsTrue(attacked);
-        Assert.AreEqual(Team.Robot, tile.Owner, "Neutral hex should be claimed.");
-        Assert.AreEqual(14, robot.Energy, "Neutral hex attack costs 1 energy.");
     }
 
     // ── Build ─────────────────────────────────────────────────────────────

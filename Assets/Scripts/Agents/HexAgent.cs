@@ -160,18 +160,11 @@ public class HexAgent : Agent
             }
             else if (action >= 7 && action <= 12)
             {
-                // Attack in direction
+                // Attack in direction (targets: enemy unit, wall).
                 int dir = action - 7;
                 bool didAttack = movement.TryAttack(dir);
-                if (didAttack)
-                {
-                    if (unitData.lastAttackKilled)
-                        AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
-
-                    // Capture reward for hex attacks.
-                    if (unitData.lastAction == UnitAction.Capture)
-                        AddReward(GameConfig.Instance?.hexCaptureReward ?? 0.05f);
-                }
+                if (didAttack && unitData.lastAttackKilled)
+                    AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
             }
             else if (action >= 13 && action <= 18)
             {

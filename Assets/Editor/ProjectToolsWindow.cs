@@ -342,8 +342,6 @@ public class ProjectToolsWindow : EditorWindow
             EditorGUILayout.LabelField("Combat", EditorStyles.miniBoldLabel);
             config.attackUnitCost = EditorGUILayout.IntSlider("Attack Unit Cost", config.attackUnitCost, 1, 10);
             config.attackUnitDamage = EditorGUILayout.IntSlider("Attack Unit Damage", config.attackUnitDamage, 1, 10);
-            config.attackEnemyHexCost = EditorGUILayout.IntSlider("Attack Enemy Hex Cost", config.attackEnemyHexCost, 1, 10);
-            config.attackNeutralCost = EditorGUILayout.IntSlider("Attack Neutral Cost", config.attackNeutralCost, 0, 5);
             config.attackWallCost = EditorGUILayout.IntSlider("Attack Wall Cost", config.attackWallCost, 1, 10);
             config.slimeEntryCostRobot = EditorGUILayout.IntSlider("Slime Entry Cost (Robot)", config.slimeEntryCostRobot, 0, 10);
 

@@ -65,9 +65,9 @@ public class HexMovement : MonoBehaviour
 
     /// <summary>
     /// Attempt to move one step in the given direction (0-5).
-    /// Blocked by: enemy territory, walls (any team), occupied hexes, invalid coords.
-    /// Neutral hex: free capture on entry.
-    /// Robot entering enemy slime: costs slimeEntryCostRobot, slime destroyed.
+    /// Blocked by: walls (any team), occupied hexes, invalid coords.
+    /// Any non-own hex (neutral or enemy) is captured on entry.
+    /// Robot entering enemy slime: mine — costs energy, slime destroyed, hex becomes robot's.
     /// Returns true if the move was executed.
     /// </summary>
     public bool TryMove(int direction)
@@ -93,11 +93,7 @@ public class HexMovement : MonoBehaviour
 
         Team enemyTeam = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
 
-        // Enemy territory blocks movement (except slime entry for robots handled below).
-        if (!tile.isBase && tile.Owner == enemyTeam && tile.TileType != TileType.Slime)
-            return false;
-
-        // Robot entering enemy slime: costs energy and destroys slime.
+        // Robot entering enemy slime: mine — costs energy, slime destroyed.
         if (unitData.team == Team.Robot && tile.Owner == enemyTeam && tile.TileType == TileType.Slime)
         {
             var cfg = GameConfig.Instance;
@@ -105,7 +101,6 @@ public class HexMovement : MonoBehaviour
             if (unitData.Energy < cost) return false;
             unitData.Energy -= cost;
             tile.TileType = TileType.Empty;
-            tile.Owner = Team.None;
         }
 
         // Update logical state.
@@ -114,8 +109,8 @@ public class HexMovement : MonoBehaviour
         unitData.currentHex = target;
         unitData.lastAction = UnitAction.Move;
 
-        // Free capture of neutral hex on entry.
-        if (!tile.isBase && tile.Owner == Team.None)
+        // Capture any non-own, non-base hex on entry.
+        if (!tile.isBase && tile.Owner != unitData.team)
         {
             tile.Owner = unitData.team;
             unitData.lastAction = UnitAction.Capture;
@@ -133,7 +128,7 @@ public class HexMovement : MonoBehaviour
 
     /// <summary>
     /// Attack the adjacent hex in the given direction.
-    /// Priority: enemy unit > wall > enemy hex > neutral hex.
+    /// Valid targets: enemy unit, wall (any team's).
     /// Returns true if an attack was executed.
     /// </summary>
     public bool TryAttack(int direction)
@@ -155,14 +150,6 @@ public class HexMovement : MonoBehaviour
         var tile = grid.GetTile(targetCoord);
         if (tile != null && tile.TileType == TileType.Wall)
             return AttackWall(tile, cfg);
-
-        // Priority 3: Attack enemy hex (flip ownership).
-        if (tile != null && !tile.isBase && tile.Owner != Team.None && tile.Owner != unitData.team)
-            return AttackEnemyHex(tile, cfg);
-
-        // Priority 4: Attack neutral hex (claim it).
-        if (tile != null && !tile.isBase && tile.Owner == Team.None)
-            return AttackNeutralHex(tile, cfg);
 
         return false;
     }
@@ -234,37 +221,6 @@ public class HexMovement : MonoBehaviour
         return true;
     }
 
-    private bool AttackEnemyHex(HexTileData tile, GameConfig cfg)
-    {
-        int cost = cfg != null ? cfg.attackEnemyHexCost : 2;
-        if (unitData.Energy < cost) return false;
-
-        unitData.Energy -= cost;
-        tile.Owner = unitData.team;
-        tile.TileType = TileType.Empty;
-        tile.WallHP = 0;
-
-        unitData.lastAction = UnitAction.Capture;
-        unitData.lastCapturedHex = tile.coord;
-        unitData.lastAttackTarget = null;
-        unitData.lastAttackKilled = false;
-        return true;
-    }
-
-    private bool AttackNeutralHex(HexTileData tile, GameConfig cfg)
-    {
-        int cost = cfg != null ? cfg.attackNeutralCost : 1;
-        if (unitData.Energy < cost) return false;
-
-        unitData.Energy -= cost;
-        tile.Owner = unitData.team;
-
-        unitData.lastAction = UnitAction.Capture;
-        unitData.lastCapturedHex = tile.coord;
-        unitData.lastAttackTarget = null;
-        unitData.lastAttackKilled = false;
-        return true;
-    }
 
     // ── Build ────────────────────────────────────────────────────────────
 
@@ -358,7 +314,11 @@ public class HexMovement : MonoBehaviour
 
     // ── Validity queries (used by HexAgent for action masking) ────────────
 
-    /// <summary>Returns true if moving in this direction is valid.</summary>
+    /// <summary>
+    /// Returns true if moving in this direction is valid.
+    /// Blocked only by: walls, occupied hexes, invalid coords.
+    /// Robot entering enemy slime requires enough energy.
+    /// </summary>
     public bool IsValidMove(int direction)
     {
         if (!unitData.isAlive || grid == null) return false;
@@ -371,24 +331,22 @@ public class HexMovement : MonoBehaviour
         if (tile == null) return false;
         if (tile.TileType == TileType.Wall) return false;
 
+        // Robot entering enemy slime requires enough energy.
         Team enemyTeam = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
-
-        // Enemy territory blocks (except slime for robots if enough energy).
-        if (!tile.isBase && tile.Owner == enemyTeam)
+        if (unitData.team == Team.Robot && tile.Owner == enemyTeam && tile.TileType == TileType.Slime)
         {
-            if (tile.TileType == TileType.Slime && unitData.team == Team.Robot)
-            {
-                var cfg = GameConfig.Instance;
-                int cost = cfg != null ? cfg.slimeEntryCostRobot : 3;
-                return unitData.Energy >= cost;
-            }
-            return false;
+            var cfg = GameConfig.Instance;
+            int cost = cfg != null ? cfg.slimeEntryCostRobot : 3;
+            return unitData.Energy >= cost;
         }
 
         return true;
     }
 
-    /// <summary>Returns true if attacking in this direction is valid (any attackable target).</summary>
+    /// <summary>
+    /// Returns true if attacking in this direction is valid.
+    /// Valid targets: enemy unit, wall (any team's).
+    /// </summary>
     public bool IsValidAttack(int direction)
     {
         if (!unitData.isAlive || grid == null) return false;
@@ -397,36 +355,16 @@ public class HexMovement : MonoBehaviour
         HexCoord target = unitData.currentHex.Neighbor(direction);
         if (!grid.IsValidCoord(target)) return false;
 
-        // Enemy unit present?
+        var cfg = GameConfig.Instance;
+
+        // Enemy unit?
         if (FindEnemyAt(target) != null)
-        {
-            var cfg = GameConfig.Instance;
             return unitData.Energy >= (cfg != null ? cfg.attackUnitCost : 3);
-        }
 
+        // Wall (any team's)?
         var tile = grid.GetTile(target);
-        if (tile == null) return false;
-
-        // Wall?
-        if (tile.TileType == TileType.Wall)
-        {
-            var cfg = GameConfig.Instance;
+        if (tile != null && tile.TileType == TileType.Wall)
             return unitData.Energy >= (cfg != null ? cfg.attackWallCost : 2);
-        }
-
-        // Enemy hex?
-        if (!tile.isBase && tile.Owner != Team.None && tile.Owner != unitData.team)
-        {
-            var cfg = GameConfig.Instance;
-            return unitData.Energy >= (cfg != null ? cfg.attackEnemyHexCost : 2);
-        }
-
-        // Neutral hex?
-        if (!tile.isBase && tile.Owner == Team.None)
-        {
-            var cfg = GameConfig.Instance;
-            return unitData.Energy >= (cfg != null ? cfg.attackNeutralCost : 1);
-        }
 
         return false;
     }
