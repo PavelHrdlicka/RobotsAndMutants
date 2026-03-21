@@ -740,6 +740,9 @@ public class ProjectToolsWindow : EditorWindow
             }
             GUI.backgroundColor = Color.white;
 
+            if (GUILayout.Button("Open Test Runner"))
+                EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
+
             EditorGUILayout.Space(4);
             bool autoTest = AutoTestRunner.Enabled;
             bool newAutoTest = EditorGUILayout.Toggle("Auto-run after compile", autoTest);
