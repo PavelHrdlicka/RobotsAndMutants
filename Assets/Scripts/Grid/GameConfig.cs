@@ -32,7 +32,7 @@ public class GameConfig : ScriptableObject
 
     [Tooltip("Maximum number of steps (rounds) per episode.")]
     [Range(100, 10000)]
-    public int maxSteps = 2000;
+    public int maxSteps = 800;
 
     // --- Derived ---
 
@@ -47,18 +47,78 @@ public class GameConfig : ScriptableObject
 
     private int MaxBaseSize => boardSide >= 3 ? 4 : 1; // Corner + 3 neighbors max
 
+    [Header("Energy")]
+    [Tooltip("Maximum energy per unit. Energy = HP + action currency.")]
+    [Range(5, 30)]
+    public int unitMaxEnergy = 15;
+
+    [Tooltip("Respawn cooldown in steps after death.")]
+    [Range(1, 30)]
+    public int respawnCooldown = 6;
+
+    [Header("Structures")]
+    [Tooltip("Energy cost to build a wall on adjacent own hex.")]
+    [Range(1, 10)]
+    public int wallBuildCost = 4;
+
+    [Tooltip("Wall hit points (attacks needed to destroy).")]
+    [Range(1, 5)]
+    public int wallMaxHP = 3;
+
+    [Tooltip("Energy cost to place slime on adjacent own hex.")]
+    [Range(1, 10)]
+    public int slimePlaceCost = 2;
+
+    [Tooltip("Energy cost to destroy own wall from adjacent hex.")]
+    [Range(0, 5)]
+    public int destroyOwnWallCost = 1;
+
     [Header("Combat")]
-    [Tooltip("Maximum health points per unit.")]
-    [Range(3, 20)]
-    public int unitMaxHealth = 7;
+    [Tooltip("Energy cost to attack an enemy unit.")]
+    [Range(1, 10)]
+    public int attackUnitCost = 3;
 
-    [Tooltip("Robot Flanking: % chance of double damage per adjacent ally (0.1 = 10%). Max 3 allies counted.")]
-    [Range(0f, 0.5f)]
-    public float robotFlankingChancePerAlly = 0.1f;
+    [Tooltip("Base damage dealt to enemy unit per attack.")]
+    [Range(1, 10)]
+    public int attackUnitDamage = 3;
 
-    [Tooltip("Mutant Swarm Cover: % chance to dodge attack per adjacent ally (0.1 = 10%). Max 3 allies counted.")]
-    [Range(0f, 0.5f)]
-    public float mutantDodgeChancePerAlly = 0.1f;
+    [Tooltip("Energy cost to attack (flip) a neutral hex.")]
+    [Range(0, 5)]
+    public int attackNeutralCost = 1;
+
+    [Tooltip("Energy cost to attack (flip) an enemy hex.")]
+    [Range(1, 10)]
+    public int attackEnemyHexCost = 2;
+
+    [Tooltip("Energy cost to attack an enemy wall.")]
+    [Range(1, 10)]
+    public int attackWallCost = 2;
+
+    [Tooltip("Damage dealt to enemy wall per attack.")]
+    [Range(1, 3)]
+    public int attackWallDamage = 1;
+
+    [Header("Proximity Bonuses")]
+    [Tooltip("Shield Wall (Robots): max damage reduction from adjacent allies.")]
+    [Range(0, 5)]
+    public int shieldWallMaxReduction = 3;
+
+    [Tooltip("Swarm (Mutants): max bonus damage from adjacent allies.")]
+    [Range(0, 5)]
+    public int swarmMaxBonus = 3;
+
+    [Header("Regeneration")]
+    [Tooltip("Energy regenerated per step when standing on own base hex.")]
+    [Range(0, 10)]
+    public int baseRegenPerStep = 3;
+
+    [Tooltip("Energy regenerated per step for Mutants standing on own slime.")]
+    [Range(0, 5)]
+    public int slimeRegenPerStep = 1;
+
+    [Tooltip("Energy cost for Robot entering enemy slime hex (slime destroyed on entry).")]
+    [Range(0, 10)]
+    public int slimeEntryCostRobot = 3;
 
     [Header("Replay Logging")]
     [Tooltip("Log every Nth game to a JSONL replay file. 1 = every game, 10 = every 10th game.")]
@@ -69,7 +129,7 @@ public class GameConfig : ScriptableObject
     [Tooltip("Reward for killing an enemy unit.")]
     public float killBonus = 0.5f;
 
-    [Tooltip("Reward for a successful build action (crate / slime spread).")]
+    [Tooltip("Reward for a successful build action (wall / slime).")]
     public float buildReward = 0.05f;
 
     [Tooltip("Reward per tile gained in a single turn (territory capture).")]
@@ -81,8 +141,17 @@ public class GameConfig : ScriptableObject
     [Tooltip("Per-neighbor bonus when building on a tile adjacent to own tiles (encourages clustering).")]
     public float buildAdjacencyBonus = 0.03f;
 
-    [Tooltip("Per-neighbor bonus when capturing a tile surrounded by enemy tiles (encourages disruption).")]
-    public float captureDisruptionBonus = 0.05f;
+    [Tooltip("Reward for capturing a hex via attack (neutral or enemy).")]
+    public float hexCaptureReward = 0.05f;
+
+    [Tooltip("Reward for placing a wall in a strategic position.")]
+    public float wallPlacementReward = 0.03f;
+
+    [Tooltip("Extra reward for Mutants placing slime (on top of buildReward).")]
+    public float slimePlacementReward = 0.08f;
+
+    [Tooltip("Per-neighbor bonus when Mutant places slime adjacent to existing slime (network).")]
+    public float slimeNetworkBonus = 0.04f;
 
     [Tooltip("Bonus scaled by cohesion ratio (largest group / total tiles). Penalizes scattered islands.")]
     public float cohesionBonus = 0.02f;

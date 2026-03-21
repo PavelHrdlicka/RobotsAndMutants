@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 
 /// <summary>
 /// PlayMode integration tests for the game loop: territory capture via movement,
-/// combat (TryAttack model), and build mechanics.
+/// combat (TryAttack model), build mechanics, and wall destruction.
 /// </summary>
 public class GameLoopPlayTests
 {
@@ -18,9 +18,6 @@ public class GameLoopPlayTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
-        // Ignore background errors from scene objects (GameManager, ML-Agents Academy,
-        // ProjectToolsWindow) that run during Play Mode tests but aren't part of the test.
-        // Destroy all scene objects except the PlayMode test runner controller.
         foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects())
             if (go.name != "Code-based tests runner")
                 Object.Destroy(go);
@@ -48,7 +45,6 @@ public class GameLoopPlayTests
     [UnityTearDown]
     public IEnumerator TearDown()
     {
-        // Destroy all spawned test objects — prevents leaking between tests.
         foreach (var go in spawnedObjects)
             if (go != null) Object.Destroy(go);
         spawnedObjects.Clear();
@@ -56,7 +52,6 @@ public class GameLoopPlayTests
         yield return null;
     }
 
-    /// <summary>Helper: create a unit with HexMovement, properly initialized.</summary>
     private (UnitData data, HexMovement move) SpawnUnit(Team team, HexCoord hex)
     {
         var go = new GameObject($"{team}_{hex}");
@@ -80,69 +75,459 @@ public class GameLoopPlayTests
     {
         yield return null;
 
-        // Territory capture happens via HexMovement.TryMove — moving onto enemy/neutral
-        // tile neutralizes it, moving onto own tile is a no-op.
         var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         move.TryMove(0); // East → (1,0)
 
         var tile = grid.GetTile(new HexCoord(1, 0));
-        Assert.AreEqual(Team.None, tile.Owner,
-            "Neutral tile stays neutral after move (capture only flips enemy tiles).");
+        Assert.AreEqual(Team.Robot, tile.Owner,
+            "Neutral tile should be claimed by moving unit (free capture).");
     }
 
-    // ── Combat (new TryAttack model) ─────────────────────────────────────
+    [UnityTest]
+    public IEnumerator Move_BlockedByEnemyTerritory()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Mutant;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        bool moved = move.TryMove(0); // East → (1,0) enemy territory
+
+        Assert.IsFalse(moved, "Robot should not be able to move into Mutant territory.");
+        Assert.AreEqual(new HexCoord(0, 0), unit.currentHex);
+    }
 
     [UnityTest]
-    public IEnumerator Combat_TryAttack_BothTakeDamage()
+    public IEnumerator Move_BlockedByWall()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        bool moved = move.TryMove(0);
+
+        Assert.IsFalse(moved, "Wall should block movement even for own team.");
+    }
+
+    // ── Combat (unit attacks) ─────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Combat_AttackUnit_CostsEnergy_NoCounterDamage()
     {
         yield return null;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _)        = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
 
-        robot.Health  = 5;
-        mutant.Health = 5;
+        robot.Energy  = 15;
+        mutant.Energy = 15;
 
         bool attacked = robotMove.TryAttack(0); // East → hits mutant at (1,0)
 
         Assert.IsTrue(attacked, "Attack should succeed against adjacent enemy.");
-        Assert.AreEqual(4, robot.Health,  "Attacker should take 1 damage.");
-        Assert.AreEqual(3, mutant.Health, "Defender should take 2 damage.");
+        Assert.AreEqual(12, robot.Energy,  "Attacker should pay 3 energy (no counter-damage).");
+        Assert.AreEqual(12, mutant.Energy, "Defender should lose 3 energy from attack.");
     }
 
     [UnityTest]
-    public IEnumerator Combat_ShieldedAttacker_TakesNoDamage()
+    public IEnumerator Combat_AttackUnit_NotEnoughEnergy_Fails()
     {
         yield return null;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _)        = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
 
-        robot.Health   = 5;
-        robot.hasShield = true;
-        mutant.Health  = 5;
+        robot.Energy  = 2; // Not enough (attack costs 3)
+        mutant.Energy = 15;
 
-        robotMove.TryAttack(0);
+        bool attacked = robotMove.TryAttack(0);
 
-        Assert.AreEqual(5, robot.Health,  "Shielded attacker should take no damage.");
-        Assert.AreEqual(3, mutant.Health, "Defender should still take 2 damage.");
+        Assert.IsFalse(attacked, "Attack should fail when not enough energy.");
+        Assert.AreEqual(2, robot.Energy, "Energy should not change on failed attack.");
     }
 
     [UnityTest]
-    public IEnumerator Combat_UnitDies_At0HP()
+    public IEnumerator Combat_UnitDies_At0Energy()
     {
         yield return null;
 
         var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var (mutant, _)        = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
 
-        robot.Health  = 5;
-        mutant.Health = 1; // will die from 2-damage attack
+        robot.Energy  = 15;
+        mutant.Energy = 2; // will die from 3-damage attack
 
         robotMove.TryAttack(0);
 
-        Assert.IsFalse(mutant.isAlive, "Mutant at 1HP should die after taking 2 damage.");
-        Assert.IsTrue(robot.isAlive,   "Robot at 5HP should survive taking 1 damage.");
-        Assert.AreEqual(4, robot.Health);
+        Assert.IsFalse(mutant.isAlive, "Mutant at 2 energy should die after taking 3 damage.");
+        Assert.IsTrue(robot.isAlive,   "Robot should survive (no counter-damage).");
+        Assert.AreEqual(12, robot.Energy);
+    }
+
+    // ── Combat (wall attacks) ─────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Combat_AttackWall_ReducesHP()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        bool attacked = robotMove.TryAttack(0);
+
+        Assert.IsTrue(attacked, "Attack on wall should succeed.");
+        Assert.AreEqual(2, tile.WallHP, "Wall HP should decrease by 1.");
+        Assert.AreEqual(13, robot.Energy, "Wall attack costs 2 energy.");
+    }
+
+    [UnityTest]
+    public IEnumerator Combat_AttackWall_DestroyedAt0HP()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 1;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        robotMove.TryAttack(0);
+
+        Assert.AreEqual(TileType.Empty, tile.TileType, "Wall at 1 HP should be destroyed.");
+        Assert.AreEqual(0, tile.WallHP);
+    }
+
+    // ── Combat (hex attacks) ─────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Combat_AttackEnemyHex_FlipsOwner()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Mutant;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        bool attacked = robotMove.TryAttack(0);
+
+        Assert.IsTrue(attacked);
+        Assert.AreEqual(Team.Robot, tile.Owner, "Enemy hex should flip to attacker's team.");
+        Assert.AreEqual(13, robot.Energy, "Enemy hex attack costs 2 energy.");
+    }
+
+    [UnityTest]
+    public IEnumerator Combat_AttackNeutralHex_ClaimsIt()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        Assert.AreEqual(Team.None, tile.Owner); // neutral
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        bool attacked = robotMove.TryAttack(0);
+
+        Assert.IsTrue(attacked);
+        Assert.AreEqual(Team.Robot, tile.Owner, "Neutral hex should be claimed.");
+        Assert.AreEqual(14, robot.Energy, "Neutral hex attack costs 1 energy.");
+    }
+
+    // ── Build ─────────────────────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Build_Wall_Adjacent_Costs4()
+    {
+        yield return null;
+
+        // Setup: own tile adjacent.
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        bool built = robotMove.TryBuild(0); // East → (1,0)
+
+        Assert.IsTrue(built);
+        Assert.AreEqual(TileType.Wall, tile.TileType);
+        Assert.AreEqual(3, tile.WallHP);
+        Assert.AreEqual(11, robot.Energy, "Wall build costs 4 energy.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Slime_OnSelf_Costs2()
+    {
+        yield return null;
+
+        // Mutant stands on own hex — builds slime under itself.
+        var tile = grid.GetTile(new HexCoord(0, 0));
+        tile.Owner = Team.Mutant;
+
+        var (mutant, mutantMove) = SpawnUnit(Team.Mutant, new HexCoord(0, 0));
+        mutant.Energy = 15;
+
+        bool built = mutantMove.TryBuild(0); // direction ignored for mutant
+
+        Assert.IsTrue(built);
+        Assert.AreEqual(TileType.Slime, tile.TileType, "Slime should be placed on mutant's current hex.");
+        Assert.AreEqual(13, mutant.Energy, "Slime place costs 2 energy.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_OnEnemyHex_Fails()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Mutant;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        bool built = robotMove.TryBuild(0);
+        Assert.IsFalse(built, "Cannot build on enemy hex.");
+    }
+
+    // ── Destroy Wall ──────────────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator DestroyWall_Own_Costs1()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        bool destroyed = robotMove.TryDestroyWall(0);
+
+        Assert.IsTrue(destroyed);
+        Assert.AreEqual(TileType.Empty, tile.TileType);
+        Assert.AreEqual(14, robot.Energy, "Destroy own wall costs 1 energy.");
+        Assert.AreEqual(Team.Robot, tile.Owner, "Tile keeps team ownership.");
+    }
+
+    [UnityTest]
+    public IEnumerator DestroyWall_Enemy_Fails()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Mutant;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+
+        bool destroyed = robotMove.TryDestroyWall(0);
+        Assert.IsFalse(destroyed, "Cannot destroy enemy wall with TryDestroyWall.");
+    }
+
+    // ── Single-action-per-turn guarantee ─────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator SingleAction_MoveIsExactlyOneHex()
+    {
+        yield return null;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Energy = 15;
+
+        bool moved = move.TryMove(0); // East → (1,0)
+
+        Assert.IsTrue(moved);
+        Assert.AreEqual(new HexCoord(1, 0), unit.currentHex,
+            "TryMove should move exactly one hex, not more.");
+        Assert.AreEqual(1, HexCoord.Distance(new HexCoord(0, 0), unit.currentHex),
+            "Distance from origin should be exactly 1 after one TryMove.");
+    }
+
+    [UnityTest]
+    public IEnumerator SingleAction_SecondMoveInSameTurn_MovesAgain()
+    {
+        yield return null;
+
+        // HexMovement itself does NOT enforce single-action — that's GameManager's job.
+        // Calling TryMove twice at the code level moves twice. This proves
+        // the enforcement lives in the turn system, not in HexMovement.
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Energy = 15;
+
+        move.TryMove(0); // East → (1,0)
+        Assert.AreEqual(new HexCoord(1, 0), unit.currentHex);
+
+        move.TryMove(0); // East again → (2,0)
+        Assert.AreEqual(new HexCoord(2, 0), unit.currentHex,
+            "HexMovement allows multiple moves — turn enforcement is in GameManager/HexAgent.");
+    }
+
+    [UnityTest]
+    public IEnumerator SingleAction_IsMyTurn_FalseByDefault()
+    {
+        yield return null;
+
+        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        Assert.IsFalse(unit.isMyTurn,
+            "isMyTurn should be false by default — only GameManager sets it true.");
+    }
+
+    [UnityTest]
+    public IEnumerator SingleAction_HasPendingTurnResult_FalseByDefault()
+    {
+        yield return null;
+
+        var (unit, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        Assert.IsFalse(unit.hasPendingTurnResult,
+            "hasPendingTurnResult should be false by default.");
+    }
+
+    [UnityTest]
+    public IEnumerator SingleAction_MoveDoesNotChangeIsMyTurn()
+    {
+        yield return null;
+
+        // HexMovement.TryMove does NOT touch isMyTurn — only HexAgent does.
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Energy = 15;
+        unit.isMyTurn = true;
+
+        move.TryMove(0);
+
+        Assert.IsTrue(unit.isMyTurn,
+            "HexMovement should not change isMyTurn — that's HexAgent's responsibility.");
+        Assert.IsFalse(unit.hasPendingTurnResult,
+            "HexMovement should not set hasPendingTurnResult — that's HexAgent's responsibility.");
+    }
+
+    [UnityTest]
+    public IEnumerator SingleAction_AttackDoesNotChangeIsMyTurn()
+    {
+        yield return null;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        var (mutant, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        robot.Energy = 15;
+        mutant.Energy = 15;
+        robot.isMyTurn = true;
+
+        robotMove.TryAttack(0);
+
+        Assert.IsTrue(robot.isMyTurn,
+            "HexMovement.TryAttack should not change isMyTurn.");
+        Assert.IsFalse(robot.hasPendingTurnResult,
+            "HexMovement.TryAttack should not set hasPendingTurnResult.");
+    }
+
+    [UnityTest]
+    public IEnumerator SingleAction_BuildDoesNotChangeIsMyTurn()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robot.Energy = 15;
+        robot.isMyTurn = true;
+
+        robotMove.TryBuild(0);
+
+        Assert.IsTrue(robot.isMyTurn,
+            "HexMovement.TryBuild should not change isMyTurn.");
+        Assert.IsFalse(robot.hasPendingTurnResult,
+            "HexMovement.TryBuild should not set hasPendingTurnResult.");
+    }
+
+    [UnityTest]
+    public IEnumerator SingleAction_OnlyOneUnitActsPerAdvance()
+    {
+        yield return null;
+
+        // Simulate the turn handshake manually:
+        // 1. GameManager sets isMyTurn = true for unit A
+        // 2. Unit A acts (TryMove), then HexAgent would set isMyTurn=false, hasPendingTurnResult=true
+        // 3. GameManager sees hasPendingTurnResult, advances to unit B
+        // 4. Unit B gets isMyTurn = true
+        // This test verifies the flag transitions.
+
+        var (unitA, moveA) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        var (unitB, moveB) = SpawnUnit(Team.Mutant, new HexCoord(-1, 0));
+        unitA.Energy = 15;
+        unitB.Energy = 15;
+
+        // Step 1: Unit A gets its turn.
+        unitA.isMyTurn = true;
+        Assert.IsFalse(unitB.isMyTurn, "Unit B should not have a turn yet.");
+
+        // Step 2: Unit A acts and signals completion (simulating HexAgent).
+        moveA.TryMove(0);
+        unitA.isMyTurn = false;
+        unitA.hasPendingTurnResult = true;
+
+        Assert.IsFalse(unitA.isMyTurn, "Unit A's turn should be over.");
+        Assert.IsTrue(unitA.hasPendingTurnResult, "Unit A should signal turn completion.");
+
+        // Step 3: GameManager processes result and advances.
+        unitA.hasPendingTurnResult = false;
+        unitB.isMyTurn = true;
+
+        Assert.IsFalse(unitA.isMyTurn, "Unit A should stay inactive.");
+        Assert.IsTrue(unitB.isMyTurn, "Unit B should now be active.");
+
+        // Step 4: Unit B acts.
+        moveB.TryMove(0);
+        unitB.isMyTurn = false;
+        unitB.hasPendingTurnResult = true;
+
+        Assert.IsFalse(unitB.isMyTurn);
+        Assert.IsTrue(unitB.hasPendingTurnResult);
+    }
+
+    [UnityTest]
+    public IEnumerator SingleAction_DeadUnit_CannotAct()
+    {
+        yield return null;
+
+        var (unit, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        unit.Energy = 15;
+        unit.Die(6);
+
+        bool moved = move.TryMove(0);
+        Assert.IsFalse(moved, "Dead unit should not be able to move.");
+
+        // Set up adjacent enemy for attack test.
+        var (enemy, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        enemy.Energy = 15;
+
+        bool attacked = move.TryAttack(0);
+        Assert.IsFalse(attacked, "Dead unit should not be able to attack.");
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        bool built = move.TryBuild(0);
+        Assert.IsFalse(built, "Dead unit should not be able to build.");
     }
 }

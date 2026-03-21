@@ -113,7 +113,7 @@ public class UnitActionIndicator3D : MonoBehaviour
         bool showAttack  = action == UnitAction.Attack;
         bool showDefend  = action == UnitAction.Defend;
         bool showCapture = action == UnitAction.Capture;
-        bool showBuild   = action == UnitAction.BuildCrate || action == UnitAction.SpreadSlime;
+        bool showBuild   = action == UnitAction.BuildWall || action == UnitAction.PlaceSlime;
 
         if (moveArrow  != null) moveArrow.gameObject.SetActive(showArrow);
         if (idleRing   != null) idleRing.gameObject.SetActive(showIdle);

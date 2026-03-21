@@ -138,12 +138,21 @@ public static class HexGridSetup
             Debug.Log("[HexGridSetup] Created MainCamera.");
         }
 
+        // Dynamic ortho size based on board side — matches HexGrid.CenterCamera() at runtime.
+        var config = GameConfig.Instance;
+        int boardSide = config != null ? config.boardSide : 5;
+        float outerRadius = 0.5f;
+        float boardRadius = outerRadius * Mathf.Sqrt(3f) * (boardSide - 1);
+        float padding = outerRadius * 1.5f;
+
         cam.targetDisplay = 0;
         cam.enabled = true;
         cam.orthographic = true;
         cam.transform.rotation = Quaternion.Euler(45f, 45f, 0f);
-        cam.transform.position = -cam.transform.forward * 50f;
-        cam.orthographicSize = 10f;
+        Vector3 center = -cam.transform.forward * 50f;
+        center += cam.transform.up * (boardRadius * 0.08f);
+        cam.transform.position = center;
+        cam.orthographicSize = (boardRadius + padding) * 0.75f;
         cam.nearClipPlane = 0.1f;
         cam.farClipPlane = 200f;
         cam.clearFlags = CameraClearFlags.SolidColor;

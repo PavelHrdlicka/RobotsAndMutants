@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// Runtime data for a single hex tile: ownership, terrain type, fortification, base status.
+/// Runtime data for a single hex tile: ownership, terrain type, wall HP, base status.
 /// Attach alongside HexMeshGenerator on the hex prefab.
 /// </summary>
 public class HexTileData : MonoBehaviour
@@ -13,13 +13,13 @@ public class HexTileData : MonoBehaviour
     [Header("Ownership")]
     [SerializeField] private Team owner = Team.None;
     [SerializeField] private TileType tileType = TileType.Empty;
-    [SerializeField] private int fortification; // 0-3
+    [SerializeField] private int wallHP; // 0-3
 
     [Header("Base")]
     public bool isBase;
     public Team baseTeam;
 
-    /// <summary>Fired whenever owner, tileType, or fortification changes.</summary>
+    /// <summary>Fired whenever owner, tileType, or wallHP changes.</summary>
     public event Action<HexTileData> OnTileChanged;
 
     public Team Owner
@@ -34,13 +34,13 @@ public class HexTileData : MonoBehaviour
         set { if (tileType != value) { tileType = value; OnTileChanged?.Invoke(this); } }
     }
 
-    public int Fortification
+    public int WallHP
     {
-        get => fortification;
+        get => wallHP;
         set
         {
             int clamped = Mathf.Clamp(value, 0, 3);
-            if (fortification != clamped) { fortification = clamped; OnTileChanged?.Invoke(this); }
+            if (wallHP != clamped) { wallHP = clamped; OnTileChanged?.Invoke(this); }
         }
     }
 
@@ -49,7 +49,7 @@ public class HexTileData : MonoBehaviour
     {
         owner = Team.None;
         tileType = TileType.Empty;
-        fortification = 0;
+        wallHP = 0;
 
         if (isBase)
             owner = baseTeam;

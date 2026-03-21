@@ -22,7 +22,7 @@ public static class HighlightDetector
         public string unit;
         public string team;
         public string action;
-        public int hp;
+        public int energy;
         public int q, r;
         public int targetQ, targetR;
         public string targetUnit;
@@ -142,7 +142,7 @@ public static class HighlightDetector
                     unit = ExtractString(line, "unit"),
                     team = ExtractString(line, "team"),
                     action = ExtractString(line, "action"),
-                    hp = ExtractInt(line, "hp"),
+                    energy = line.Contains("\"energy\":") ? ExtractInt(line, "energy") : ExtractInt(line, "hp"),
                     q = ExtractPosQ(line),
                     r = ExtractPosR(line),
                     killed = line.Contains("\"killed\":true"),

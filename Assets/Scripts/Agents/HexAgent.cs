@@ -7,14 +7,14 @@ using UnityEngine;
 /// <summary>
 /// ML-Agents agent for hex territory control — sequential turn model.
 ///
-/// Observations: own state + 6 neighbor tiles + global scores = 56 floats.
+/// Observations: own state + 6 neighbor tiles + global scores = 63 floats.
 ///
-/// Actions (8 discrete):
-///   0       = idle / stay
-///   1 – 6   = direction 0-5:
-///               • if enemy adjacent → attack (stay in place, deal damage)
-///               • if hex empty      → move there
-///   7       = build (Robot: crate; Mutant: slime + spread)
+/// Actions (25 discrete, single branch):
+///   0        = idle / stay
+///   1  – 6   = move in direction 0-5
+///   7  – 12  = attack in direction 0-5
+///   13 – 18  = build in direction 0-5
+///   19 – 24  = destroy own wall in direction 0-5
 ///
 /// After OnActionReceived the agent sets hasPendingTurnResult = true so
 /// GameManager knows this unit's turn is complete and can advance.
@@ -47,33 +47,35 @@ public class HexAgent : Agent
     }
 
     /// <summary>
-    /// Observation vector (63 floats):
-    /// - Own position (2), health (1), alive (1), team (1) = 5
-    /// - 6 neighbors × 9 values each = 54
-    ///     neutral(1), own(1), enemy(1), empty(1), crate(1), slime(1),
-    ///     hasEnemy(1), hasAlly(1), fortification(1)
-    /// - Global: own tiles (1), enemy tiles (1), step progress (1), respawn cooldown (1) = 4
-    /// Total = 63
+    /// Observation vector (69 floats):
+    /// - Own state (5): q_norm, r_norm, energy/maxEnergy, alive, team(+1/-1)
+    /// - 6 neighbors × 10 values each = 60:
+    ///     owner: neutral(1), own(1), enemy(1)
+    ///     has_wall(1), wall_hp_norm(1), has_slime(1)
+    ///     has_enemy_unit(1), has_ally_unit(1)
+    ///     enemy_energy_norm(1), is_base(1)
+    /// - Global (4): own_territory_pct, enemy_territory_pct, step_progress, respawn_cooldown_norm
+    /// Total = 69
     /// </summary>
     public override void CollectObservations(VectorSensor sensor)
     {
         if (grid == null || unitData == null)
         {
-            for (int i = 0; i < 63; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < 69; i++) sensor.AddObservation(0f);
             return;
         }
 
         int   boardMax   = grid.boardSide - 1;
         float boardRange = boardMax > 0 ? boardMax : 1f;
 
-        // Own state.
+        // Own state (5).
         sensor.AddObservation(unitData.currentHex.q / boardRange);
         sensor.AddObservation(unitData.currentHex.r / boardRange);
-        sensor.AddObservation(unitData.Health / (float)unitData.maxHealth);
+        sensor.AddObservation(unitData.Energy / (float)unitData.maxEnergy);
         sensor.AddObservation(unitData.isAlive ? 1f : 0f);
         sensor.AddObservation(unitData.team == Team.Robot ? 1f : -1f);
 
-        // 6 neighbour observations (9 floats each).
+        // 6 neighbour observations (10 floats each).
         for (int dir = 0; dir < 6; dir++)
         {
             var neighborCoord = unitData.currentHex.Neighbor(dir);
@@ -81,26 +83,35 @@ public class HexAgent : Agent
 
             if (neighborTile == null)
             {
-                for (int j = 0; j < 9; j++) sensor.AddObservation(0f);
+                for (int j = 0; j < 10; j++) sensor.AddObservation(0f);
                 continue;
             }
 
             bool isOwn   = neighborTile.Owner == unitData.team;
             bool isEnemy = neighborTile.Owner != Team.None && !isOwn;
+
+            // Ownership (3).
             sensor.AddObservation(neighborTile.Owner == Team.None ? 1f : 0f);
             sensor.AddObservation(isOwn   ? 1f : 0f);
             sensor.AddObservation(isEnemy ? 1f : 0f);
 
-            sensor.AddObservation(neighborTile.TileType == TileType.Empty ? 1f : 0f);
-            sensor.AddObservation(neighborTile.TileType == TileType.Crate ? 1f : 0f);
+            // Structures (3).
+            sensor.AddObservation(neighborTile.TileType == TileType.Wall  ? 1f : 0f);
+            sensor.AddObservation(neighborTile.WallHP / 3f);
             sensor.AddObservation(neighborTile.TileType == TileType.Slime ? 1f : 0f);
 
+            // Units (2).
             sensor.AddObservation(HasEnemyUnit(neighborCoord) ? 1f : 0f);
             sensor.AddObservation(HasAllyUnit(neighborCoord)  ? 1f : 0f);
-            sensor.AddObservation(neighborTile.Fortification / 3f);
+
+            // Enemy energy (1): normalized energy of enemy unit on this hex, 0 if none.
+            sensor.AddObservation(GetEnemyEnergyNorm(neighborCoord));
+
+            // Is base (1).
+            sensor.AddObservation(neighborTile.isBase ? 1f : 0f);
         }
 
-        // Global state — largest connected group (win condition metric).
+        // Global state (4).
         int  ownGroup    = grid.LargestConnectedGroup(unitData.team);
         Team enemyTeam   = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
         int  enemyGroup  = grid.LargestConnectedGroup(enemyTeam);
@@ -109,11 +120,12 @@ public class HexAgent : Agent
         sensor.AddObservation(ownGroup   / totalF);
         sensor.AddObservation(enemyGroup / totalF);
 
-        float stepProgress = Mathf.Clamp01(Academy.Instance.StepCount / 6000f);
+        var cfg = GameConfig.Instance;
+        int maxSteps = cfg != null ? cfg.maxSteps : 800;
+        float stepProgress = Mathf.Clamp01(Academy.Instance.StepCount / (float)maxSteps);
         sensor.AddObservation(stepProgress);
 
-        // Respawn cooldown: 0 when alive, counts down from 30 max.
-        sensor.AddObservation(unitData.respawnCooldown / 30f);
+        sensor.AddObservation(unitData.respawnCooldown / 6f);
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -128,50 +140,73 @@ public class HexAgent : Agent
 
             if (action == 0)
             {
+                // Idle
                 unitData.lastAction = UnitAction.Idle;
             }
             else if (action >= 1 && action <= 6)
             {
+                // Move in direction
                 int dir = action - 1;
+                movement.TryMove(dir);
+
+                // Capture bonus.
+                if (unitData.lastAction == UnitAction.Capture)
+                {
+                    Team enemy = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
+                    int enemyNeighbors = grid.CountTeamNeighbors(unitData.currentHex, enemy);
+                    if (enemyNeighbors > 0)
+                        AddReward((GameConfig.Instance?.hexCaptureReward ?? 0.05f) * enemyNeighbors);
+                }
+            }
+            else if (action >= 7 && action <= 12)
+            {
+                // Attack in direction
+                int dir = action - 7;
                 bool didAttack = movement.TryAttack(dir);
                 if (didAttack)
                 {
-                    // Kill bonus: check if the enemy at that hex just died.
-                    HexCoord targetCoord = unitData.currentHex.Neighbor(dir);
-                    foreach (var u in UnitCache.GetAll())
-                    {
-                        if (u.team != unitData.team && u.currentHex == targetCoord && !u.isAlive)
-                        {
-                            AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    movement.TryMove(dir);
+                    if (unitData.lastAttackKilled)
+                        AddReward(GameConfig.Instance?.killBonus ?? 0.5f);
 
-                    // Disruption bonus: capturing a tile surrounded by enemy tiles.
+                    // Capture reward for hex attacks.
                     if (unitData.lastAction == UnitAction.Capture)
+                        AddReward(GameConfig.Instance?.hexCaptureReward ?? 0.05f);
+                }
+            }
+            else if (action >= 13 && action <= 18)
+            {
+                // Build on adjacent hex in direction.
+                int dir = action - 13;
+                if (movement.TryBuild(dir))
+                {
+                    var cfgBuild = GameConfig.Instance;
+                    AddReward(cfgBuild?.buildReward ?? 0.05f);
+
+                    // Mutant builds on self, Robot builds on adjacent hex.
+                    HexCoord buildTarget = unitData.team == Team.Mutant
+                        ? unitData.currentHex
+                        : unitData.currentHex.Neighbor(dir);
+                    int ownNeighbors = grid.CountTeamNeighbors(buildTarget, unitData.team);
+                    if (ownNeighbors > 0)
+                        AddReward((cfgBuild?.buildAdjacencyBonus ?? 0.03f) * ownNeighbors);
+
+                    // Extra slime reward for Mutants — slime network is their core strategy.
+                    if (unitData.team == Team.Mutant)
                     {
-                        Team enemy = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
-                        int enemyNeighbors = grid.CountTeamNeighbors(unitData.currentHex, enemy);
-                        if (enemyNeighbors > 0)
-                            AddReward((GameConfig.Instance?.captureDisruptionBonus ?? 0.05f) * enemyNeighbors);
+                        AddReward(cfgBuild?.slimePlacementReward ?? 0.08f);
+
+                        // Bonus for slime adjacent to existing slime (network).
+                        int slimeNeighbors = CountAdjacentSlime(buildTarget);
+                        if (slimeNeighbors > 0)
+                            AddReward((cfgBuild?.slimeNetworkBonus ?? 0.04f) * slimeNeighbors);
                     }
                 }
             }
-            else if (action == 7)
+            else if (action >= 19 && action <= 24)
             {
-                if (movement.TryBuild())
-                {
-                    AddReward(GameConfig.Instance?.buildReward ?? 0.05f);
-
-                    // Adjacency bonus: more own neighbors → higher reward for clustering.
-                    int ownNeighbors = grid.CountTeamNeighbors(unitData.currentHex, unitData.team);
-                    if (ownNeighbors > 0)
-                        AddReward((GameConfig.Instance?.buildAdjacencyBonus ?? 0.03f) * ownNeighbors);
-                }
+                // Destroy own wall in direction (Phase 4 implements TryDestroyWall)
+                int dir = action - 19;
+                movement.TryDestroyWall(dir);
             }
 
             // Reward shaping — based on territory analysis (connected groups).
@@ -187,22 +222,22 @@ public class HexAgent : Agent
             int enemyGroupLost = prevEnemyTiles - enemyInfo.largestGroup;
             if (enemyGroupLost > 0) AddReward((cfg?.enemyLossRewardPerTile ?? 0.1f) * enemyGroupLost);
 
-            // 1) Cohesion bonus: reward keeping territory in one big group.
+            // Cohesion bonus.
             if (ownInfo.totalTiles > 0)
             {
                 float cohesion = (float)ownInfo.largestGroup / ownInfo.totalTiles;
                 AddReward((cfg?.cohesionBonus ?? 0.02f) * cohesion);
             }
 
-            // 2) Group split bonus: extra reward when enemy gets fragmented.
+            // Group split bonus.
             int enemySplits = enemyInfo.componentCount - prevEnemyComponents;
             if (enemySplits > 0) AddReward((cfg?.groupSplitBonus ?? 0.3f) * enemySplits);
 
-            // 3) Base connection bonus: reward keeping largest group linked to base.
+            // Base connection bonus.
             if (ownInfo.largestTouchesBase)
                 AddReward(cfg?.baseConnectionBonus ?? 0.005f);
 
-            // 4) Frontline presence: reward units holding the border.
+            // Frontline presence.
             if (grid.IsFrontlineTile(unitData.currentHex, unitData.team))
                 AddReward(cfg?.frontlineBonus ?? 0.005f);
 
@@ -222,28 +257,45 @@ public class HexAgent : Agent
     {
         if (!unitData.isAlive || grid == null)
         {
-            for (int i = 1; i <= 7; i++)
+            // Dead: only idle allowed.
+            for (int i = 1; i < 25; i++)
                 actionMask.SetActionEnabled(0, i, false);
             return;
         }
 
-        // Directions 1-6: valid if can move OR can attack in that direction.
+        // Move directions 1-6.
         for (int dir = 0; dir < 6; dir++)
         {
-            bool valid = movement.IsValidMove(dir) || movement.IsValidAttack(dir);
-            if (!valid)
-                actionMask.SetActionEnabled(0, dir + 1, false);
+            if (!movement.IsValidMove(dir))
+                actionMask.SetActionEnabled(0, 1 + dir, false);
         }
 
-        // Action 7 (build): valid only if on own empty non-base tile.
-        if (!movement.IsValidBuild())
-            actionMask.SetActionEnabled(0, 7, false);
+        // Attack directions 7-12.
+        for (int dir = 0; dir < 6; dir++)
+        {
+            if (!movement.IsValidAttack(dir))
+                actionMask.SetActionEnabled(0, 7 + dir, false);
+        }
+
+        // Build directions 13-18.
+        for (int dir = 0; dir < 6; dir++)
+        {
+            if (!movement.IsValidBuild(dir))
+                actionMask.SetActionEnabled(0, 13 + dir, false);
+        }
+
+        // Destroy wall directions 19-24.
+        for (int dir = 0; dir < 6; dir++)
+        {
+            if (!movement.IsValidDestroyWall(dir))
+                actionMask.SetActionEnabled(0, 19 + dir, false);
+        }
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var da = actionsOut.DiscreteActions;
-        da[0] = Random.Range(0, 8);
+        da[0] = Random.Range(0, 25);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────
@@ -266,5 +318,28 @@ public class HexAgent : Agent
             if (u.team == unitData.team && u.currentHex == coord) return true;
         }
         return false;
+    }
+
+    private float GetEnemyEnergyNorm(HexCoord coord)
+    {
+        foreach (var u in UnitCache.GetAll())
+        {
+            if (!u.isAlive) continue;
+            if (u.team != unitData.team && u.currentHex == coord)
+                return u.maxEnergy > 0 ? u.Energy / (float)u.maxEnergy : 0f;
+        }
+        return 0f;
+    }
+
+    private int CountAdjacentSlime(HexCoord coord)
+    {
+        int count = 0;
+        for (int dir = 0; dir < 6; dir++)
+        {
+            var tile = grid.GetTile(coord.Neighbor(dir));
+            if (tile != null && tile.TileType == TileType.Slime && tile.Owner == unitData.team)
+                count++;
+        }
+        return count;
     }
 }

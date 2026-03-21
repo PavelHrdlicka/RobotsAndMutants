@@ -2,7 +2,7 @@ using NUnit.Framework;
 using UnityEngine;
 
 /// <summary>
-/// Tests for game mechanics: combat damage, unit death/respawn, game state.
+/// Tests for game mechanics: energy, unit death/respawn, game state.
 /// Uses minimal GameObjects without full scene setup.
 /// </summary>
 public class GameMechanicsTests
@@ -13,13 +13,13 @@ public class GameMechanicsTests
         var go = new GameObject("TestUnit");
         var unit = go.AddComponent<UnitData>();
         unit.isAlive = true;
-        unit.Health = 5;
+        unit.Energy = 10;
 
-        unit.Die(12);
+        unit.Die(6);
 
         Assert.IsFalse(unit.isAlive);
-        Assert.AreEqual(0, unit.Health);
-        Assert.AreEqual(12, unit.respawnCooldown);
+        Assert.AreEqual(0, unit.Energy);
+        Assert.AreEqual(6, unit.respawnCooldown);
         Assert.IsFalse(go.activeSelf);
 
         Object.DestroyImmediate(go);
@@ -44,13 +44,13 @@ public class GameMechanicsTests
     {
         var go = new GameObject("TestUnit");
         var unit = go.AddComponent<UnitData>();
-        unit.Die(12);
+        unit.Die(6);
 
         var hex = new HexCoord(1, -1);
         unit.Respawn(hex, Vector3.zero);
 
         Assert.IsTrue(unit.isAlive);
-        Assert.AreEqual(5, unit.Health);
+        Assert.AreEqual(15, unit.Energy); // maxEnergy = 15
         Assert.AreEqual(0, unit.respawnCooldown);
         Assert.AreEqual(hex, unit.currentHex);
         Assert.IsTrue(go.activeSelf);
@@ -63,13 +63,11 @@ public class GameMechanicsTests
     {
         var go = new GameObject("TestUnit");
         var unit = go.AddComponent<UnitData>();
-        unit.Health = 1;
-        unit.hasShield = true;
+        unit.Energy = 1;
 
         unit.ResetUnit();
 
-        Assert.AreEqual(5, unit.Health);
-        Assert.IsFalse(unit.hasShield);
+        Assert.AreEqual(15, unit.Energy); // maxEnergy = 15
 
         Object.DestroyImmediate(go);
     }

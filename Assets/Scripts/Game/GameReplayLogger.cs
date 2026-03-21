@@ -84,7 +84,7 @@ public class GameReplayLogger
             sb.Append($",\"unit\":\"{unit.gameObject.name}\"");
             sb.Append($",\"team\":\"{unit.team}\"");
             sb.Append($",\"action\":\"{unit.lastAction}\"");
-            sb.Append($",\"hp\":{unit.Health}");
+            sb.Append($",\"energy\":{unit.Energy}");
             sb.Append($",\"pos\":[{unit.currentHex.q},{unit.currentHex.r}]");
 
             // Attack target info.

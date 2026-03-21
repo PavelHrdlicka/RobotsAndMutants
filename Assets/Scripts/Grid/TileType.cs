@@ -4,6 +4,6 @@
 public enum TileType
 {
     Empty,
-    Crate,  // Built by Robots — provides defensive bonus
-    Slime   // Spread by Mutants — provides speed bonus
+    Wall,   // Built by Robots — blocks movement, has HP (1-3)
+    Slime   // Placed by Mutants — regen for Mutants, costs Robots energy to enter
 }

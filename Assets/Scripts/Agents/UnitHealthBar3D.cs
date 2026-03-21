@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// 3D segmented health bar floating above the unit.
-/// 5 individual cubes — each represents one energy point.
+/// 3D energy bar floating above the unit.
+/// Single continuous bar with color gradient based on energy fraction.
 /// Billboards toward the camera every frame.
 /// </summary>
 [RequireComponent(typeof(UnitData))]
@@ -10,22 +10,23 @@ public class UnitHealthBar3D : MonoBehaviour
 {
     private UnitData unitData;
     private Transform barRoot;
-    private Transform[] segments;
-    private Renderer[] segRenderers;
+    private Transform barFill;
+    private Transform barBg;
+    private Renderer fillRenderer;
+    private Renderer bgRenderer;
     private Camera cam;
 
-    private static Material segMaterial;
+    private static Material barMaterial;
 
-    private const int MaxSegments = 5;
-    private const float SegWidth  = 0.025f;
-    private const float SegHeight = 0.018f;
-    private const float SegGap    = 0.004f;
-    private const float BarY      = 0.40f; // above unit root
+    private const float BarWidth  = 0.14f;
+    private const float BarHeight = 0.018f;
+    private const float BarDepth  = 0.005f;
+    private const float BarY      = 0.40f;
 
     private static readonly Color FullColor  = new Color(0.2f, 0.95f, 0.2f);
     private static readonly Color MidColor   = new Color(0.95f, 0.95f, 0.2f);
     private static readonly Color LowColor   = new Color(0.95f, 0.2f, 0.2f);
-    private static readonly Color EmptyColor = new Color(0.15f, 0.15f, 0.15f, 0.5f);
+    private static readonly Color BgColor    = new Color(0.15f, 0.15f, 0.15f, 0.5f);
 
     private void Awake()
     {
@@ -38,32 +39,33 @@ public class UnitHealthBar3D : MonoBehaviour
     {
         EnsureMaterial();
 
-        barRoot = new GameObject("HealthBar").transform;
+        barRoot = new GameObject("EnergyBar").transform;
         barRoot.SetParent(transform, false);
         barRoot.localPosition = new Vector3(0f, BarY, 0f);
 
-        segments    = new Transform[MaxSegments];
-        segRenderers = new Renderer[MaxSegments];
+        // Background (full width, dark).
+        var bgGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        bgGo.name = "BarBg";
+        bgGo.transform.SetParent(barRoot, false);
+        bgGo.transform.localPosition = Vector3.zero;
+        bgGo.transform.localScale = new Vector3(BarWidth, BarHeight, BarDepth);
+        var col = bgGo.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        bgRenderer = bgGo.GetComponent<Renderer>();
+        bgRenderer.material = new Material(barMaterial);
+        bgRenderer.material.SetColor("_BaseColor", BgColor);
+        barBg = bgGo.transform;
 
-        float totalWidth = MaxSegments * SegWidth + (MaxSegments - 1) * SegGap;
-        float startX = -totalWidth * 0.5f + SegWidth * 0.5f;
-
-        for (int i = 0; i < MaxSegments; i++)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = $"Seg{i}";
-            go.transform.SetParent(barRoot, false);
-            go.transform.localPosition = new Vector3(startX + i * (SegWidth + SegGap), 0f, 0f);
-            go.transform.localScale = new Vector3(SegWidth, SegHeight, 0.005f);
-
-            var col = go.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-
-            var rend = go.GetComponent<Renderer>();
-            rend.material = new Material(segMaterial);
-            segments[i]    = go.transform;
-            segRenderers[i] = rend;
-        }
+        // Fill (scales with energy fraction).
+        var fillGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        fillGo.name = "BarFill";
+        fillGo.transform.SetParent(barRoot, false);
+        fillGo.transform.localScale = new Vector3(BarWidth, BarHeight, BarDepth + 0.001f);
+        col = fillGo.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        fillRenderer = fillGo.GetComponent<Renderer>();
+        fillRenderer.material = new Material(barMaterial);
+        barFill = fillGo.transform;
     }
 
     private void LateUpdate()
@@ -75,26 +77,26 @@ public class UnitHealthBar3D : MonoBehaviour
         if (cam != null)
             barRoot.rotation = Quaternion.LookRotation(cam.transform.forward, cam.transform.up);
 
-        // Update segment colors.
-        int hp = unitData.Health;
-        float hpFrac = hp / (float)unitData.maxHealth;
+        // Update fill width and color.
+        float frac = unitData.maxEnergy > 0 ? unitData.Energy / (float)unitData.maxEnergy : 0f;
+        frac = Mathf.Clamp01(frac);
 
-        Color activeColor = hpFrac > 0.6f ? FullColor :
-                            hpFrac > 0.3f ? MidColor  : LowColor;
+        Color activeColor = frac > 0.6f ? FullColor :
+                            frac > 0.3f ? MidColor  : LowColor;
 
-        for (int i = 0; i < MaxSegments; i++)
-        {
-            if (segRenderers[i] == null) continue;
-            Color c = (i < hp) ? activeColor : EmptyColor;
-            segRenderers[i].material.SetColor("_BaseColor", c);
-        }
+        fillRenderer.material.SetColor("_BaseColor", activeColor);
+
+        // Scale fill bar horizontally, anchor left.
+        float fillWidth = BarWidth * frac;
+        barFill.localScale = new Vector3(fillWidth, BarHeight, BarDepth + 0.001f);
+        barFill.localPosition = new Vector3((fillWidth - BarWidth) * 0.5f, 0f, 0f);
     }
 
     private static void EnsureMaterial()
     {
-        if (segMaterial != null) return;
+        if (barMaterial != null) return;
         var shader = Shader.Find("Universal Render Pipeline/Unlit");
         if (shader == null) shader = Shader.Find("Unlit/Color");
-        segMaterial = new Material(shader);
+        barMaterial = new Material(shader);
     }
 }

@@ -27,7 +27,7 @@ public class HexTileDataTests
     {
         Assert.AreEqual(Team.None, tile.Owner);
         Assert.AreEqual(TileType.Empty, tile.TileType);
-        Assert.AreEqual(0, tile.Fortification);
+        Assert.AreEqual(0, tile.WallHP);
         Assert.IsFalse(tile.isBase);
     }
 
@@ -60,13 +60,23 @@ public class HexTileDataTests
     }
 
     [Test]
-    public void Fortification_ClampedTo0To3()
+    public void WallHP_ClampedTo0To3()
     {
-        tile.Fortification = 5;
-        Assert.AreEqual(3, tile.Fortification);
+        tile.WallHP = 5;
+        Assert.AreEqual(3, tile.WallHP);
 
-        tile.Fortification = -1;
-        Assert.AreEqual(0, tile.Fortification);
+        tile.WallHP = -1;
+        Assert.AreEqual(0, tile.WallHP);
+    }
+
+    [Test]
+    public void WallHP_SetsAndFiresEvent()
+    {
+        bool fired = false;
+        tile.OnTileChanged += _ => fired = true;
+        tile.WallHP = 2;
+        Assert.IsTrue(fired);
+        Assert.AreEqual(2, tile.WallHP);
     }
 
     [Test]
@@ -74,13 +84,13 @@ public class HexTileDataTests
     {
         tile.Owner = Team.Mutant;
         tile.TileType = TileType.Slime;
-        tile.Fortification = 2;
+        tile.WallHP = 2;
 
         tile.ResetTile();
 
         Assert.AreEqual(Team.None, tile.Owner);
         Assert.AreEqual(TileType.Empty, tile.TileType);
-        Assert.AreEqual(0, tile.Fortification);
+        Assert.AreEqual(0, tile.WallHP);
     }
 
     [Test]

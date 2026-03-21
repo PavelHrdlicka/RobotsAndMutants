@@ -220,17 +220,32 @@ public partial class GameManager
             cachedMutantTotal, cachedMutantAlive, state.mutantTiles, mutantPct,
             mutantAttacks, mutantKills, mutantBuilds);
 
-        // Game over banner.
-        if (state.gameOver)
+        // Game over banner — suppress during replay playback (gameOver is used to block game loop).
+        var replayPlayer = GetComponent<ReplayPlayer>();
+        bool isReplayActive = replayPlayer != null && replayPlayer.enabled && replayPlayer.Replay != null;
+        bool showGameOver = state.gameOver && (!isReplayActive || replayPlayer.state == ReplayPlayer.PlaybackState.Finished);
+
+        if (showGameOver)
         {
             float bannerW = 400f;
             float bannerX = (Screen.width - bannerW) * 0.5f;
             panelStyle.normal.background = darkBg;
             GUI.Box(new Rect(bannerX, Screen.height * 0.4f, bannerW, 50), "", panelStyle);
 
-            string winText = state.winner == Team.None
-                ? "DRAW!"
-                : $"{state.winner.ToString().ToUpper()}S WIN!";
+            string winText;
+            if (isReplayActive)
+            {
+                string replayWinner = replayPlayer.Replay?.summary.winner ?? "";
+                winText = string.IsNullOrEmpty(replayWinner) || replayWinner == "Draw"
+                    ? "DRAW!"
+                    : $"{replayWinner.ToUpper()}S WIN!";
+            }
+            else
+            {
+                winText = state.winner == Team.None
+                    ? "DRAW!"
+                    : $"{state.winner.ToString().ToUpper()}S WIN!";
+            }
             GUI.Label(new Rect(bannerX, Screen.height * 0.4f + 8, bannerW, 34), winText, gameOverStyle);
         }
 

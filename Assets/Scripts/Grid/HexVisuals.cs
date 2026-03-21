@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Maps HexTileData state (owner, tile type, fortification, base) to hex color.
+/// Maps HexTileData state (owner, tile type, wall HP, base) to hex color and extrusion.
 /// Base tiles are extruded (raised platform) with a glowing team-colored border.
+/// Wall tiles are extruded higher, brightness scales with wall HP.
 /// Subscribes to OnTileChanged and updates automatically.
 /// </summary>
 [RequireComponent(typeof(HexTileData), typeof(HexMeshGenerator))]
@@ -18,11 +19,12 @@ public class HexVisuals : MonoBehaviour
     private static readonly Color MutantColor      = new Color(0.45f, 0.75f, 0.30f);
     private static readonly Color RobotBaseColor   = new Color(0.15f, 0.30f, 0.70f);
     private static readonly Color MutantBaseColor  = new Color(0.25f, 0.55f, 0.15f);
-    private static readonly Color CrateColor       = new Color(0.20f, 0.35f, 0.65f);
+    private static readonly Color WallColor        = new Color(0.25f, 0.30f, 0.50f);
     private static readonly Color SlimeColor       = new Color(0.35f, 0.85f, 0.20f);
 
-    private static readonly float FortificationBrightness = 0.08f;
+    private static readonly float WallHPBrightness = 0.05f;
     private const float BaseExtrudeHeight = 0.08f;
+    private const float WallExtrudeHeight = 0.12f;
 
     private void Awake()
     {
@@ -50,7 +52,7 @@ public class HexVisuals : MonoBehaviour
 
     private void OnTileChanged(HexTileData _)
     {
-        UpdateColor();
+        UpdateVisuals();
     }
 
     // ── Base tile extrusion + glow border ────────────────────────────────
@@ -114,18 +116,29 @@ public class HexVisuals : MonoBehaviour
         mr.material = mat;
     }
 
-    // ── Color resolution ─────────────────────────────────────────────────
+    // ── Visual update ──────────────────────────────────────────────────
+
+    private void UpdateVisuals()
+    {
+        UpdateColor();
+        UpdateExtrusion();
+    }
 
     public void UpdateColor()
     {
         if (tileData == null || meshGen == null) return;
+        meshGen.SetColor(ResolveColor());
+    }
 
-        Color color = ResolveColor();
+    private void UpdateExtrusion()
+    {
+        if (tileData == null || meshGen == null) return;
+        if (tileData.isBase) return; // base extrusion is set once in SetupBaseVisuals
 
-        if (tileData.Fortification > 0)
-            color += Color.white * (tileData.Fortification * FortificationBrightness);
-
-        meshGen.SetColor(color);
+        if (tileData.TileType == TileType.Wall)
+            meshGen.SetExtruded(true, WallExtrudeHeight);
+        else
+            meshGen.SetExtruded(false, 0f);
     }
 
     private Color ResolveColor()
@@ -140,8 +153,14 @@ public class HexVisuals : MonoBehaviour
             };
         }
 
-        if (tileData.TileType == TileType.Crate && tileData.Owner == Team.Robot)
-            return CrateColor;
+        if (tileData.TileType == TileType.Wall && tileData.Owner == Team.Robot)
+        {
+            Color c = WallColor;
+            if (tileData.WallHP > 0)
+                c += Color.white * (tileData.WallHP * WallHPBrightness);
+            return c;
+        }
+
         if (tileData.TileType == TileType.Slime && tileData.Owner == Team.Mutant)
             return SlimeColor;
 
@@ -153,36 +172,34 @@ public class HexVisuals : MonoBehaviour
         };
     }
 
-    public static Color GetColorForState(Team owner, TileType tileType, bool isBase, Team baseTeam, int fortification)
+    public static Color GetColorForState(Team owner, TileType tileType, bool isBase, Team baseTeam, int wallHP)
     {
-        Color color;
-
         if (isBase)
         {
-            color = baseTeam switch
+            return baseTeam switch
             {
                 Team.Robot  => RobotBaseColor,
                 Team.Mutant => MutantBaseColor,
                 _           => NeutralColor
             };
         }
-        else if (tileType == TileType.Crate && owner == Team.Robot)
-            color = CrateColor;
-        else if (tileType == TileType.Slime && owner == Team.Mutant)
-            color = SlimeColor;
-        else
+
+        if (tileType == TileType.Wall && owner == Team.Robot)
         {
-            color = owner switch
-            {
-                Team.Robot  => RobotColor,
-                Team.Mutant => MutantColor,
-                _           => NeutralColor
-            };
+            Color c = WallColor;
+            if (wallHP > 0)
+                c += Color.white * (wallHP * WallHPBrightness);
+            return c;
         }
 
-        if (fortification > 0)
-            color += Color.white * (fortification * FortificationBrightness);
+        if (tileType == TileType.Slime && owner == Team.Mutant)
+            return SlimeColor;
 
-        return color;
+        return owner switch
+        {
+            Team.Robot  => RobotColor,
+            Team.Mutant => MutantColor,
+            _           => NeutralColor
+        };
     }
 }

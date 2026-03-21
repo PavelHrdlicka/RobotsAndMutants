@@ -75,7 +75,7 @@ public class GameReplayLoggerTests
         var unit = go.AddComponent<UnitData>();
         unit.team = Team.Robot;
         unit.unitIndex = 0;
-        unit.Health = 5;
+        unit.Energy = 5;
         unit.currentHex = new HexCoord(2, -1);
         unit.lastAction = UnitAction.Move;
 
@@ -122,7 +122,7 @@ public class GameReplayLoggerTests
         var attackerGo = new GameObject("Robot_0");
         var attacker = attackerGo.AddComponent<UnitData>();
         attacker.team = Team.Robot;
-        attacker.Health = 5;
+        attacker.Energy = 5;
         attacker.currentHex = new HexCoord(1, 0);
         attacker.lastAction = UnitAction.Attack;
 
@@ -157,7 +157,7 @@ public class GameReplayLoggerTests
         var go = new GameObject("Robot_0");
         var unit = go.AddComponent<UnitData>();
         unit.team = Team.Robot;
-        unit.Health = 5;
+        unit.Energy = 5;
         unit.currentHex = new HexCoord(0, 0);
         unit.lastAction = UnitAction.Move;
         unit.lastAttackTarget = null;

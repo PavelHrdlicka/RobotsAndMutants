@@ -142,9 +142,9 @@ public class UnitMovementPlayTests
     {
         yield return null;
         movement.TryMove(0);
-        // On a neutral tile, lastAction stays Move (no neutralization).
-        Assert.AreEqual(UnitAction.Move, unitData.lastAction,
-            "lastAction should be Move after a successful move to a neutral tile.");
+        // Moving onto a neutral tile triggers free capture.
+        Assert.AreEqual(UnitAction.Capture, unitData.lastAction,
+            "lastAction should be Capture after moving onto a neutral tile (free capture).");
     }
 
     [UnityTest]
@@ -163,23 +163,37 @@ public class UnitMovementPlayTests
         Assert.AreEqual(beforeTo,   unitData.moveTo,   "moveTo should not change on failed move.");
     }
 
-    // ── Move onto enemy tile neutralizes it ──────────────────────────────
+    // ── Move blocked by enemy territory ──────────────────────────────────
 
     [UnityTest]
-    public IEnumerator TryMove_OntoEnemyTile_NeutralizesIt()
+    public IEnumerator TryMove_OntoEnemyTile_Blocked()
     {
         yield return null;
-        // Paint (1,0) as mutant slime.
         var tile = grid.GetTile(new HexCoord(1, 0));
         Assert.IsNotNull(tile, "Tile (1,0) must exist.");
+        tile.Owner = Team.Mutant;
+
+        bool moved = movement.TryMove(0); // East → (1,0) enemy territory
+
+        Assert.IsFalse(moved, "Enemy territory should block movement.");
+        Assert.AreEqual(new HexCoord(0, 0), unitData.currentHex, "Unit should stay at origin.");
+    }
+
+    [UnityTest]
+    public IEnumerator TryMove_OntoEnemySlime_RobotPaysEnergy()
+    {
+        yield return null;
+        var tile = grid.GetTile(new HexCoord(1, 0));
         tile.Owner    = Team.Mutant;
         tile.TileType = TileType.Slime;
+        unitData.Energy = 15;
 
-        movement.TryMove(0); // East → (1,0)
+        bool moved = movement.TryMove(0); // East → (1,0) enemy slime
 
-        Assert.AreEqual(Team.None, tile.Owner, "Enemy tile should be neutralized.");
-        Assert.AreEqual(TileType.Empty, tile.TileType, "Tile type should be Empty after neutralization.");
-        Assert.AreEqual(UnitAction.Capture, unitData.lastAction, "lastAction should be Capture.");
+        Assert.IsTrue(moved, "Robot should be able to enter enemy slime (paying energy).");
+        Assert.AreEqual(12, unitData.Energy, "Robot pays 3 energy to enter enemy slime.");
+        Assert.AreEqual(TileType.Empty, tile.TileType, "Slime should be destroyed.");
+        Assert.AreEqual(Team.Robot, tile.Owner, "Robot claims tile after destroying slime (free capture).");
     }
 
     // ── Attack ──────────────────────────────────────────────────────────
@@ -196,15 +210,14 @@ public class UnitMovementPlayTests
         enemy.currentHex = new HexCoord(1, 0);
         enemyGo.transform.position = grid.HexToWorld(enemy.currentHex);
 
-        int robotHpBefore = unitData.Health;
-        int enemyHpBefore = enemy.Health;
+        unitData.Energy = 15;
+        enemy.Energy = 15;
 
         bool attacked = movement.TryAttack(0); // East → (1,0)
         Assert.IsTrue(attacked, "Attack toward adjacent enemy should succeed.");
         Assert.AreEqual(UnitAction.Attack, unitData.lastAction);
-        Assert.AreEqual(UnitAction.Defend, enemy.lastAction);
-        Assert.AreEqual(robotHpBefore - 1, unitData.Health, "Attacker takes 1 damage.");
-        Assert.AreEqual(enemyHpBefore - 2, enemy.Health, "Defender takes 2 damage.");
+        Assert.AreEqual(12, unitData.Energy, "Attacker pays 3 energy cost (no counter-damage).");
+        Assert.AreEqual(12, enemy.Energy, "Defender loses 3 energy from attack.");
         // Attacker stays in place.
         Assert.AreEqual(new HexCoord(0, 0), unitData.currentHex, "Attacker should not move.");
 
@@ -214,20 +227,22 @@ public class UnitMovementPlayTests
     // ── Build ───────────────────────────────────────────────────────────
 
     [UnityTest]
-    public IEnumerator TryBuild_OnNeutralTile_CreatesRobotCrate()
+    public IEnumerator TryBuild_OnAdjacentOwnTile_CreatesRobotWall()
     {
         yield return null;
-        // Move to (1,0) first so we are on a neutral tile.
-        movement.TryMove(0);
+        // Setup: own tile at (1,0).
         var tile = grid.GetTile(new HexCoord(1, 0));
         Assert.IsNotNull(tile);
-        Assert.AreEqual(Team.None, tile.Owner, "Tile should be neutral before build.");
+        tile.Owner = Team.Robot;
+        unitData.Energy = 15;
 
-        bool built = movement.TryBuild();
-        Assert.IsTrue(built, "Build on neutral tile should succeed.");
-        Assert.AreEqual(Team.Robot, tile.Owner, "Tile should be owned by Robot after build.");
-        Assert.AreEqual(TileType.Crate, tile.TileType, "Tile type should be Crate.");
-        Assert.AreEqual(UnitAction.BuildCrate, unitData.lastAction);
+        bool built = movement.TryBuild(0); // Build east → (1,0)
+        Assert.IsTrue(built, "Build on own empty adjacent tile should succeed.");
+        Assert.AreEqual(Team.Robot, tile.Owner, "Tile should remain owned by Robot.");
+        Assert.AreEqual(TileType.Wall, tile.TileType, "Tile type should be Wall.");
+        Assert.AreEqual(3, tile.WallHP, "Wall should have max HP.");
+        Assert.AreEqual(11, unitData.Energy, "Wall build costs 4 energy.");
+        Assert.AreEqual(UnitAction.BuildWall, unitData.lastAction);
     }
 
     // ── Visual animation tests ──────────────────────────────────────────

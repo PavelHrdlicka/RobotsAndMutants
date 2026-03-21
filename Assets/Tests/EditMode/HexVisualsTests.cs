@@ -42,10 +42,21 @@ public class HexVisualsTests
     }
 
     [Test]
-    public void CrateOnRobotTile_ReturnsCrateColor()
+    public void WallOnRobotTile_ReturnsWallColor()
     {
-        var color = HexVisuals.GetColorForState(Team.Robot, TileType.Crate, false, Team.None, 0);
-        Assert.AreEqual(new Color(0.20f, 0.35f, 0.65f), color);
+        var color = HexVisuals.GetColorForState(Team.Robot, TileType.Wall, false, Team.None, 0);
+        Assert.AreEqual(new Color(0.25f, 0.30f, 0.50f), color);
+    }
+
+    [Test]
+    public void WallHP_BrightensWallColor()
+    {
+        var baseColor = HexVisuals.GetColorForState(Team.Robot, TileType.Wall, false, Team.None, 0);
+        var hpColor   = HexVisuals.GetColorForState(Team.Robot, TileType.Wall, false, Team.None, 3);
+
+        Assert.Greater(hpColor.r, baseColor.r, "Wall with HP should be brighter.");
+        Assert.Greater(hpColor.g, baseColor.g, "Wall with HP should be brighter.");
+        Assert.Greater(hpColor.b, baseColor.b, "Wall with HP should be brighter.");
     }
 
     [Test]
@@ -53,17 +64,6 @@ public class HexVisualsTests
     {
         var color = HexVisuals.GetColorForState(Team.Mutant, TileType.Slime, false, Team.None, 0);
         Assert.AreEqual(new Color(0.35f, 0.85f, 0.20f), color);
-    }
-
-    [Test]
-    public void Fortification_BrightensColor()
-    {
-        var baseColor = HexVisuals.GetColorForState(Team.Robot, TileType.Empty, false, Team.None, 0);
-        var fortColor = HexVisuals.GetColorForState(Team.Robot, TileType.Empty, false, Team.None, 2);
-
-        Assert.Greater(fortColor.r, baseColor.r, "Fortified tile should be brighter.");
-        Assert.Greater(fortColor.g, baseColor.g, "Fortified tile should be brighter.");
-        Assert.Greater(fortColor.b, baseColor.b, "Fortified tile should be brighter.");
     }
 
     [Test]

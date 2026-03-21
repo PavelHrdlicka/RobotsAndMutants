@@ -431,21 +431,25 @@ public class HexGrid : MonoBehaviour
         cam.depth = 0;
 
         float boardRadius = outerRadius * Mathf.Sqrt(3f) * (boardSide - 1);
-        float padding = outerRadius * 3f;
+        float padding = outerRadius * 1.5f;
 
         // Isometric view: 45° down, 45° rotated — shows hex board in 3D perspective.
         cam.orthographic = true;
         cam.transform.rotation = Quaternion.Euler(45f, 45f, 0f);
 
-        // Position camera along the view direction, centred on the board.
-        cam.transform.position = -cam.transform.forward * 50f;
+        // Offset camera slightly upward in screen space so the board sits
+        // between the top HUD panels and the bottom replay/stats bar.
+        Vector3 center = -cam.transform.forward * 50f;
+        center += cam.transform.up * (boardRadius * 0.08f);
+        cam.transform.position = center;
 
-        // Ortho size must compensate for the angled view (board takes less screen height).
-        float isoScale = 1.35f;
+        // Ortho size: fill the screen between top HUD and bottom replay bar.
         float aspect = cam.aspect;
-        float sizeForHeight = (boardRadius + padding) * isoScale;
-        float sizeForWidth  = (boardRadius + padding) * isoScale / aspect;
-        cam.orthographicSize = Mathf.Max(sizeForHeight, sizeForWidth);
+        float orthoSize = (boardRadius + padding) * 0.75f;
+        cam.orthographicSize = orthoSize;
+
+        Debug.Log($"[HexGrid] CenterCamera: boardSide={boardSide}, outerRadius={outerRadius}, " +
+                  $"boardRadius={boardRadius:F2}, orthoSize={orthoSize:F2}, aspect={aspect:F2}");
 
         cam.nearClipPlane = 0.1f;
         cam.farClipPlane  = 200f;

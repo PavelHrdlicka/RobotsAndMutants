@@ -148,7 +148,7 @@ public class ReplayPlayer : MonoBehaviour
             {
                 tile.Owner = Team.None;
                 tile.TileType = TileType.Empty;
-                tile.Fortification = 0;
+                tile.WallHP = 0;
             }
         }
 
@@ -182,7 +182,11 @@ public class ReplayPlayer : MonoBehaviour
 
     public void Play()
     {
-        if (state == PlaybackState.Finished) return;
+        if (state == PlaybackState.Finished)
+        {
+            // Restart from beginning if finished.
+            JumpToStart();
+        }
         state = PlaybackState.Playing;
         nextTurnTime = Time.time;
     }
@@ -227,21 +231,7 @@ public class ReplayPlayer : MonoBehaviour
 
     public void JumpToRound(int targetRound)
     {
-        // Reset everything and replay from start.
-        foreach (var tile in grid.Tiles.Values)
-        {
-            if (!tile.isBase)
-            {
-                tile.Owner = Team.None;
-                tile.TileType = TileType.Empty;
-                tile.Fortification = 0;
-            }
-        }
-        foreach (var unit in unitFactory.AllUnits)
-            unit.ResetUnit();
-
-        currentTurnIndex = 0;
-        currentRound = 0;
+        ResetToStart();
 
         // Apply all turns up to targetRound.
         while (currentTurnIndex < replay.turns.Count && replay.turns[currentTurnIndex].round <= targetRound)
@@ -252,6 +242,67 @@ public class ReplayPlayer : MonoBehaviour
 
         if (currentTurnIndex >= replay.turns.Count)
             state = PlaybackState.Finished;
+        else
+            state = PlaybackState.Paused;
+    }
+
+    public void JumpToTurn(int targetTurnIndex)
+    {
+        targetTurnIndex = Mathf.Clamp(targetTurnIndex, 0, replay?.turns.Count ?? 0);
+        ResetToStart();
+
+        while (currentTurnIndex < targetTurnIndex)
+        {
+            ApplyTurn(replay.turns[currentTurnIndex]);
+            currentTurnIndex++;
+        }
+
+        if (currentTurnIndex >= replay.turns.Count)
+            state = PlaybackState.Finished;
+        else
+            state = PlaybackState.Paused;
+    }
+
+    public void StepBackOneTurn()
+    {
+        if (replay == null || currentTurnIndex <= 0) return;
+        JumpToTurn(currentTurnIndex - 1);
+    }
+
+    public void StepBackOneRound()
+    {
+        if (replay == null || currentRound <= 0) return;
+        JumpToRound(currentRound - 1);
+    }
+
+    public void JumpToStart()
+    {
+        ResetToStart();
+        state = PlaybackState.Paused;
+    }
+
+    public void JumpToEnd()
+    {
+        if (replay == null) return;
+        JumpToTurn(replay.turns.Count);
+    }
+
+    private void ResetToStart()
+    {
+        foreach (var tile in grid.Tiles.Values)
+        {
+            if (!tile.isBase)
+            {
+                tile.Owner = Team.None;
+                tile.TileType = TileType.Empty;
+                tile.WallHP = 0;
+            }
+        }
+        foreach (var unit in unitFactory.AllUnits)
+            unit.ResetUnit();
+
+        currentTurnIndex = 0;
+        currentRound = 0;
     }
 
     // ── Turn application ────────────────────────────────────────────────
@@ -267,14 +318,14 @@ public class ReplayPlayer : MonoBehaviour
         if (!unitMap.TryGetValue(turn.unitName, out var unit)) return;
 
         // If unit was dead and now appears with hp > 0, respawn it.
-        if (!unit.isAlive && turn.hp > 0)
+        if (!unit.isAlive && turn.energy > 0)
         {
             var worldPos = grid.HexToWorld(new HexCoord(turn.q, turn.r));
             unit.Respawn(new HexCoord(turn.q, turn.r), worldPos);
         }
 
         // Set HP.
-        unit.Health = turn.hp;
+        unit.Energy = turn.energy;
 
         // Set position.
         var coord = new HexCoord(turn.q, turn.r);
@@ -305,7 +356,7 @@ public class ReplayPlayer : MonoBehaviour
         }
 
         // Die if HP dropped to 0.
-        if (turn.hp <= 0 && unit.isAlive)
+        if (turn.energy <= 0 && unit.isAlive)
             unit.Die(12);
 
         // Apply tile ownership from build actions.
@@ -314,12 +365,12 @@ public class ReplayPlayer : MonoBehaviour
         {
             Team team = turn.team == "Robot" ? Team.Robot : Team.Mutant;
 
-            if (turn.action == "BuildCrate")
+            if (turn.action == "BuildCrate" || turn.action == "BuildWall")
             {
                 tile.Owner = team;
-                tile.TileType = TileType.Crate;
+                tile.TileType = TileType.Wall;
             }
-            else if (turn.action == "SpreadSlime")
+            else if (turn.action == "SpreadSlime" || turn.action == "PlaceSlime")
             {
                 tile.Owner = team;
                 tile.TileType = TileType.Slime;
@@ -340,8 +391,10 @@ public class ReplayPlayer : MonoBehaviour
             "Attack" => UnitAction.Attack,
             "Defend" => UnitAction.Defend,
             "Idle" => UnitAction.Idle,
-            "BuildCrate" => UnitAction.BuildCrate,
-            "SpreadSlime" => UnitAction.SpreadSlime,
+            "BuildCrate" => UnitAction.BuildWall,
+            "BuildWall" => UnitAction.BuildWall,
+            "SpreadSlime" => UnitAction.PlaceSlime,
+            "PlaceSlime" => UnitAction.PlaceSlime,
             "Capture" => UnitAction.Capture,
             "Dead" => UnitAction.Dead,
             _ => UnitAction.Idle,

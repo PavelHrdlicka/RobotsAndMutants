@@ -6,6 +6,10 @@ public static class TestModeDetector
 {
     private static bool? s_testMode;
 
+    /// <summary>Clear cached value on play-mode entry so test-run cache doesn't leak.</summary>
+    [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetCache() => s_testMode = null;
+
     public static bool IsTestMode()
     {
         if (!s_testMode.HasValue)

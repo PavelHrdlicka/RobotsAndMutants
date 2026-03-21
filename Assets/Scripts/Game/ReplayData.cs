@@ -24,7 +24,7 @@ public static class ReplayData
         public string unitName;
         public string team;
         public string action;
-        public int hp;
+        public int energy;
         public int q, r;
         public bool hasTarget;
         public int targetQ, targetR;
@@ -86,7 +86,7 @@ public static class ReplayData
                     unitName = ExtractString(line, "unit"),
                     team = ExtractString(line, "team"),
                     action = ExtractString(line, "action"),
-                    hp = ExtractInt(line, "hp"),
+                    energy = line.Contains("\"energy\":") ? ExtractInt(line, "energy") : ExtractInt(line, "hp"),
                     q = ExtractPosQ(line, "pos"),
                     r = ExtractPosR(line, "pos"),
                     killed = line.Contains("\"killed\":true"),

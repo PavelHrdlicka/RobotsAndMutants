@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Per-unit runtime state: team, health, position, alive/dead status, respawn cooldown.
+/// Per-unit runtime state: team, energy, position, alive/dead status, respawn cooldown.
+/// Energy is the universal resource — serves as HP and action currency.
 /// </summary>
 public class UnitData : MonoBehaviour
 {
@@ -10,8 +11,8 @@ public class UnitData : MonoBehaviour
     public int unitIndex;
 
     [Header("Stats")]
-    public int maxHealth = 7;
-    [SerializeField] private int health = 7;
+    public int maxEnergy = 15;
+    [SerializeField] private int energy = 15;
 
     [Header("Position")]
     public HexCoord currentHex;
@@ -19,9 +20,6 @@ public class UnitData : MonoBehaviour
     [Header("Status")]
     public bool isAlive = true;
     public int respawnCooldown;
-
-    [Header("Buffs")]
-    public bool hasShield;
 
     [Header("Action")]
     public UnitAction lastAction = UnitAction.Move; // Move = "no indicator" — idle spinner shown only on explicit idle choice
@@ -47,28 +45,28 @@ public class UnitData : MonoBehaviour
     [HideInInspector]
     public bool isMyTurn;
 
-    public int Health
+    public int Energy
     {
-        get => health;
-        set => health = Mathf.Clamp(value, 0, maxHealth);
+        get => energy;
+        set => energy = Mathf.Clamp(value, 0, maxEnergy);
     }
 
     /// <summary>Kill this unit: hide it, start respawn cooldown.</summary>
-    public void Die(int cooldownSteps = 12)
+    public void Die(int cooldownSteps = 6)
     {
         isAlive = false;
-        health = 0;
+        energy = 0;
         lastAction = UnitAction.Dead;
         respawnCooldown = cooldownSteps;
         gameObject.SetActive(false);
     }
 
-    /// <summary>Respawn at given hex with full health.</summary>
+    /// <summary>Respawn at given hex with full energy.</summary>
     public void Respawn(HexCoord hex, Vector3 worldPos)
     {
-        ApplyConfigHealth();
+        ApplyConfigEnergy();
         isAlive = true;
-        health = maxHealth;
+        energy = maxEnergy;
         respawnCooldown = 0;
         currentHex = hex;
         transform.position = worldPos + Vector3.up * 0.3f;
@@ -86,19 +84,18 @@ public class UnitData : MonoBehaviour
     /// <summary>Reset unit to initial state for a new episode.</summary>
     public void ResetUnit()
     {
-        ApplyConfigHealth();
-        health = maxHealth;
+        ApplyConfigEnergy();
+        energy = maxEnergy;
         isAlive = true;
         respawnCooldown = 0;
-        hasShield = false;
         gameObject.SetActive(true);
     }
 
-    /// <summary>Sync maxHealth from GameConfig if available.</summary>
-    public void ApplyConfigHealth()
+    /// <summary>Sync maxEnergy from GameConfig if available.</summary>
+    public void ApplyConfigEnergy()
     {
         var cfg = GameConfig.Instance;
         if (cfg != null)
-            maxHealth = cfg.unitMaxHealth;
+            maxEnergy = cfg.unitMaxEnergy;
     }
 }

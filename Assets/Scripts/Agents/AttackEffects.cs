@@ -187,7 +187,7 @@ public class AttackEffects : MonoBehaviour
     {
         var visuals = tile.GetComponent<HexVisuals>();
         if (visuals != null)
-            return HexVisuals.GetColorForState(tile.Owner, tile.TileType, tile.isBase, tile.baseTeam, tile.Fortification);
+            return HexVisuals.GetColorForState(tile.Owner, tile.TileType, tile.isBase, tile.baseTeam, tile.WallHP);
         return Color.grey;
     }
 

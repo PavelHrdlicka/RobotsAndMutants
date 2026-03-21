@@ -228,8 +228,8 @@ public partial class GameManager : MonoBehaviour
                         }
                     }
                     break;
-                case UnitAction.BuildCrate:
-                case UnitAction.SpreadSlime:
+                case UnitAction.BuildWall:
+                case UnitAction.PlaceSlime:
                     if (isRobot) robotBuilds++; else mutantBuilds++;
                     break;
             }

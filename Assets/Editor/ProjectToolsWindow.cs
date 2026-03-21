@@ -326,12 +326,31 @@ public class ProjectToolsWindow : EditorWindow
             config.maxSteps = EditorGUILayout.IntSlider("Max Steps", config.maxSteps, 100, 10000);
 
             EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Energy", EditorStyles.miniBoldLabel);
+            config.unitMaxEnergy = EditorGUILayout.IntSlider("Max Energy", config.unitMaxEnergy, 5, 30);
+            config.respawnCooldown = EditorGUILayout.IntSlider("Respawn Cooldown", config.respawnCooldown, 1, 30);
+            config.baseRegenPerStep = EditorGUILayout.IntSlider("Base Regen/step", config.baseRegenPerStep, 0, 10);
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Structures", EditorStyles.miniBoldLabel);
+            config.wallBuildCost = EditorGUILayout.IntSlider("Wall Build Cost", config.wallBuildCost, 1, 10);
+            config.wallMaxHP = EditorGUILayout.IntSlider("Wall Max HP", config.wallMaxHP, 1, 5);
+            config.slimePlaceCost = EditorGUILayout.IntSlider("Slime Place Cost", config.slimePlaceCost, 1, 10);
+            config.destroyOwnWallCost = EditorGUILayout.IntSlider("Destroy Own Wall Cost", config.destroyOwnWallCost, 0, 5);
+
+            EditorGUILayout.Space(4);
             EditorGUILayout.LabelField("Combat", EditorStyles.miniBoldLabel);
-            config.unitMaxHealth = EditorGUILayout.IntSlider("Unit Max Health", config.unitMaxHealth, 3, 20);
-            config.robotFlankingChancePerAlly = EditorGUILayout.Slider("Robot Flank %/ally", config.robotFlankingChancePerAlly, 0f, 0.5f);
-            EditorGUILayout.LabelField($"  {config.robotFlankingChancePerAlly * 100:F0}% per adjacent ally → double damage (max 3)", EditorStyles.miniLabel);
-            config.mutantDodgeChancePerAlly = EditorGUILayout.Slider("Mutant Dodge %/ally", config.mutantDodgeChancePerAlly, 0f, 0.5f);
-            EditorGUILayout.LabelField($"  {config.mutantDodgeChancePerAlly * 100:F0}% per adjacent ally → dodge attack (max 3)", EditorStyles.miniLabel);
+            config.attackUnitCost = EditorGUILayout.IntSlider("Attack Unit Cost", config.attackUnitCost, 1, 10);
+            config.attackUnitDamage = EditorGUILayout.IntSlider("Attack Unit Damage", config.attackUnitDamage, 1, 10);
+            config.attackEnemyHexCost = EditorGUILayout.IntSlider("Attack Enemy Hex Cost", config.attackEnemyHexCost, 1, 10);
+            config.attackNeutralCost = EditorGUILayout.IntSlider("Attack Neutral Cost", config.attackNeutralCost, 0, 5);
+            config.attackWallCost = EditorGUILayout.IntSlider("Attack Wall Cost", config.attackWallCost, 1, 10);
+            config.slimeEntryCostRobot = EditorGUILayout.IntSlider("Slime Entry Cost (Robot)", config.slimeEntryCostRobot, 0, 10);
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Proximity Bonuses", EditorStyles.miniBoldLabel);
+            config.shieldWallMaxReduction = EditorGUILayout.IntSlider("Shield Wall Max Reduction", config.shieldWallMaxReduction, 0, 5);
+            config.swarmMaxBonus = EditorGUILayout.IntSlider("Swarm Max Bonus", config.swarmMaxBonus, 0, 5);
 
             EditorGUILayout.Space(4);
             config.replayLogEveryNthGame = EditorGUILayout.IntSlider("Replay: log every Nth game", config.replayLogEveryNthGame, 1, 1000);
@@ -512,11 +531,45 @@ public class ProjectToolsWindow : EditorWindow
 
     private string selectedReplayPath;
 
+    // Cached replay player reference (only valid during Play mode).
+    private ReplayPlayer cachedReplayPlayer;
+    private bool cachedReplayActive;
+    private int cachedReplayRound;
+    private int cachedReplayTurnIndex;
+    private int cachedReplayTotalRounds;
+    private int cachedReplayTotalTurns;
+    private string cachedReplayFileName;
+    private string cachedReplayTurnDesc;
+    private ReplayPlayer.PlaybackState cachedReplayState;
+    private string cachedReplayWinner;
+
     private void DrawReplaySection()
     {
+        // Cache replay state on Layout to keep controls stable.
+        if (Event.current.type == EventType.Layout)
+        {
+            cachedReplayPlayer = EditorApplication.isPlaying
+                ? Object.FindFirstObjectByType<ReplayPlayer>()
+                : null;
+            cachedReplayActive = cachedReplayPlayer != null
+                && cachedReplayPlayer.enabled
+                && cachedReplayPlayer.Replay != null;
+            if (cachedReplayActive)
+            {
+                cachedReplayState      = cachedReplayPlayer.state;
+                cachedReplayRound      = cachedReplayPlayer.currentRound;
+                cachedReplayTurnIndex  = cachedReplayPlayer.currentTurnIndex;
+                cachedReplayTotalRounds = cachedReplayPlayer.TotalRounds;
+                cachedReplayTotalTurns  = cachedReplayPlayer.TotalTurns;
+                cachedReplayFileName    = cachedReplayPlayer.FileName;
+                cachedReplayTurnDesc    = cachedReplayPlayer.CurrentTurnDescription;
+                cachedReplayWinner      = cachedReplayPlayer.Replay?.summary.winner ?? "";
+            }
+        }
+
         DrawSection("Replay", () =>
         {
-            // File picker.
+            // ── File selection (always visible) ──
             EditorGUILayout.BeginHorizontal();
             string displayName = string.IsNullOrEmpty(selectedReplayPath)
                 ? "(no file selected)"
@@ -533,8 +586,8 @@ public class ProjectToolsWindow : EditorWindow
             }
             EditorGUILayout.EndHorizontal();
 
-            // Quick pick: latest replay.
-            if (GUILayout.Button("Select Latest Replay"))
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Latest"))
             {
                 string dir = System.IO.Path.GetFullPath("Replays");
                 if (System.IO.Directory.Exists(dir))
@@ -552,20 +605,126 @@ public class ProjectToolsWindow : EditorWindow
                         selectedReplayPath = latest;
                     }
                     else
-                    {
                         Debug.LogWarning("[Replay] No replay files found in Replays/");
-                    }
                 }
             }
+            if (GUILayout.Button("Open Folder"))
+            {
+                string dir = System.IO.Path.GetFullPath("Replays");
+                if (System.IO.Directory.Exists(dir))
+                    EditorUtility.RevealInFinder(dir);
+            }
+            EditorGUILayout.EndHorizontal();
 
-            // Launch replay button.
+            // ── Load button ──
             EditorGUILayout.Space(4);
             GUI.enabled = !string.IsNullOrEmpty(selectedReplayPath);
             GUI.backgroundColor = new Color(1f, 0.84f, 0f);
-            if (GUILayout.Button("Play Replay", GUILayout.Height(35)))
+            if (GUILayout.Button(cachedReplayActive ? "Load New Replay" : "Load Replay", GUILayout.Height(30)))
                 LaunchReplay(selectedReplayPath);
             GUI.backgroundColor = Color.white;
             GUI.enabled = true;
+
+            // ── Transport controls (only when replay is active) ──
+            if (!cachedReplayActive) return;
+
+            EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+
+            // File info.
+            EditorGUILayout.LabelField($"File: {cachedReplayFileName}", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField(
+                $"Round {cachedReplayRound} / {cachedReplayTotalRounds}   |   " +
+                $"Turn {cachedReplayTurnIndex} / {cachedReplayTotalTurns}",
+                EditorStyles.miniLabel);
+
+            // Status.
+            string stateLabel = cachedReplayState switch
+            {
+                ReplayPlayer.PlaybackState.Playing  => "Playing...",
+                ReplayPlayer.PlaybackState.Paused   => "Paused",
+                ReplayPlayer.PlaybackState.Finished => $"Finished — Winner: {cachedReplayWinner}",
+                _ => "Stopped"
+            };
+            Color stateColor = cachedReplayState switch
+            {
+                ReplayPlayer.PlaybackState.Playing  => new Color(0.3f, 1f, 0.3f),
+                ReplayPlayer.PlaybackState.Finished => new Color(1f, 0.84f, 0f),
+                _ => Color.white
+            };
+            var stateStyle = new GUIStyle(EditorStyles.boldLabel) { normal = { textColor = stateColor } };
+            EditorGUILayout.LabelField(stateLabel, stateStyle);
+
+            // Current turn description.
+            if (!string.IsNullOrEmpty(cachedReplayTurnDesc))
+                EditorGUILayout.LabelField(cachedReplayTurnDesc, EditorStyles.miniLabel);
+
+            EditorGUILayout.Space(4);
+
+            // ── Main transport: |<  <R  <T  Play/Pause  T>  R>  >| ──
+            EditorGUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("|<<", GUILayout.Width(36)))
+                cachedReplayPlayer.JumpToStart();
+
+            if (GUILayout.Button("<<R", GUILayout.Width(36)))
+                cachedReplayPlayer.StepBackOneRound();
+
+            if (GUILayout.Button("<T", GUILayout.Width(36)))
+                cachedReplayPlayer.StepBackOneTurn();
+
+            // Play/Pause — larger center button.
+            bool isPlaying = cachedReplayState == ReplayPlayer.PlaybackState.Playing;
+            GUI.backgroundColor = isPlaying ? new Color(1f, 0.6f, 0.3f) : new Color(0.3f, 0.8f, 0.3f);
+            string playLabel = isPlaying ? "||" : ">";
+            if (GUILayout.Button(playLabel, GUILayout.Height(28)))
+                cachedReplayPlayer.TogglePlayPause();
+            GUI.backgroundColor = Color.white;
+
+            if (GUILayout.Button("T>", GUILayout.Width(36)))
+                cachedReplayPlayer.StepOneTurn();
+
+            if (GUILayout.Button("R>>", GUILayout.Width(36)))
+                cachedReplayPlayer.StepOneRound();
+
+            if (GUILayout.Button(">>|", GUILayout.Width(36)))
+                cachedReplayPlayer.JumpToEnd();
+
+            EditorGUILayout.EndHorizontal();
+
+            // ── Round scrubber ──
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Round Scrubber", EditorStyles.miniLabel);
+            int maxRound = Mathf.Max(1, cachedReplayTotalRounds);
+            int newRound = EditorGUILayout.IntSlider(cachedReplayRound, 0, maxRound);
+            if (newRound != cachedReplayRound)
+                cachedReplayPlayer.JumpToRound(newRound);
+
+            // ── Speed control ──
+            EditorGUILayout.Space(2);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Speed:", GUILayout.Width(45));
+            float delay = cachedReplayPlayer.turnDelay;
+            float newDelay = EditorGUILayout.Slider(delay, 0.01f, 1f);
+            if (!Mathf.Approximately(newDelay, delay))
+                cachedReplayPlayer.turnDelay = newDelay;
+            EditorGUILayout.EndHorizontal();
+
+            float turnsPerSec = 1f / Mathf.Max(0.001f, cachedReplayPlayer.turnDelay);
+            EditorGUILayout.LabelField($"  {turnsPerSec:F1} turns/sec", EditorStyles.miniLabel);
+
+            // Quick speed presets.
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("0.5x")) cachedReplayPlayer.turnDelay = 0.6f;
+            if (GUILayout.Button("1x"))   cachedReplayPlayer.turnDelay = 0.3f;
+            if (GUILayout.Button("2x"))   cachedReplayPlayer.turnDelay = 0.15f;
+            if (GUILayout.Button("5x"))   cachedReplayPlayer.turnDelay = 0.06f;
+            if (GUILayout.Button("10x"))  cachedReplayPlayer.turnDelay = 0.03f;
+            EditorGUILayout.EndHorizontal();
+
+            // Force repaint while playing so the UI updates.
+            if (cachedReplayState == ReplayPlayer.PlaybackState.Playing)
+                Repaint();
         });
     }
 
@@ -1145,15 +1304,16 @@ public class ProjectToolsWindow : EditorWindow
             tile.Owner = team;
 
             if (team == Team.Robot && Random.value < 0.3f)
-                tile.TileType = TileType.Crate;
+            {
+                tile.TileType = TileType.Wall;
+                tile.WallHP = Random.Range(1, 4);
+            }
             else if (team == Team.Mutant && Random.value < 0.3f)
                 tile.TileType = TileType.Slime;
             else
                 tile.TileType = TileType.Empty;
-
-            tile.Fortification = Random.value < 0.2f ? Random.Range(1, 4) : 0;
         }
-        Debug.Log("[ProjectTools] Randomized tile ownership, types, and fortification.");
+        Debug.Log("[ProjectTools] Randomized tile ownership and types.");
     }
 
     private static void ResetGame()
