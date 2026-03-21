@@ -77,6 +77,17 @@ public class HexVisuals : MonoBehaviour
         UpdateVisuals();
     }
 
+    private void LateUpdate()
+    {
+        // Billboard wall HP label toward camera.
+        if (wallHPLabel != null && wallHPLabel.activeSelf)
+        {
+            var cam = Camera.main;
+            if (cam != null)
+                wallHPLabel.transform.rotation = cam.transform.rotation;
+        }
+    }
+
     // ── Base tile extrusion + glow border ────────────────────────────────
 
     private void SetupBaseVisuals()
@@ -222,7 +233,7 @@ public class HexVisuals : MonoBehaviour
                 var r = wallHPLabel.GetComponent<MeshRenderer>();
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-                wallHPLabel.AddComponent<BillboardLabel>();
+                // Billboard handled in LateUpdate below.
             }
             wallHPText.text = tileData.WallHP.ToString();
         }
