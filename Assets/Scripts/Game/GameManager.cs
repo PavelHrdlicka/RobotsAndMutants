@@ -70,6 +70,11 @@ public partial class GameManager : MonoBehaviour
 
     private IEnumerator Start()
     {
+        // Read silent training flag (set by ProjectToolsWindow before Play mode).
+#if UNITY_EDITOR
+        SilentTraining = UnityEditor.SessionState.GetBool("SilentTraining", false);
+#endif
+
         yield return null;
         yield return null;
 

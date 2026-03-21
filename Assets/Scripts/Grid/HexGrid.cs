@@ -51,7 +51,16 @@ public class HexGrid : MonoBehaviour
         GenerateGrid();
         SetupBases();
         if (!TestModeDetector.IsTestMode())
+        {
             CenterCamera();
+
+            // Silent training: disable camera rendering to free GPU.
+            if (GameManager.SilentTraining)
+            {
+                var cam = Camera.main;
+                if (cam != null) cam.enabled = false;
+            }
+        }
     }
 
 

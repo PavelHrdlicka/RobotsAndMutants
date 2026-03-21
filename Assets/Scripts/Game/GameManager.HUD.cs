@@ -178,12 +178,23 @@ public partial class GameManager
 
     // ── Main HUD ───────────────────────────────────────────────────────────
 
+    /// <summary>When true, only match history table is shown — no 3D rendering.</summary>
+    public static bool SilentTraining;
+
     private void OnGUI()
     {
         if (grid == null) return;
 
         InitStyles();
         RefreshHudCache();
+
+        // Silent training: only show match history + session stats, no game visuals.
+        if (SilentTraining)
+        {
+            DrawSessionStats();
+            DrawMatchHistory();
+            return;
+        }
 
         var state = cachedState;
         float robotPct  = cachedRobotPct;

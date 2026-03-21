@@ -382,6 +382,12 @@ public class ProjectToolsWindow : EditorWindow
     {
         DrawSection("Training", () =>
         {
+            // --- Silent training toggle ---
+            bool silent = EditorPrefs.GetBool("ProjectTools_SilentTraining", false);
+            bool newSilent = EditorGUILayout.Toggle("Train Silent (no graphics)", silent);
+            if (newSilent != silent)
+                EditorPrefs.SetBool("ProjectTools_SilentTraining", newSilent);
+
             // --- Hero button: one-click training ---
             GUI.enabled = !cachedTrainingRunning;
             GUI.backgroundColor = !cachedTrainingRunning ? new Color(1f, 0.84f, 0f) : Color.gray;
@@ -914,6 +920,10 @@ public class ProjectToolsWindow : EditorWindow
         // domain reload mid-function, TryResumeTrainingStart() in OnEnable can pick up.
         SessionState.SetBool(k_StartTrainingPending, true);
         SessionState.SetString(k_StartTrainingRunId, runId);
+
+        // Set silent training flag before entering Play mode.
+        bool silent = EditorPrefs.GetBool("ProjectTools_SilentTraining", false);
+        SessionState.SetBool("SilentTraining", silent);
 
         // Reset and setup scene, then persist so prefab refs survive Play mode.
         HexGridSetup.Reset();

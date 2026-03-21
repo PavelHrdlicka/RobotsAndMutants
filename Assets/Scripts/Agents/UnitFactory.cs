@@ -101,9 +101,9 @@ public class UnitFactory : MonoBehaviour
         go.AddComponent<UnitData>();
         go.AddComponent<HexMovement>();
 
-        // Skip visual components in test mode — GameObject.CreatePrimitive() triggers
-        // URP shader compilation in InitTestScene which hangs indefinitely.
-        if (!skipMLAgents)
+        // Skip visual components in test mode and silent training.
+        bool skipVisuals = skipMLAgents || GameManager.SilentTraining;
+        if (!skipVisuals)
         {
             if (team == Team.Robot)
             {
