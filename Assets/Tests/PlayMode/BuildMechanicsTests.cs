@@ -621,4 +621,98 @@ public class BuildMechanicsTests
         bool moved = mutantMove.TryMove(dir);
         Assert.IsFalse(moved, "Enemy must not move onto a wall hex.");
     }
+
+    // ── Cannot build on existing structure ─────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Build_Wall_OnExistingWall_Fails()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        bool built = move.TryBuild(0);
+        Assert.IsFalse(built, "Cannot build wall on hex that already has a wall.");
+        Assert.AreEqual(robot.maxEnergy, robot.Energy, "Energy should not change.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Wall_OnExistingSlime_Fails()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Slime;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        bool built = move.TryBuild(0);
+        Assert.IsFalse(built, "Cannot build wall on hex with slime.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_DestroyThenRebuild_Succeeds()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        // Build wall.
+        bool built1 = move.TryBuild(0);
+        Assert.IsTrue(built1);
+        Assert.AreEqual(TileType.Wall, tile.TileType);
+
+        // Destroy it.
+        bool destroyed = move.TryDestroyWall(0);
+        Assert.IsTrue(destroyed);
+        Assert.AreEqual(TileType.Empty, tile.TileType);
+
+        // Rebuild on same hex — should succeed.
+        bool built2 = move.TryBuild(0);
+        Assert.IsTrue(built2, "Should be able to rebuild wall after destroying it.");
+        Assert.AreEqual(TileType.Wall, tile.TileType);
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Wall_OnOccupiedHex_Fails()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        // Place a unit on the target hex.
+        var (_, _) = SpawnUnit(Team.Robot, new HexCoord(1, 0));
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        bool built = move.TryBuild(0);
+        Assert.IsFalse(built, "Cannot build wall on hex occupied by a unit.");
+    }
+
+    [UnityTest]
+    public IEnumerator Build_Wall_OnDeadUnitHex_Fails()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+
+        // Place a dead unit on the target hex.
+        var (dead, _) = SpawnUnit(Team.Robot, new HexCoord(1, 0));
+        dead.Die(10);
+
+        var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        bool built = move.TryBuild(0);
+        Assert.IsFalse(built, "Cannot build wall on hex with dead unit waiting for respawn.");
+    }
 }
