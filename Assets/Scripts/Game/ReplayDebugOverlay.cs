@@ -62,7 +62,7 @@ public class ReplayDebugOverlay : MonoBehaviour
                     $"HexLabel_{coord.q}_{coord.r}",
                     $"{coord.q},{coord.r}",
                     new Color(1f, 1f, 1f, 0.8f),
-                    0.06f);
+                    0.03f);
                 // Place slightly above tile surface.
                 Vector3 pos = grid.HexToWorld(coord);
                 pos.y = tile.isBase ? 0.15f : 0.05f;
