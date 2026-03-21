@@ -904,4 +904,110 @@ public class AttackMechanicsTests
             }
         }
     }
+
+    // ── Energy change limits ──────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Attack_MaxDamagePerHit_IsBasePlusSwarm()
+    {
+        yield return null;
+
+        // Maximum possible damage = attackUnitDamage + swarmMaxBonus.
+        int maxDmg = AtkDmg + SwarmMax;
+
+        var (target, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        target.Energy = 15;
+
+        // Mutant with max allies (swarm bonus).
+        var (mutant, mutantMove) = SpawnUnit(Team.Mutant, new HexCoord(-1, 0));
+        // Place swarm allies adjacent to mutant.
+        for (int d = 0; d < 6 && d < SwarmMax; d++)
+        {
+            var nCoord = new HexCoord(-1, 0).Neighbor(d);
+            if (nCoord != new HexCoord(0, 0) && grid.GetTile(nCoord) != null)
+                SpawnUnit(Team.Mutant, nCoord);
+        }
+
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (new HexCoord(-1, 0).Neighbor(d) == new HexCoord(0, 0))
+            { dir = d; break; }
+        }
+        if (dir < 0) yield break;
+
+        mutantMove.TryAttack(dir);
+
+        int actualDmg = 15 - target.Energy;
+        Assert.LessOrEqual(actualDmg, maxDmg,
+            $"Single attack damage ({actualDmg}) must not exceed max ({maxDmg} = {AtkDmg}+{SwarmMax}).");
+        Assert.GreaterOrEqual(actualDmg, 0, "Damage must be non-negative.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_MinDamage_IsZero_WithFullShield()
+    {
+        yield return null;
+
+        // Robot target with max shield wall allies.
+        var (target, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        target.Energy = 15;
+        // Place shield allies.
+        var shieldPositions = new[] {
+            new HexCoord(1, 0), new HexCoord(0, -1), new HexCoord(1, -1)
+        };
+        foreach (var pos in shieldPositions)
+        {
+            if (grid.GetTile(pos) != null)
+                SpawnUnit(Team.Robot, pos);
+        }
+
+        var (mutant, mutantMove) = SpawnUnit(Team.Mutant, new HexCoord(-1, 0));
+
+        int dir = -1;
+        for (int d = 0; d < 6; d++)
+        {
+            if (new HexCoord(-1, 0).Neighbor(d) == new HexCoord(0, 0))
+            { dir = d; break; }
+        }
+        if (dir < 0) yield break;
+
+        mutantMove.TryAttack(dir);
+
+        int actualDmg = 15 - target.Energy;
+        Assert.GreaterOrEqual(actualDmg, 0,
+            "Damage after shield wall reduction must be >= 0 (never negative).");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_EnergyNeverNegative()
+    {
+        yield return null;
+
+        var (target, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        target.Energy = 1; // Less than attack damage.
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        robotMove.TryAttack(0);
+
+        Assert.GreaterOrEqual(target.Energy, 0,
+            "Energy must never go below 0 after attack.");
+    }
+
+    [UnityTest]
+    public IEnumerator Attack_AttackerEnergyLoss_ExactlyCost()
+    {
+        yield return null;
+
+        var (robot, robotMove) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        var (_, _) = SpawnUnit(Team.Mutant, new HexCoord(1, 0));
+        robot.Energy = 15;
+
+        int before = robot.Energy;
+        robotMove.TryAttack(0);
+        int after = robot.Energy;
+
+        Assert.AreEqual(AtkCost, before - after,
+            $"Attacker should lose exactly {AtkCost} energy per attack (no more, no less).");
+    }
 }

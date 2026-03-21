@@ -78,7 +78,8 @@ public class GameReplayLogger
     }
 
     /// <summary>Log one unit's turn action. Call from PostTurnProcessing.</summary>
-    public void LogTurn(int round, UnitData unit, int rTiles, int mTiles, int rAlive, int mAlive)
+    public void LogTurn(int round, UnitData unit, int rTiles, int mTiles, int rAlive, int mAlive,
+        System.Collections.Generic.List<UnitData> allUnits = null)
     {
         if (!isLogging || writer == null || unit == null) return;
 
@@ -132,6 +133,21 @@ public class GameReplayLogger
             sb.Append($",\"mTiles\":{mTiles}");
             sb.Append($",\"rAlive\":{rAlive}");
             sb.Append($",\"mAlive\":{mAlive}");
+
+            // Snapshot all units' energies for full tracking.
+            if (allUnits != null)
+            {
+                sb.Append(",\"energies\":{");
+                bool first = true;
+                foreach (var u in allUnits)
+                {
+                    if (!first) sb.Append(",");
+                    sb.Append($"\"{u.gameObject.name}\":{u.Energy}");
+                    first = false;
+                }
+                sb.Append("}");
+            }
+
             sb.Append("}");
 
             writer.WriteLine(sb.ToString());

@@ -295,7 +295,8 @@ public partial class GameManager : MonoBehaviour
         // Log turn to replay file.
         replayLogger.LogTurn(currentRound, unit,
             grid.LargestConnectedGroup(Team.Robot), grid.LargestConnectedGroup(Team.Mutant),
-            CountAlive(Team.Robot), CountAlive(Team.Mutant));
+            CountAlive(Team.Robot), CountAlive(Team.Mutant),
+            unitFactory.AllUnits);
 
         // Clear per-turn attack tracking.
         unit.lastAttackTarget = null;
