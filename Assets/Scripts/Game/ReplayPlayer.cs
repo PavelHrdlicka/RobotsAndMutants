@@ -378,26 +378,42 @@ public class ReplayPlayer : MonoBehaviour
         if (turn.energy <= 0 && unit.isAlive)
             unit.Die(12);
 
-        // Apply tile ownership from build actions.
-        var tile = grid.GetTile(coord);
-        if (tile != null && !tile.isBase)
-        {
-            Team team = turn.team == "Robot" ? Team.Robot : Team.Mutant;
+        // Apply tile changes from actions.
+        Team team = turn.team == "Robot" ? Team.Robot : Team.Mutant;
 
-            if (turn.action == "BuildCrate" || turn.action == "BuildWall")
+        if (turn.action == "BuildCrate" || turn.action == "BuildWall")
+        {
+            // Use built target if available, else fall back to unit position (old replays).
+            var buildCoord = turn.hasBuilt
+                ? new HexCoord(turn.builtQ, turn.builtR)
+                : coord;
+            var buildTile = grid.GetTile(buildCoord);
+            if (buildTile != null && !buildTile.isBase)
             {
-                tile.Owner = team;
-                tile.TileType = TileType.Wall;
+                buildTile.Owner = team;
+                buildTile.TileType = TileType.Wall;
+                buildTile.WallHP = 3;
             }
-            else if (turn.action == "SpreadSlime" || turn.action == "PlaceSlime")
+        }
+        else if (turn.action == "SpreadSlime" || turn.action == "PlaceSlime")
+        {
+            var buildCoord = turn.hasBuilt
+                ? new HexCoord(turn.builtQ, turn.builtR)
+                : coord;
+            var buildTile = grid.GetTile(buildCoord);
+            if (buildTile != null && !buildTile.isBase)
             {
-                tile.Owner = team;
-                tile.TileType = TileType.Slime;
+                buildTile.Owner = team;
+                buildTile.TileType = TileType.Slime;
             }
-            else if (turn.action == "Capture")
+        }
+        else if (turn.action == "Capture" && turn.hasCaptured)
+        {
+            var capTile = grid.GetTile(new HexCoord(turn.capturedQ, turn.capturedR));
+            if (capTile != null && !capTile.isBase)
             {
-                tile.Owner = team;
-                tile.TileType = TileType.Empty;
+                capTile.Owner = team;
+                capTile.TileType = TileType.Empty;
             }
         }
     }

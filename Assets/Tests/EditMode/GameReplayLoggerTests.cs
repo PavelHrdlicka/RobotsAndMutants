@@ -176,6 +176,87 @@ public class GameReplayLoggerTests
         Assert.IsTrue(lines[1].Contains("\"killed\":false"));
     }
 
+    // ── Build target recorded in JSONL ──────────────────────────────────
+
+    [Test]
+    public void BuildWall_RecordsBuildTarget()
+    {
+        var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
+
+        var go = new GameObject("Robot_0");
+        var unit = go.AddComponent<UnitData>();
+        unit.team = Team.Robot;
+        unit.Energy = 12;
+        unit.currentHex = new HexCoord(0, 0);
+        unit.lastAction = UnitAction.BuildWall;
+        unit.lastBuildTarget = new HexCoord(1, 0); // Wall built on adjacent hex.
+
+        logger.StartGame(1, null, (HexGrid)null);
+        logger.LogTurn(1, unit, 5, 5, 4, 4);
+        logger.EndGame(Team.None, 10, 5, 5, 0, 0, 0, 0, 0, 0, (HexGrid)null);
+
+        Object.DestroyImmediate(go);
+
+        string[] files = Directory.GetFiles(tempDir, "game_*.jsonl");
+        string[] lines = File.ReadAllLines(files[0]);
+
+        Assert.IsTrue(lines[1].Contains("\"built\":[1,0]"),
+            "BuildWall should log built target coordinates, not unit position.");
+        Assert.IsTrue(lines[1].Contains("\"pos\":[0,0]"),
+            "Unit position should be (0,0), distinct from build target (1,0).");
+    }
+
+    [Test]
+    public void PlaceSlime_RecordsBuildTarget()
+    {
+        var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
+
+        var go = new GameObject("Mutant_0");
+        var unit = go.AddComponent<UnitData>();
+        unit.team = Team.Mutant;
+        unit.Energy = 13;
+        unit.currentHex = new HexCoord(2, -1);
+        unit.lastAction = UnitAction.PlaceSlime;
+        unit.lastBuildTarget = new HexCoord(2, -1); // Slime placed under self.
+
+        logger.StartGame(1, null, (HexGrid)null);
+        logger.LogTurn(1, unit, 5, 5, 4, 4);
+        logger.EndGame(Team.None, 10, 5, 5, 0, 0, 0, 0, 0, 0, (HexGrid)null);
+
+        Object.DestroyImmediate(go);
+
+        string[] files = Directory.GetFiles(tempDir, "game_*.jsonl");
+        string[] lines = File.ReadAllLines(files[0]);
+
+        Assert.IsTrue(lines[1].Contains("\"built\":[2,-1]"),
+            "PlaceSlime should log built target (same as unit position for mutant).");
+    }
+
+    [Test]
+    public void BuildTarget_NotRecordedForNonBuildActions()
+    {
+        var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
+
+        var go = new GameObject("Robot_0");
+        var unit = go.AddComponent<UnitData>();
+        unit.team = Team.Robot;
+        unit.Energy = 15;
+        unit.currentHex = new HexCoord(0, 0);
+        unit.lastAction = UnitAction.Move;
+
+        logger.StartGame(1, null, (HexGrid)null);
+        logger.LogTurn(1, unit, 5, 5, 4, 4);
+        logger.EndGame(Team.None, 10, 5, 5, 0, 0, 0, 0, 0, 0, (HexGrid)null);
+
+        Object.DestroyImmediate(go);
+
+        string[] files = Directory.GetFiles(tempDir, "game_*.jsonl");
+        string[] lines = File.ReadAllLines(files[0]);
+
+        Assert.IsFalse(lines[1].Contains("\"built\":"),
+            "Move action should NOT contain built field.");
+    }
+
     // ── Test helper ─────────────────────────────────────────────────────
 
     private class TestReplayLogger : GameReplayLogger
