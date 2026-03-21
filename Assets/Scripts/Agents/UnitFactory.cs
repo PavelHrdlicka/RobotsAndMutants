@@ -127,7 +127,7 @@ public class UnitFactory : MonoBehaviour
         {
             var bp = go.AddComponent<BehaviorParameters>();
             bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
-            bp.BrainParameters.VectorObservationSize = 69;
+            bp.BrainParameters.VectorObservationSize = 71;
             bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(25);
             bp.TeamId = team == Team.Robot ? 0 : 1;
 

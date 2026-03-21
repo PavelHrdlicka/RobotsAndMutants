@@ -48,21 +48,22 @@ public class HexAgent : Agent
     }
 
     /// <summary>
-    /// Observation vector (69 floats):
+    /// Observation vector (71 floats):
     /// - Own state (5): q_norm, r_norm, energy/maxEnergy, alive, team(+1/-1)
     /// - 6 neighbors × 10 values each = 60:
     ///     owner: neutral(1), own(1), enemy(1)
     ///     has_wall(1), wall_hp_norm(1), has_slime(1)
     ///     has_enemy_unit(1), has_ally_unit(1)
     ///     enemy_energy_norm(1), is_base(1)
-    /// - Global (4): own_territory_pct, enemy_territory_pct, step_progress, respawn_cooldown_norm
-    /// Total = 69
+    /// - Global (6): own_territory_pct, enemy_territory_pct, step_progress,
+    ///     respawn_cooldown_norm, own_structure_ratio, enemy_structure_ratio
+    /// Total = 71
     /// </summary>
     public override void CollectObservations(VectorSensor sensor)
     {
         if (grid == null || unitData == null)
         {
-            for (int i = 0; i < 69; i++) sensor.AddObservation(0f);
+            for (int i = 0; i < 71; i++) sensor.AddObservation(0f);
             return;
         }
 
@@ -98,7 +99,7 @@ public class HexAgent : Agent
 
             // Structures (3).
             sensor.AddObservation(neighborTile.TileType == TileType.Wall  ? 1f : 0f);
-            sensor.AddObservation(neighborTile.WallHP / 3f);
+            sensor.AddObservation(neighborTile.WallHP / (float)(GameConfig.Instance != null ? GameConfig.Instance.wallMaxHP : 4));
             sensor.AddObservation(neighborTile.TileType == TileType.Slime ? 1f : 0f);
 
             // Units (2).
@@ -112,7 +113,7 @@ public class HexAgent : Agent
             sensor.AddObservation(neighborTile.isBase ? 1f : 0f);
         }
 
-        // Global state (4).
+        // Global state (6).
         int  ownGroup    = grid.LargestConnectedGroup(unitData.team);
         Team enemyTeam   = unitData.team == Team.Robot ? Team.Mutant : Team.Robot;
         int  enemyGroup  = grid.LargestConnectedGroup(enemyTeam);
@@ -127,6 +128,16 @@ public class HexAgent : Agent
         sensor.AddObservation(stepProgress);
 
         sensor.AddObservation(unitData.respawnCooldown / 6f);
+
+        // Structure cap ratios (2).
+        int maxWalls = cfg != null ? cfg.maxWalls : 8;
+        int maxSlime = cfg != null ? cfg.maxSlime : 8;
+        TileType ownStructure   = unitData.team == Team.Robot ? TileType.Wall : TileType.Slime;
+        TileType enemyStructure = unitData.team == Team.Robot ? TileType.Slime : TileType.Wall;
+        int ownCap   = unitData.team == Team.Robot ? maxWalls : maxSlime;
+        int enemyCap = unitData.team == Team.Robot ? maxSlime : maxWalls;
+        sensor.AddObservation(ownCap   > 0 ? grid.CountStructures(ownStructure)   / (float)ownCap   : 0f);
+        sensor.AddObservation(enemyCap > 0 ? grid.CountStructures(enemyStructure) / (float)enemyCap : 0f);
     }
 
     public override void OnActionReceived(ActionBuffers actions)

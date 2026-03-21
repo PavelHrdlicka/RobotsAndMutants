@@ -171,14 +171,14 @@ Sekvenční tahový model se striktní alternací R/M:
 
 ## ML-Agents integrace
 
-### Observations (69 floatů)
+### Observations (71 floatů)
 - **Vlastní stav (5):** q_norm, r_norm, energy/maxEnergy, alive, team(+1/-1).
 - **6 sousedů × 10 hodnot (60):**
   - Ownership (3): neutral, own, enemy.
   - Structures (3): has_wall, wall_hp_norm, has_slime.
   - Units (2): has_enemy_unit, has_ally_unit.
   - enemy_energy_norm (1), is_base (1).
-- **Globální (4):** own_territory_pct, enemy_territory_pct, step_progress, respawn_cooldown_norm.
+- **Globální (6):** own_territory_pct, enemy_territory_pct, step_progress, respawn_cooldown_norm, own_structure_ratio, enemy_structure_ratio.
 
 ### Actions (1 diskrétní branch, 25 hodnot)
 - 0 = Idle, 1-6 = Move, 7-12 = Attack, 13-18 = Build, 19-24 = DestroyWall.

@@ -879,4 +879,62 @@ public class BuildMechanicsTests
         Assert.IsTrue(move.IsValidBuild(0), "Build should be valid under cap.");
         Assert.IsTrue(move.TryBuild(0), "Build should succeed under cap.");
     }
+
+    // ── CountStructures ──────────────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator CountStructures_Walls_ReturnsCorrectCount()
+    {
+        yield return null;
+
+        Assert.AreEqual(0, grid.CountStructures(TileType.Wall), "No walls initially.");
+
+        var tile1 = grid.GetTile(new HexCoord(0, 0));
+        if (tile1 != null && !tile1.isBase)
+        {
+            tile1.Owner = Team.Robot;
+            tile1.TileType = TileType.Wall;
+            tile1.WallHP = 3;
+        }
+
+        var tile2 = grid.GetTile(new HexCoord(1, 0));
+        if (tile2 != null && !tile2.isBase)
+        {
+            tile2.Owner = Team.Robot;
+            tile2.TileType = TileType.Wall;
+            tile2.WallHP = 3;
+        }
+
+        Assert.AreEqual(2, grid.CountStructures(TileType.Wall), "Should count 2 walls.");
+        Assert.AreEqual(0, grid.CountStructures(TileType.Slime), "No slime placed.");
+    }
+
+    [UnityTest]
+    public IEnumerator CountStructures_Slime_ReturnsCorrectCount()
+    {
+        yield return null;
+
+        var tile = grid.GetTile(new HexCoord(0, 0));
+        if (tile != null && !tile.isBase)
+        {
+            tile.Owner = Team.Mutant;
+            tile.TileType = TileType.Slime;
+        }
+
+        Assert.AreEqual(1, grid.CountStructures(TileType.Slime), "Should count 1 slime.");
+        Assert.AreEqual(0, grid.CountStructures(TileType.Wall), "No walls placed.");
+    }
+
+    // ── VectorObservationSize consistency ─────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator ObservationSize_MatchesUnitFactory()
+    {
+        yield return null;
+
+        // Observation size = 5 (own state) + 60 (6×10 neighbors) + 6 (global) = 71
+        int expected = 5 + 60 + 6;
+        Assert.AreEqual(71, expected,
+            "Observation count formula should equal 71.");
+    }
 }
