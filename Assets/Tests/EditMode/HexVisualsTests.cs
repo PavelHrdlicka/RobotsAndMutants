@@ -63,7 +63,7 @@ public class HexVisualsTests
     public void SlimeOnMutantTile_ReturnsSlimeColor()
     {
         var color = HexVisuals.GetColorForState(Team.Mutant, TileType.Slime, false, Team.None, 0);
-        Assert.AreEqual(new Color(0.35f, 0.85f, 0.20f), color);
+        Assert.AreEqual(new Color(0.55f, 0.90f, 0.05f), color);
     }
 
     [Test]
