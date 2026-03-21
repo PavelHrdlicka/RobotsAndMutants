@@ -156,8 +156,8 @@ public class ReplayPlayerHUD : MonoBehaviour
         }
         btnX += btnW + 15;
 
-        // Show Detail toggle.
-        float detailBtnW = 100;
+        // Show Detail toggle — sized for longest label "HIDE DETAIL".
+        float detailBtnW = 130;
         float detailBtnX = barX + barWidth - detailBtnW;
         bool isDetailOn = debugOverlay != null && debugOverlay.showDetail;
         var detailStyle = isDetailOn ? toggleButtonOnStyle : buttonStyle;

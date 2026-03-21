@@ -32,9 +32,12 @@
 - [feedback_no_save_during_playmode.md](feedback_no_save_during_playmode.md) — Nikdy neukládat .cs soubory zatímco Unity běží v Play mode (domain reload freeze)
 - [feedback_mlagents_training_perf.md](feedback_mlagents_training_perf.md) — ML-Agents trénink: threaded:true, batch/buffer dle HW, device:cpu pro editor training
 - [feedback_pytorch_cuda_unity.md](feedback_pytorch_cuda_unity.md) — PyTorch CUDA nelze s Unity na jedné GPU (device mismatch, VRAM konflikt, auto-detect past)
+- [feedback_test_visibility.md](feedback_test_visibility.md) — Metody volané z testů musí být public, ne internal (Unity asmdef boundary)
+- [feedback_button_full_text.md](feedback_button_full_text.md) — Tlačítka musí být dostatečně široká pro celý text labelu
 
 ## Project
 - [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)
+- [project_two_modes.md](project_two_modes.md) — Dva módy: TRAINING (max speed, no graphics) a REPLAY (krásné vizuály pro video)
 
 ## Reference
 - [reference_unity_log.md](reference_unity_log.md) — Unity Editor log: C:\Users\mail\AppData\Local\Unity\Editor\Editor.log
