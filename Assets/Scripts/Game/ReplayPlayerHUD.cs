@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// OnGUI overlay for replay playback controls: play/pause, step, speed, round scrubber.
@@ -75,29 +76,32 @@ public class ReplayPlayerHUD : MonoBehaviour
         if (player == null || player.Replay == null) return;
         if (player.state == ReplayPlayer.PlaybackState.Stopped) return;
 
-        // Keyboard controls.
-        if (Input.GetKeyDown(KeyCode.Space))
+        // Keyboard controls (new Input System).
+        var kb = Keyboard.current;
+        if (kb == null) return;
+
+        if (kb.spaceKey.wasPressedThisFrame)
             player.TogglePlayPause();
 
-        if (Input.GetKeyDown(KeyCode.RightArrow))
+        if (kb.rightArrowKey.wasPressedThisFrame)
         {
             player.Pause();
             player.StepOneTurn();
         }
 
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        if (kb.leftArrowKey.wasPressedThisFrame)
         {
             player.Pause();
             player.StepBackOneTurn();
         }
 
-        if (Input.GetKeyDown(KeyCode.UpArrow))
+        if (kb.upArrowKey.wasPressedThisFrame)
         {
             player.Pause();
             player.StepOneRound();
         }
 
-        if (Input.GetKeyDown(KeyCode.DownArrow))
+        if (kb.downArrowKey.wasPressedThisFrame)
         {
             player.Pause();
             player.StepBackOneRound();
