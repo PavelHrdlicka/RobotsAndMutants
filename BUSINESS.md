@@ -198,10 +198,11 @@ Sekvenční tahový model se striktní alternací R/M:
 |--------|---------|
 | Kill bonus | +0.3 |
 | Build reward | +0.08 |
+| Wall placement | +0.10 |
 | Capture per tile | +0.1 |
 | Enemy loss per tile | +0.1 |
 | Hex capture (near enemy) | +0.05 |
-| Build adjacency | +0.03 per neighbor |
+| Build adjacency | +0.05 per neighbor |
 | Slime placement | +0.08 |
 | Slime network | +0.04 per adjacent slime |
 | Cohesion | +0.02 × cohesion ratio |
@@ -220,17 +221,20 @@ Sekvenční tahový model se striktní alternací R/M:
 - Dva brains: `HexRobot`, `HexMutant`.
 - hidden_units: 256, num_layers: 2.
 - batch_size: 512, buffer_size: 5120.
-- Max steps: 600 per episode.
+- Max steps per training run: **50 000 000** (50M).
+- Max steps per episode: 600.
 - Device: CPU (CUDA koliduje s Unity Editor).
 - Konfigurace: `Assets/ML-Agents/config/hex_territory.yaml`.
+- Graphics API: **DX11** (DX12 způsobuje fence errory při dlouhém tréninku).
+- **Aktuální stav (2026-04-03):** 5000+ her, 27M kroků. Winrate: Mutanti ~84%, Roboti ~16%.
 
 ## Konfigurovatelné parametry (GameConfig)
 
 | Parametr | Hodnota | Popis |
 |----------|---------|-------|
-| boardSide | 4 | Velikost hřiště |
+| boardSide | 4 | Velikost hřiště (37 hexů) |
 | unitsPerTeam | 4 | Počet jednotek |
-| msPerTick | 337 | Rychlost simulace |
+| msPerTick | 1 | Rychlost simulace (training: 1ms, replay: 337ms) |
 | winPercent | 70 | Procento k výhře |
 | maxSteps | 600 | Max kroků za epizodu |
 | unitMaxEnergy | 15 | Max energie |
@@ -250,9 +254,12 @@ Sekvenční tahový model se striktní alternací R/M:
 | slimeRegenPerStep | 1 | Regenerace Mutanta na slimu |
 | shieldWallMaxReduction | 2 | Max Shield Wall redukce |
 | swarmMaxBonus | 2 | Max Swarm bonus |
+| replayLogEveryNthGame | 1 | Logovat každou N-tou hru (1 = každou) |
 | idlePenalty | -0.01 | Penalizace za Idle |
 | killBonus | 0.3 | Odměna za kill |
 | buildReward | 0.08 | Odměna za stavbu |
+| wallPlacementReward | 0.10 | Odměna za strategickou zeď |
+| buildAdjacencyBonus | 0.05 | Bonus za sousedství |
 
 ## Replay systém
 
