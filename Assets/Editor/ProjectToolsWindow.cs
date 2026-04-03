@@ -1110,6 +1110,10 @@ public class ProjectToolsWindow : EditorWindow
         if (System.IO.File.Exists(scenePath))
             EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
 
+        // Propagate silent training flag so GameManager picks it up on Play.
+        bool silent = EditorPrefs.GetBool("ProjectTools_SilentTraining", false);
+        SessionState.SetBool("SilentTraining", silent);
+
         HexGridSetup.Reset();
         HexGridSetup.SetupScene();
         AssetDatabase.SaveAssets();
