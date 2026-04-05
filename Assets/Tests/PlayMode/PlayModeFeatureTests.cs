@@ -114,8 +114,9 @@ public class PlayModeFeatureTests
         yield return null;
         yield return null;
 
-        Color emission = rend.material.HasProperty("_EmissionColor")
-            ? rend.material.GetColor("_EmissionColor") : Color.black;
+        var mpb = new MaterialPropertyBlock();
+        rend.GetPropertyBlock(mpb);
+        Color emission = mpb.GetColor("_EmissionColor");
         Assert.AreEqual(Color.black, emission,
             "No emission when unit is not on turn.");
     }
@@ -137,8 +138,10 @@ public class PlayModeFeatureTests
         yield return null;
         yield return null;
 
-        Color emission = rend.material.HasProperty("_EmissionColor")
-            ? rend.material.GetColor("_EmissionColor") : Color.black;
+        // Glow is set via MaterialPropertyBlock, read it from there.
+        var block = new MaterialPropertyBlock();
+        rend.GetPropertyBlock(block);
+        Color emission = block.GetColor("_EmissionColor");
         Assert.AreNotEqual(Color.black, emission,
             "Should have emission glow when unit is on turn.");
     }
@@ -160,8 +163,9 @@ public class PlayModeFeatureTests
         yield return null;
 
         var rend = cube.GetComponent<Renderer>();
-        Color emission = rend.material.HasProperty("_EmissionColor")
-            ? rend.material.GetColor("_EmissionColor") : Color.black;
+        var mpb = new MaterialPropertyBlock();
+        rend.GetPropertyBlock(mpb);
+        Color emission = mpb.GetColor("_EmissionColor");
         Assert.AreEqual(Color.black, emission,
             "No emission when unit is dead.");
     }
@@ -190,8 +194,9 @@ public class PlayModeFeatureTests
         yield return null;
         yield return null;
 
-        Color emission = rend.material.HasProperty("_EmissionColor")
-            ? rend.material.GetColor("_EmissionColor") : Color.black;
+        var mpb = new MaterialPropertyBlock();
+        rend.GetPropertyBlock(mpb);
+        Color emission = mpb.GetColor("_EmissionColor");
         Assert.AreEqual(Color.black, emission,
             "Emission should turn off after turn ends.");
     }
