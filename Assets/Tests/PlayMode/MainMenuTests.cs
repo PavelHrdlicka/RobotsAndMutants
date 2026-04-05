@@ -356,6 +356,25 @@ public class MainMenuTests
     }
 
     [UnityTest]
+    public IEnumerator ReplayLogger_StartedInGameManagerStart()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.cs"));
+
+        // Find Start() method body.
+        int startIdx = source.IndexOf("IEnumerator Start()");
+        Assert.Greater(startIdx, 0, "GameManager must have Start() method.");
+
+        string afterStart = source.Substring(startIdx, System.Math.Min(2000, source.Length - startIdx));
+        Assert.IsTrue(afterStart.Contains("replayLogger.StartGame"),
+            "GameManager.Start() must call replayLogger.StartGame() so replays " +
+            "are recorded in all modes (HumanVsAI, Training). ResetGame() alone " +
+            "is not enough — it's only called by ML-Agents OnEpisodeBegin.");
+    }
+
+    [UnityTest]
     public IEnumerator ReplayLogger_HasLastCompletedReplayPath()
     {
         yield return null;
