@@ -512,8 +512,11 @@ public partial class GameManager
             turnLogStyle.normal.textColor = rowColor;
             GUI.Label(new Rect(logX + pad + colNum, y, colUnit, rowH), FormatUnitName(entry.unitName), turnLogStyle);
 
-            // Action (team color, aligned).
-            GUI.Label(new Rect(logX + pad + colNum + colUnit, y, colAction, rowH), entry.action.ToString(), turnLogStyle);
+            // Action (team color, aligned). Show "Respawn X" for dead units.
+            string actionText = entry.action == UnitAction.Dead
+                ? "\u23F3 Waiting"
+                : entry.action.ToString();
+            GUI.Label(new Rect(logX + pad + colNum + colUnit, y, colAction, rowH), actionText, turnLogStyle);
 
             y += rowH;
         }

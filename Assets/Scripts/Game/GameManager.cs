@@ -252,8 +252,8 @@ public partial class GameManager : MonoBehaviour
             if (isAITurn)
                 aiTurnDelay = AiTurnDelaySeconds;
 
-            // Log turn for HUD display.
-            if (GameModeConfig.CurrentMode == GameMode.HumanVsAI && pendingUnit.lastAction != UnitAction.Dead)
+            // Log turn for HUD display (including dead units waiting for respawn).
+            if (GameModeConfig.CurrentMode == GameMode.HumanVsAI)
             {
                 turnLog.Add(new TurnLogEntry
                 {
