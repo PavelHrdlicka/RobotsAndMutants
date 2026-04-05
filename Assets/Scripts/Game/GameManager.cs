@@ -185,6 +185,12 @@ public partial class GameManager : MonoBehaviour
         if (sessionStartTime == 0f)
             sessionStartTime = Time.realtimeSinceStartup;
 
+        // Start replay logging for the first game.
+        var cfg = GameConfig.Instance;
+        replayLogger.logEveryNthGame = cfg != null ? cfg.replayLogEveryNthGame : 1;
+        replayLogger.StartGame(matchCounter + 1, cfg, grid);
+        matchStartTime = Time.realtimeSinceStartup;
+
         Debug.Log($"[GameManager] Ready. Mode: {GameModeConfig.CurrentMode}. {grid.ContestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
     }
 
