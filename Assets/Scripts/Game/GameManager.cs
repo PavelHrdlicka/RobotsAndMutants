@@ -105,6 +105,10 @@ public partial class GameManager : MonoBehaviour
             string team = UnityEditor.SessionState.GetString("HumanTeam", "Robot");
             GameModeConfig.HumanTeam = team == "Mutant" ? Team.Mutant : Team.Robot;
         }
+        else if (mode == "Replay")
+        {
+            GameModeConfig.CurrentMode = GameMode.Replay;
+        }
         else
         {
             GameModeConfig.CurrentMode = GameMode.Training;

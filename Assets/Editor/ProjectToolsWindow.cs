@@ -709,6 +709,10 @@ public class ProjectToolsWindow : EditorWindow
 
     private static void DoLaunchReplay(string replayPath)
     {
+        // Reset game mode to Replay so GameManager doesn't start in HumanVsAI.
+        GameModeConfig.CurrentMode = GameMode.Replay;
+        SessionState.SetString("GameMode", "Replay");
+
         // SessionState survives domain reload (unlike static fields).
         SessionState.SetString("ReplayPlayer_PendingPath", replayPath);
         ReplayPlayer.PendingReplayPath = replayPath;
