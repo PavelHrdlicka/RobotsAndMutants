@@ -128,8 +128,8 @@ public static class MainMenuSetup
             new Vector2(0, -260), 360, 70, RobotBlue, () => { });
         SetField(playSetup, "startButton", playPanel.transform.Find("StartBtn").GetComponent<Button>());
 
-        CreateText(playPanel.transform, "BackPlay", "< Back",
-            new Vector2(-400, -350), 24, Color.gray);
+        CreateMenuButton(playPanel.transform, "BackPlay", "< BACK",
+            new Vector2(0, -340), 200, 44, ButtonNormal, () => { });
 
         playPanel.SetActive(false);
 
@@ -189,8 +189,8 @@ public static class MainMenuSetup
         SetField(replaysComp, "watchButton", watchBtn.GetComponent<Button>());
         SetField(replaysComp, "deleteButton", deleteBtn.GetComponent<Button>());
 
-        CreateText(replaysPanel.transform, "BackReplays", "< Back",
-            new Vector2(-400, -350), 24, Color.gray);
+        CreateMenuButton(replaysPanel.transform, "BackReplays", "< BACK",
+            new Vector2(0, -300), 200, 44, ButtonNormal, () => { });
 
         replaysPanel.SetActive(false);
 
@@ -234,8 +234,8 @@ public static class MainMenuSetup
         // Apply + Back.
         CreateMenuButton(settingsPanel.transform, "ApplyBtn", "Apply",
             new Vector2(0, -230), 240, 50, RobotBlue, () => { });
-        CreateText(settingsPanel.transform, "BackSettings", "< Back",
-            new Vector2(-400, -350), 24, Color.gray);
+        CreateMenuButton(settingsPanel.transform, "BackSettings", "< BACK",
+            new Vector2(0, -300), 200, 44, ButtonNormal, () => { });
 
         settingsPanel.SetActive(false);
 
@@ -506,13 +506,8 @@ public static class MainMenuSetup
 
     private static void AddBackButton(GameObject panel, string textName, object target, string method)
     {
-        var textTransform = panel.transform.Find(textName);
-        if (textTransform == null) return;
-        var btn = textTransform.gameObject.AddComponent<Button>();
-        var colors = btn.colors;
-        colors.normalColor = Color.clear;
-        colors.highlightedColor = new Color(1, 1, 1, 0.1f);
-        btn.colors = colors;
+        // Back buttons are now created via CreateMenuButton and already have a Button component.
+        // Runtime wiring handled by MainMenuButtonWiring.
     }
 
     // ── Reflection field setter ─────────────────────────────────────────

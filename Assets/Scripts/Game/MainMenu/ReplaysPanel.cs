@@ -196,8 +196,13 @@ public class ReplaysPanel : MonoBehaviour
 
     private void UpdateEmptyState()
     {
+        bool empty = entries.Count == 0;
         if (noReplaysText != null)
-            noReplaysText.gameObject.SetActive(entries.Count == 0);
+            noReplaysText.gameObject.SetActive(empty);
+        if (watchButton != null)
+            watchButton.gameObject.SetActive(!empty);
+        if (deleteButton != null)
+            deleteButton.gameObject.SetActive(!empty);
     }
 
     private void UpdateSelection()
