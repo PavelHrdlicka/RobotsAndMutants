@@ -257,6 +257,136 @@ public class GameReplayLoggerTests
             "Move action should NOT contain built field.");
     }
 
+    // ── Turn timing ─────────────────────────────────────────────────────
+
+    [Test]
+    public void TurnTime_RecordedWhenProvided()
+    {
+        var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
+
+        var go = new GameObject("Robot_1");
+        var unit = go.AddComponent<UnitData>();
+        unit.team = Team.Robot;
+        unit.Energy = 10;
+        unit.currentHex = new HexCoord(0, 0);
+        unit.lastAction = UnitAction.Move;
+
+        logger.StartGame(1, null, (HexGrid)null);
+        logger.LogTurn(1, unit, 5, 5, 4, 4, null, 3.75f);
+        logger.EndGame(Team.None, 10, 5, 5, 0, 0, 0, 0, 0, 0, (HexGrid)null);
+
+        Object.DestroyImmediate(go);
+
+        string[] files = Directory.GetFiles(tempDir, "game_*.jsonl");
+        string[] lines = File.ReadAllLines(files[0]);
+
+        Assert.IsTrue(lines[1].Contains("\"turnTime\":3.75"),
+            "Turn line must contain turnTime when provided.");
+    }
+
+    [Test]
+    public void TurnTime_OmittedWhenNegative()
+    {
+        var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
+
+        var go = new GameObject("Robot_1");
+        var unit = go.AddComponent<UnitData>();
+        unit.team = Team.Robot;
+        unit.Energy = 10;
+        unit.currentHex = new HexCoord(0, 0);
+        unit.lastAction = UnitAction.Move;
+
+        logger.StartGame(1, null, (HexGrid)null);
+        logger.LogTurn(1, unit, 5, 5, 4, 4, null, -1f);
+        logger.EndGame(Team.None, 10, 5, 5, 0, 0, 0, 0, 0, 0, (HexGrid)null);
+
+        Object.DestroyImmediate(go);
+
+        string[] files = Directory.GetFiles(tempDir, "game_*.jsonl");
+        string[] lines = File.ReadAllLines(files[0]);
+
+        Assert.IsFalse(lines[1].Contains("\"turnTime\""),
+            "Turn line must NOT contain turnTime when not provided (default -1).");
+    }
+
+    [Test]
+    public void TurnTime_ZeroIsValid()
+    {
+        var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
+
+        var go = new GameObject("Mutant_1");
+        var unit = go.AddComponent<UnitData>();
+        unit.team = Team.Mutant;
+        unit.Energy = 10;
+        unit.currentHex = new HexCoord(1, 0);
+        unit.lastAction = UnitAction.Idle;
+
+        logger.StartGame(1, null, (HexGrid)null);
+        logger.LogTurn(1, unit, 5, 5, 4, 4, null, 0f);
+        logger.EndGame(Team.None, 10, 5, 5, 0, 0, 0, 0, 0, 0, (HexGrid)null);
+
+        Object.DestroyImmediate(go);
+
+        string[] files = Directory.GetFiles(tempDir, "game_*.jsonl");
+        string[] lines = File.ReadAllLines(files[0]);
+
+        Assert.IsTrue(lines[1].Contains("\"turnTime\":0.00"),
+            "turnTime=0 should be recorded (valid for AI instant decisions).");
+    }
+
+    [Test]
+    public void TurnTime_UsesInvariantCulture()
+    {
+        // Verify turnTime uses dot decimal separator, not comma.
+        var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
+
+        var go = new GameObject("Robot_1");
+        var unit = go.AddComponent<UnitData>();
+        unit.team = Team.Robot;
+        unit.Energy = 10;
+        unit.currentHex = new HexCoord(0, 0);
+        unit.lastAction = UnitAction.Move;
+
+        logger.StartGame(1, null, (HexGrid)null);
+        logger.LogTurn(1, unit, 5, 5, 4, 4, null, 1.5f);
+        logger.EndGame(Team.None, 10, 5, 5, 0, 0, 0, 0, 0, 0, (HexGrid)null);
+
+        Object.DestroyImmediate(go);
+
+        string[] files = Directory.GetFiles(tempDir, "game_*.jsonl");
+        string[] lines = File.ReadAllLines(files[0]);
+
+        // Must use dot, not comma (e.g. 1.50 not 1,50).
+        Assert.IsTrue(lines[1].Contains("\"turnTime\":1.50"),
+            "turnTime must use invariant culture (dot as decimal separator).");
+    }
+
+    // ── Static analysis: turnTime field in source ───────────────────────
+
+    [Test]
+    public void LogTurn_HasTurnTimeParameter()
+    {
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(UnityEngine.Application.dataPath, "Scripts/Game/GameReplayLogger.cs"));
+
+        Assert.IsTrue(source.Contains("turnTimeSec"),
+            "LogTurn must have turnTimeSec parameter.");
+        Assert.IsTrue(source.Contains("\"turnTime\""),
+            "LogTurn must write turnTime field to JSONL.");
+    }
+
+    [Test]
+    public void GameManager_PassesTurnTimeToLogger()
+    {
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(UnityEngine.Application.dataPath, "Scripts/Game/GameManager.cs"));
+
+        Assert.IsTrue(source.Contains("turnStartTime = Time.realtimeSinceStartup"),
+            "GameManager must record turnStartTime at turn start.");
+        Assert.IsTrue(source.Contains("replayLogger.LogTurn") && source.Contains("turnTime"),
+            "GameManager must pass turn time to replayLogger.LogTurn.");
+    }
+
     // ── Test helper ─────────────────────────────────────────────────────
 
     private class TestReplayLogger : GameReplayLogger

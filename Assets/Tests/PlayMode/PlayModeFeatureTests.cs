@@ -857,4 +857,20 @@ public class PlayModeFeatureTests
                 "OnDestroy must call replayLogger.Close() to flush incomplete replays.");
         }
     }
+
+    [UnityTest]
+    public IEnumerator HumanVsAI_AutoRestartDisabled()
+    {
+        // Static analysis: HumanVsAI mode must disable autoRestart.
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            // The HumanVsAI block must set autoRestart = false.
+            Assert.IsTrue(source.Contains("autoRestart = false"),
+                "HumanVsAI mode must set autoRestart = false to prevent unwanted empty replay files.");
+        }
+    }
 }
