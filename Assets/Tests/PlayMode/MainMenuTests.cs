@@ -483,6 +483,106 @@ public class MainMenuTests
             "ReplaysPanel must skip incomplete replay files (< 100 bytes).");
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Empty state: hide action buttons when list is empty ──────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_HidesButtonsWhenEmpty()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("watchButton") && source.Contains("SetActive(!empty)"),
+            "Watch button must be hidden when replay list is empty.");
+        Assert.IsTrue(source.Contains("deleteButton") && source.Contains("SetActive(!empty)"),
+            "Delete button must be hidden when replay list is empty.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_ShowsNoReplaysText()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("noReplaysText") && source.Contains("SetActive(empty)"),
+            "Must show 'No replays' text when list is empty.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Back button visibility: every sub-panel must have a Back button ──
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator AllSubPanels_HaveBackButton()
+    {
+        yield return null;
+
+        string wiring = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/MainMenuButtonWiring.cs"));
+
+        Assert.IsTrue(wiring.Contains("PlayPanel/BackPlay"),
+            "Play panel must have a wired Back button.");
+        Assert.IsTrue(wiring.Contains("ReplaysPanel/BackReplays"),
+            "Replays panel must have a wired Back button.");
+        Assert.IsTrue(wiring.Contains("SettingsPanel/BackSettings"),
+            "Settings panel must have a wired Back button.");
+    }
+
+    [UnityTest]
+    public IEnumerator BackButtons_AreProperButtons_NotText()
+    {
+        // Back buttons must be created via CreateMenuButton (visible, clickable)
+        // not as tiny text labels at screen edges.
+        yield return null;
+
+        string setup = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/MainMenuSetup.cs"));
+
+        Assert.IsTrue(setup.Contains("CreateMenuButton(playPanel.transform, \"BackPlay\""),
+            "Play Back must be a proper menu button, not text.");
+        Assert.IsTrue(setup.Contains("CreateMenuButton(replaysPanel.transform, \"BackReplays\""),
+            "Replays Back must be a proper menu button, not text.");
+        Assert.IsTrue(setup.Contains("CreateMenuButton(settingsPanel.transform, \"BackSettings\""),
+            "Settings Back must be a proper menu button, not text.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── General UI rule: action buttons require selection/content ─────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator ActionButtons_DisabledOrHiddenWithoutContent()
+    {
+        // Any panel with a list + action buttons must hide/disable actions when empty.
+        yield return null;
+
+        string replays = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        // Watch/Delete must respect selection state.
+        Assert.IsTrue(replays.Contains("watchButton.interactable = selectedIndex >= 0"),
+            "Watch must be disabled when no replay is selected.");
+        Assert.IsTrue(replays.Contains("deleteButton.interactable = selectedIndex >= 0"),
+            "Delete must be disabled when no replay is selected.");
+    }
+
+    [UnityTest]
+    public IEnumerator MainMenuSetup_AutoCreatesScene()
+    {
+        yield return null;
+
+        string ptw = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        Assert.IsTrue(ptw.Contains("MainMenuSetup.SetupMainMenuScene()"),
+            "Launch Main Menu must auto-create scene if it doesn't exist.");
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private static void SetField(object obj, string fieldName, object value)
