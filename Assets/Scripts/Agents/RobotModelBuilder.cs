@@ -18,6 +18,8 @@ public class RobotModelBuilder : MonoBehaviour
     [HideInInspector] public Transform rightLeg;
 
     private static Material sharedMaterial;
+    private static Material hammerMaterial;
+    private static Material eyeMaterial;
 
     // Walk cycle state.
     private HexMovement movement;
@@ -42,22 +44,26 @@ public class RobotModelBuilder : MonoBehaviour
         hammer.SetParent(rightArm, false);
         hammer.localPosition = new Vector3(0f, -0.07f, 0f);
 
-        // Give hammer a darker metallic tint.
-        var hammerMat = new Material(sharedMaterial);
-        hammerMat.SetColor("_BaseColor", new Color(0.35f, 0.35f, 0.4f));
-        hammerMat.SetFloat("_Metallic", 0.9f);
-        hammer.GetComponent<Renderer>().material = hammerMat;
+        // Give hammer a darker metallic tint (shared across all robots).
+        if (hammerMaterial == null)
+        {
+            hammerMaterial = new Material(sharedMaterial);
+            hammerMaterial.SetColor("_BaseColor", new Color(0.35f, 0.35f, 0.4f));
+            hammerMaterial.SetFloat("_Metallic", 0.9f);
+        }
+        hammer.GetComponent<Renderer>().sharedMaterial = hammerMaterial;
 
         // Two small "eyes" on the head.
         var eyeL = Part("EyeL", PrimitiveType.Sphere, Vector3.zero, new Vector3(0.02f, 0.02f, 0.02f));
         eyeL.SetParent(head, false);
         eyeL.localPosition = new Vector3(-0.025f, 0.01f, 0.05f);
-        eyeL.GetComponent<Renderer>().material = EyeMaterial();
+        if (eyeMaterial == null) eyeMaterial = EyeMaterial();
+        eyeL.GetComponent<Renderer>().sharedMaterial = eyeMaterial;
 
         var eyeR = Part("EyeR", PrimitiveType.Sphere, Vector3.zero, new Vector3(0.02f, 0.02f, 0.02f));
         eyeR.SetParent(head, false);
         eyeR.localPosition = new Vector3( 0.025f, 0.01f, 0.05f);
-        eyeR.GetComponent<Renderer>().material = EyeMaterial();
+        eyeR.GetComponent<Renderer>().sharedMaterial = eyeMaterial;
 
         // Scale up entire model for better visibility.
         modelRoot.localScale = Vector3.one * 1.8f;
@@ -157,8 +163,10 @@ public class RobotModelBuilder : MonoBehaviour
 
     public static Material[] GetStaticMaterials()
     {
-        var mats = new[] { sharedMaterial };
+        var mats = new[] { sharedMaterial, hammerMaterial, eyeMaterial };
         sharedMaterial = null;
+        hammerMaterial = null;
+        eyeMaterial = null;
         return mats;
     }
 

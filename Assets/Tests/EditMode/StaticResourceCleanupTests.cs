@@ -228,19 +228,19 @@ public class StaticResourceCleanupTests
     }
 
     [Test]
-    public void RobotModelBuilder_Returns1Material()
+    public void RobotModelBuilder_Returns3Materials()
     {
         var mats = RobotModelBuilder.GetStaticMaterials();
-        Assert.AreEqual(1, mats.Length,
-            "RobotModelBuilder has 1 static material (sharedMaterial).");
+        Assert.AreEqual(3, mats.Length,
+            "RobotModelBuilder has 3 static materials (shared, hammer, eye).");
     }
 
     [Test]
-    public void MutantModelBuilder_Returns1Material()
+    public void MutantModelBuilder_Returns2Materials()
     {
         var mats = MutantModelBuilder.GetStaticMaterials();
-        Assert.AreEqual(1, mats.Length,
-            "MutantModelBuilder has 1 static material (sharedMaterial).");
+        Assert.AreEqual(2, mats.Length,
+            "MutantModelBuilder has 2 static materials (shared, eye).");
     }
 
     [Test]

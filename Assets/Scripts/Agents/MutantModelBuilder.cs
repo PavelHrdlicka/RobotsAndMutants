@@ -15,6 +15,7 @@ public class MutantModelBuilder : MonoBehaviour
     [HideInInspector] public Transform tentacle3;
 
     private static Material sharedMaterial;
+    private static Material eyeMaterial;
 
     private float bobPhase;
     private const float BobAmp   = 0.012f;
@@ -55,12 +56,13 @@ public class MutantModelBuilder : MonoBehaviour
         var eyeL = Part("EyeL", PrimitiveType.Sphere, Vector3.zero, new Vector3(0.025f, 0.03f, 0.02f));
         eyeL.SetParent(head, false);
         eyeL.localPosition = new Vector3(-0.025f, 0.01f, 0.04f);
-        eyeL.GetComponent<Renderer>().material = EyeMaterial();
+        if (eyeMaterial == null) eyeMaterial = EyeMaterial();
+        eyeL.GetComponent<Renderer>().sharedMaterial = eyeMaterial;
 
         var eyeR = Part("EyeR", PrimitiveType.Sphere, Vector3.zero, new Vector3(0.025f, 0.03f, 0.02f));
         eyeR.SetParent(head, false);
         eyeR.localPosition = new Vector3( 0.025f, 0.01f, 0.04f);
-        eyeR.GetComponent<Renderer>().material = EyeMaterial();
+        eyeR.GetComponent<Renderer>().sharedMaterial = eyeMaterial;
 
         // Scale up entire model for better visibility.
         modelRoot.localScale = Vector3.one * 1.8f;
@@ -167,8 +169,9 @@ public class MutantModelBuilder : MonoBehaviour
 
     public static Material[] GetStaticMaterials()
     {
-        var mats = new[] { sharedMaterial };
+        var mats = new[] { sharedMaterial, eyeMaterial };
         sharedMaterial = null;
+        eyeMaterial = null;
         return mats;
     }
 
