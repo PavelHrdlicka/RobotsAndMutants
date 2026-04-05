@@ -1,18 +1,25 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Runtime bootstrap for the game scene. Creates HexGrid, GameManager, and all
 /// required components when the scene is loaded from MainMenu (or standalone build).
 /// In Editor with ProjectTools, HexGridSetup handles setup before Play mode.
+///
+/// Uses sceneLoaded event so it fires on EVERY scene load, not just app start.
 /// </summary>
 public static class GameBootstrap
 {
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void OnSceneLoaded()
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void Register()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         // Only bootstrap game scenes, not MainMenu.
-        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        if (sceneName == "MainMenu") return;
+        if (scene.name == "MainMenu") return;
 
         // If HexGrid already exists (set up by Editor tools), skip.
         if (Object.FindFirstObjectByType<HexGrid>() != null) return;
@@ -24,7 +31,12 @@ public static class GameBootstrap
     private static void SetupScene()
     {
         // Load hex prefab.
-        var prefab = LoadOrCreateHexPrefab();
+        var prefab = LoadHexPrefab();
+        if (prefab == null)
+        {
+            Debug.LogError("[GameBootstrap] Could not load HexTile prefab!");
+            return;
+        }
 
         // Create HexGrid.
         var gridGo = new GameObject("HexGrid");
@@ -56,7 +68,7 @@ public static class GameBootstrap
         ConfigureCamera(grid.boardSide);
     }
 
-    private static GameObject LoadOrCreateHexPrefab()
+    private static GameObject LoadHexPrefab()
     {
 #if UNITY_EDITOR
         var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/HexTile.prefab");
@@ -67,6 +79,7 @@ public static class GameBootstrap
         if (loaded != null) return loaded;
 
         // Fallback: create minimal hex prefab at runtime.
+        Debug.LogWarning("[GameBootstrap] Creating fallback hex prefab.");
         var go = new GameObject("HexPrefab");
         go.AddComponent<MeshFilter>();
         go.AddComponent<MeshRenderer>();
