@@ -367,6 +367,13 @@ public class UnitActionIndicator3D : MonoBehaviour
         return mat;
     }
 
+    public static Material[] GetStaticMaterials()
+    {
+        var mats = new[] { redMat, blueMat, yellowMat, greyMat, cyanMat, orangeMat };
+        redMat = blueMat = yellowMat = greyMat = cyanMat = orangeMat = null;
+        return mats;
+    }
+
     private static void DestroyCol(GameObject go)
     {
         var col = go.GetComponent<Collider>();

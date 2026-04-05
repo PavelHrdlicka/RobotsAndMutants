@@ -376,4 +376,16 @@ public class HexVisuals : MonoBehaviour
             _           => NeutralColor
         };
     }
+
+    public static Material[] GetStaticMaterials()
+    {
+        var mats = new[] { slimeOverlayMaterial };
+        slimeOverlayMaterial = null;
+        if (slimeHatchTexture != null)
+        {
+            Object.DestroyImmediate(slimeHatchTexture);
+            slimeHatchTexture = null;
+        }
+        return mats;
+    }
 }

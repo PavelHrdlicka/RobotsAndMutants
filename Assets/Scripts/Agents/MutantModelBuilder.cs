@@ -165,6 +165,13 @@ public class MutantModelBuilder : MonoBehaviour
         sharedMaterial.SetFloat("_Smoothness", 0.8f); // glossy/slimy
     }
 
+    public static Material[] GetStaticMaterials()
+    {
+        var mats = new[] { sharedMaterial };
+        sharedMaterial = null;
+        return mats;
+    }
+
     private static Material EyeMaterial()
     {
         var shader = Shader.Find("Universal Render Pipeline/Unlit");

@@ -198,6 +198,13 @@ public class UnitHealthBar3D : MonoBehaviour
         }
     }
 
+    public static Material[] GetStaticMaterials()
+    {
+        var mats = new[] { barMaterial };
+        barMaterial = null;
+        return mats;
+    }
+
     private static void EnsureMaterial()
     {
         if (barMaterial != null) return;
