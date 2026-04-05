@@ -46,6 +46,7 @@
 - [feedback_runtime_scene_bootstrap.md](feedback_runtime_scene_bootstrap.md) — Herní scéna musí fungovat z Editoru i z runtime menu (GameBootstrap)
 - [feedback_deferred_play_mode.md](feedback_deferred_play_mode.md) — Editor Play mode launch: vždy čekat na EnteredEditMode, nikdy isPlaying přímo
 - [feedback_no_aftersceneload_for_transitions.md](feedback_no_aftersceneload_for_transitions.md) — AfterSceneLoad = jen 1×; pro scene transitions použít SceneManager.sceneLoaded
+- [feedback_shared_material_in_builders.md](feedback_shared_material_in_builders.md) — Model builders: static cached materiály + .sharedMaterial, nikdy per-unit kopie
 
 ## Project
 - [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)

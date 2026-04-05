@@ -250,4 +250,132 @@ public class StaticResourceCleanupTests
         Assert.AreEqual(1, mats.Length,
             "HexVisuals has 1 static material (slimeOverlayMaterial).");
     }
+
+    // ── No per-unit .material = new Material() in model builders ────────
+
+    [Test]
+    public void ModelBuilders_NeverCreatePerUnitMaterials()
+    {
+        // Model builders must use static cached materials + .sharedMaterial,
+        // never .material = new Material() per spawn (causes GPU resource leak).
+        var violations = new List<string>();
+        string[] modelFiles =
+        {
+            "Agents/RobotModelBuilder.cs",
+            "Agents/MutantModelBuilder.cs"
+        };
+
+        foreach (string relPath in modelFiles)
+        {
+            string path = Path.Combine(ScriptsDir, relPath);
+            if (!File.Exists(path)) continue;
+
+            string source = File.ReadAllText(path);
+            string fileName = Path.GetFileName(path);
+
+            // Find Build() method body.
+            var buildMatch = Regex.Match(source, @"void\s+Build\s*\(\s*\)\s*\{");
+            if (!buildMatch.Success) continue;
+
+            int braceStart = source.IndexOf('{', buildMatch.Index);
+            int depth = 1;
+            int pos = braceStart + 1;
+            while (pos < source.Length && depth > 0)
+            {
+                if (source[pos] == '{') depth++;
+                else if (source[pos] == '}') depth--;
+                pos++;
+            }
+            string buildBody = source.Substring(braceStart, pos - braceStart);
+
+            // Must not have "new Material(" inside Build() — all materials must be static cached.
+            if (buildBody.Contains("new Material("))
+                violations.Add(fileName);
+        }
+
+        Assert.IsEmpty(violations,
+            $"new Material() found inside Build() in: {string.Join(", ", violations)}. " +
+            "Model materials must be static cached and assigned via .sharedMaterial.");
+    }
+
+    [Test]
+    public void ModelBuilders_UseSharedMaterialNotInstanceMaterial()
+    {
+        // In Build() methods, renderers must use .sharedMaterial, not .material
+        // (which creates a copy and leaks GPU resources).
+        var violations = new List<string>();
+        string[] modelFiles =
+        {
+            "Agents/RobotModelBuilder.cs",
+            "Agents/MutantModelBuilder.cs"
+        };
+
+        foreach (string relPath in modelFiles)
+        {
+            string path = Path.Combine(ScriptsDir, relPath);
+            if (!File.Exists(path)) continue;
+
+            string source = File.ReadAllText(path);
+            string fileName = Path.GetFileName(path);
+
+            // Find Build() method body.
+            var buildMatch = Regex.Match(source, @"void\s+Build\s*\(\s*\)\s*\{");
+            if (!buildMatch.Success) continue;
+
+            int braceStart = source.IndexOf('{', buildMatch.Index);
+            int depth = 1;
+            int pos = braceStart + 1;
+            while (pos < source.Length && depth > 0)
+            {
+                if (source[pos] == '{') depth++;
+                else if (source[pos] == '}') depth--;
+                pos++;
+            }
+            string buildBody = source.Substring(braceStart, pos - braceStart);
+
+            // Check for ".material =" (instance copy) — must be ".sharedMaterial =" instead.
+            // Exclude lines with "sharedMaterial" to avoid false positives.
+            var lines = buildBody.Split('\n');
+            foreach (string line in lines)
+            {
+                string trimmed = line.Trim();
+                if (trimmed.Contains(".material =") && !trimmed.Contains(".sharedMaterial =")
+                    && !trimmed.Contains("//"))
+                {
+                    violations.Add($"{fileName}: {trimmed}");
+                }
+            }
+        }
+
+        Assert.IsEmpty(violations,
+            $".material = (instance copy) found in Build(): {string.Join("; ", violations)}. " +
+            "Use .sharedMaterial = to share materials and prevent GPU resource leaks.");
+    }
+
+    // ── No EyeMaterial()/similar called directly in Build (must be cached) ─
+
+    [Test]
+    public void ModelBuilders_EyeMaterialIsCached()
+    {
+        string[] files =
+        {
+            Path.Combine(ScriptsDir, "Agents/RobotModelBuilder.cs"),
+            Path.Combine(ScriptsDir, "Agents/MutantModelBuilder.cs")
+        };
+
+        foreach (string path in files)
+        {
+            if (!File.Exists(path)) continue;
+            string source = File.ReadAllText(path);
+            string fileName = Path.GetFileName(path);
+
+            // EyeMaterial() must be called via "if (eyeMaterial == null) eyeMaterial = EyeMaterial()"
+            // not directly as ".material = EyeMaterial()".
+            Assert.IsTrue(source.Contains("static Material eyeMaterial"),
+                $"{fileName} must have static eyeMaterial field for caching.");
+            Assert.IsFalse(
+                Regex.IsMatch(source, @"\.material\s*=\s*EyeMaterial\(\)"),
+                $"{fileName}: EyeMaterial() must not be assigned directly via .material — cache it in static field.");
+        }
+    }
 }
