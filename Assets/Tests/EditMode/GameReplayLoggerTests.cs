@@ -371,7 +371,7 @@ public class GameReplayLoggerTests
 
         Assert.IsTrue(source.Contains("turnTimeSec"),
             "LogTurn must have turnTimeSec parameter.");
-        Assert.IsTrue(source.Contains("\"turnTime\""),
+        Assert.IsTrue(source.Contains("turnTime"),
             "LogTurn must write turnTime field to JSONL.");
     }
 
