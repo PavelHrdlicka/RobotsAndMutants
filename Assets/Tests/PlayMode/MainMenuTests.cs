@@ -328,6 +328,48 @@ public class MainMenuTests
     }
 
     [UnityTest]
+    public IEnumerator PostMatch_HasWatchReplayButton()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+
+        Assert.IsTrue(source.Contains("Watch Replay"),
+            "Post-match UI must have 'Watch Replay' button.");
+        Assert.IsTrue(source.Contains("LastCompletedReplayPath"),
+            "Watch Replay must use replayLogger.LastCompletedReplayPath.");
+        Assert.IsTrue(source.Contains("GameMode.Replay"),
+            "Watch Replay must set GameMode to Replay before loading scene.");
+    }
+
+    [UnityTest]
+    public IEnumerator PostMatch_WatchReplay_ChecksFileExists()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+
+        Assert.IsTrue(source.Contains("File.Exists(replayPath)"),
+            "Watch Replay must check that replay file exists before loading.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayLogger_HasLastCompletedReplayPath()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameReplayLogger.cs"));
+
+        Assert.IsTrue(source.Contains("LastCompletedReplayPath"),
+            "GameReplayLogger must expose LastCompletedReplayPath property.");
+        Assert.IsTrue(source.Contains("gameFinished = true") && source.Contains("LastCompletedReplayPath = currentFilePath"),
+            "LastCompletedReplayPath must be set when gameFinished becomes true.");
+    }
+
+    [UnityTest]
     public IEnumerator PostMatch_OnlyShownForMenuLaunchedGames()
     {
         yield return null;
