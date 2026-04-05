@@ -583,6 +583,134 @@ public class MainMenuTests
             "Launch Main Menu must auto-create scene if it doesn't exist.");
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // ── GameBootstrap: runtime scene setup ───────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_Exists()
+    {
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs");
+        Assert.IsTrue(System.IO.File.Exists(path),
+            "GameBootstrap.cs must exist for runtime scene setup from MainMenu.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_HasAfterSceneLoadAttribute()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)"),
+            "GameBootstrap must run at AfterSceneLoad to detect missing HexGrid.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_SkipsMainMenuScene()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("\"MainMenu\"") && source.Contains("return"),
+            "GameBootstrap must skip setup when scene is MainMenu.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_SkipsIfHexGridExists()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("FindFirstObjectByType<HexGrid>()") && source.Contains("return"),
+            "GameBootstrap must skip if HexGrid already exists (Editor setup).");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_CreatesHexGrid()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("AddComponent<HexGrid>()"),
+            "GameBootstrap must create HexGrid.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_CreatesGameManager()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("AddComponent<GameManager>()"),
+            "GameBootstrap must create GameManager.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_CreatesUnitFactory()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("AddComponent<UnitFactory>()"),
+            "GameBootstrap must create UnitFactory.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_AppliesBoardSizeFromMenu()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("GameModeConfig.BoardSize"),
+            "GameBootstrap must apply BoardSize from menu config.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_ConfiguresCamera()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("ConfigureCamera"),
+            "GameBootstrap must configure camera for the game view.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Guard: game scene must work both from Editor and MainMenu ────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator GameScene_HasBothSetupPaths()
+    {
+        // HexGridSetup (Editor) and GameBootstrap (runtime) must both exist.
+        yield return null;
+
+        Assert.IsTrue(
+            System.IO.File.Exists(System.IO.Path.Combine(Application.dataPath, "Editor/HexGridSetup.cs")),
+            "HexGridSetup.cs must exist for Editor-based scene setup.");
+        Assert.IsTrue(
+            System.IO.File.Exists(System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs")),
+            "GameBootstrap.cs must exist for runtime scene setup from MainMenu.");
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private static void SetField(object obj, string fieldName, object value)

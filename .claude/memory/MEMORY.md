@@ -43,6 +43,7 @@
 - [feedback_sessionstate_gamemode.md](feedback_sessionstate_gamemode.md) — Každý Play mode entry point musí nastavit SessionState("GameMode")
 - [feedback_static_material_cleanup.md](feedback_static_material_cleanup.md) — Každý static Material musí mít GetStaticMaterials() v StaticResourceCleanup
 - [feedback_ui_empty_state.md](feedback_ui_empty_state.md) — Prázdný seznam: schovat akční tlačítka, zobrazit placeholder, Back vždy viditelné
+- [feedback_runtime_scene_bootstrap.md](feedback_runtime_scene_bootstrap.md) — Herní scéna musí fungovat z Editoru i z runtime menu (GameBootstrap)
 
 ## Project
 - [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)
