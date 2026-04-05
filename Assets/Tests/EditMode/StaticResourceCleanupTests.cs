@@ -61,12 +61,13 @@ public class StaticResourceCleanupTests
 
             string source = File.ReadAllText(file);
 
-            // Detect "static Material" or "private static Material" etc.
+            // Detect static Material/Texture2D FIELDS (not return types).
+            // Fields: "static Material fieldName" — followed by identifier, comma, or semicolon.
+            // Methods: "static Material MethodName(" — followed by parenthesis.
             bool hasStaticMaterial = Regex.IsMatch(source,
-                @"\bstatic\s+Material\b");
-            // Detect static Texture2D fields too.
+                @"\bstatic\s+Material\s+\w+\s*[;,=]");
             bool hasStaticTexture = Regex.IsMatch(source,
-                @"\bstatic\s+Texture2D\b");
+                @"\bstatic\s+Texture2D\s+\w+\s*[;,=]");
 
             if (hasStaticMaterial || hasStaticTexture)
             {
