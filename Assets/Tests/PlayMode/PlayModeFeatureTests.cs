@@ -117,7 +117,7 @@ public class PlayModeFeatureTests
         var mpb = new MaterialPropertyBlock();
         rend.GetPropertyBlock(mpb);
         Color emission = mpb.GetColor("_EmissionColor");
-        Assert.AreEqual(Color.black, emission,
+        Assert.AreEqual(0f, emission.r + emission.g + emission.b,
             "No emission when unit is not on turn.");
     }
 
@@ -142,7 +142,7 @@ public class PlayModeFeatureTests
         var block = new MaterialPropertyBlock();
         rend.GetPropertyBlock(block);
         Color emission = block.GetColor("_EmissionColor");
-        Assert.AreNotEqual(Color.black, emission,
+        Assert.Greater(emission.r + emission.g + emission.b, 0f,
             "Should have emission glow when unit is on turn.");
     }
 
@@ -166,7 +166,7 @@ public class PlayModeFeatureTests
         var mpb = new MaterialPropertyBlock();
         rend.GetPropertyBlock(mpb);
         Color emission = mpb.GetColor("_EmissionColor");
-        Assert.AreEqual(Color.black, emission,
+        Assert.AreEqual(0f, emission.r + emission.g + emission.b,
             "No emission when unit is dead.");
     }
 
@@ -197,7 +197,7 @@ public class PlayModeFeatureTests
         var mpb = new MaterialPropertyBlock();
         rend.GetPropertyBlock(mpb);
         Color emission = mpb.GetColor("_EmissionColor");
-        Assert.AreEqual(Color.black, emission,
+        Assert.AreEqual(0f, emission.r + emission.g + emission.b,
             "Emission should turn off after turn ends.");
     }
 
