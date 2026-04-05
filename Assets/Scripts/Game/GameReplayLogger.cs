@@ -79,7 +79,7 @@ public class GameReplayLogger
 
     /// <summary>Log one unit's turn action. Call from PostTurnProcessing.</summary>
     public void LogTurn(int round, UnitData unit, int rTiles, int mTiles, int rAlive, int mAlive,
-        System.Collections.Generic.List<UnitData> allUnits = null)
+        System.Collections.Generic.List<UnitData> allUnits = null, float turnTimeSec = -1f)
     {
         if (!isLogging || writer == null || unit == null) return;
 
@@ -146,6 +146,13 @@ public class GameReplayLogger
                     first = false;
                 }
                 sb.Append("}");
+            }
+
+            // Turn duration in seconds (thinking time for human, decision time for AI).
+            if (turnTimeSec >= 0f)
+            {
+                sb.Append(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    ",\"turnTime\":{0:F2}", turnTimeSec));
             }
 
             sb.Append("}");

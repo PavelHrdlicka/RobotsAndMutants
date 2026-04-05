@@ -365,12 +365,8 @@ public partial class GameManager : MonoBehaviour
         pendingUnit.isMyTurn = true;
         lastTeamPlayed = pendingUnit.team;
 
-        // Start thinking timer for human turns.
-        if (GameModeConfig.CurrentMode == GameMode.HumanVsAI
-            && pendingUnit.GetComponent<HumanTurnController>() != null)
-        {
-            turnStartTime = Time.realtimeSinceStartup;
-        }
+        // Start turn timer (used for replay logging and HUD thinking stats).
+        turnStartTime = Time.realtimeSinceStartup;
     }
 
     private void PostTurnProcessing(UnitData unit)
@@ -402,11 +398,12 @@ public partial class GameManager : MonoBehaviour
             }
         }
 
-        // Log turn to replay file.
+        // Log turn to replay file (include thinking time for human turns).
+        float turnTime = Time.realtimeSinceStartup - turnStartTime;
         replayLogger.LogTurn(currentRound, unit,
             grid.LargestConnectedGroup(Team.Robot), grid.LargestConnectedGroup(Team.Mutant),
             CountAlive(Team.Robot), CountAlive(Team.Mutant),
-            unitFactory.AllUnits);
+            unitFactory.AllUnits, turnTime);
 
         // Clear per-turn attack tracking.
         unit.lastAttackTarget = null;
