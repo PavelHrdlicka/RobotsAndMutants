@@ -168,7 +168,7 @@ public class BuildMechanicsTests
     }
 
     [UnityTest]
-    public IEnumerator Build_Robot_Wall_FailsOnEnemyHex()
+    public IEnumerator Build_Robot_Wall_SucceedsOnEnemyHex()
     {
         yield return null;
 
@@ -179,20 +179,24 @@ public class BuildMechanicsTests
 
         bool built = move.TryBuild(0);
 
-        Assert.IsFalse(built, "Cannot build wall on enemy hex.");
+        Assert.IsTrue(built, "Robot can build wall on enemy hex (captures it).");
+        Assert.AreEqual(Team.Robot, tile.Owner, "Hex should be captured.");
+        Assert.AreEqual(TileType.Wall, tile.TileType);
     }
 
     [UnityTest]
-    public IEnumerator Build_Robot_Wall_FailsOnNeutralHex()
+    public IEnumerator Build_Robot_Wall_SucceedsOnNeutralHex()
     {
         yield return null;
 
         // Hex at (1,0) is neutral by default.
         var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
 
+        var tile = grid.GetTile(new HexCoord(1, 0));
         bool built = move.TryBuild(0);
 
-        Assert.IsFalse(built, "Cannot build wall on neutral hex.");
+        Assert.IsTrue(built, "Robot can build wall on neutral hex (captures it).");
+        Assert.AreEqual(Team.Robot, tile.Owner, "Hex should be captured.");
     }
 
     [UnityTest]
@@ -539,7 +543,7 @@ public class BuildMechanicsTests
     }
 
     [UnityTest]
-    public IEnumerator IsValidBuild_Robot_False_ForEnemyHex()
+    public IEnumerator IsValidBuild_Robot_True_ForEnemyHex()
     {
         yield return null;
 
@@ -548,7 +552,8 @@ public class BuildMechanicsTests
 
         var (_, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
 
-        Assert.IsFalse(move.IsValidBuild(0));
+        Assert.IsTrue(move.IsValidBuild(0),
+            "Robot can build on enemy hex (expansive build).");
     }
 
     [UnityTest]

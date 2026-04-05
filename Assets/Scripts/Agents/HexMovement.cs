@@ -277,11 +277,10 @@ public class HexMovement : MonoBehaviour
             return true;
         }
 
-        // Robot builds wall on adjacent hex.
+        // Robot builds wall on adjacent hex (own, neutral, or enemy — not base, not occupied).
         HexCoord targetCoord = unitData.currentHex.Neighbor(direction);
         var wallTile = grid.GetTile(targetCoord);
         if (wallTile == null || wallTile.isBase)     return false;
-        if (wallTile.Owner != unitData.team)         return false;
         if (wallTile.TileType != TileType.Empty)     return false;
         if (IsOccupied(targetCoord))                 return false;
 
@@ -293,8 +292,13 @@ public class HexMovement : MonoBehaviour
         int wallCost = cfg != null ? cfg.wallBuildCost : 4;
         if (unitData.Energy < wallCost) return false;
         unitData.Energy -= wallCost;
+
+        // Capture the hex if not already owned.
+        if (wallTile.Owner != unitData.team)
+            wallTile.Owner = unitData.team;
+
         wallTile.TileType = TileType.Wall;
-        wallTile.WallHP = cfg != null ? cfg.wallMaxHP : 3;
+        wallTile.WallHP = cfg != null ? cfg.wallMaxHP : 4;
         unitData.lastAction = UnitAction.BuildWall;
         unitData.lastBuildTarget = targetCoord;
         return true;
@@ -414,11 +418,10 @@ public class HexMovement : MonoBehaviour
             return unitData.Energy >= cost;
         }
 
-        // Robot: build wall on adjacent hex.
+        // Robot: build wall on adjacent hex (own, neutral, or enemy — not base, not occupied).
         HexCoord target = unitData.currentHex.Neighbor(direction);
         var tile2 = grid.GetTile(target);
         if (tile2 == null || tile2.isBase)     return false;
-        if (tile2.Owner != unitData.team)      return false;
         if (tile2.TileType != TileType.Empty)  return false;
         if (IsOccupied(target))                return false;
 

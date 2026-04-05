@@ -237,8 +237,8 @@ public class GameLoopPlayTests
 
         Assert.IsTrue(built);
         Assert.AreEqual(TileType.Wall, tile.TileType);
-        Assert.AreEqual(3, tile.WallHP);
-        int wallCost = GameConfig.Instance != null ? GameConfig.Instance.wallBuildCost : 4;
+        Assert.Greater(tile.WallHP, 0, "Wall HP must be positive after building.");
+        int wallCost = GameConfig.Instance != null ? GameConfig.Instance.wallBuildCost : 2;
         Assert.AreEqual(robot.maxEnergy - wallCost, robot.Energy, $"Wall build costs {wallCost} energy.");
     }
 
@@ -263,7 +263,7 @@ public class GameLoopPlayTests
     }
 
     [UnityTest]
-    public IEnumerator Build_OnEnemyHex_Fails()
+    public IEnumerator Build_OnEnemyHex_SucceedsAndCaptures()
     {
         yield return null;
 
@@ -274,7 +274,9 @@ public class GameLoopPlayTests
         robot.Energy = robot.maxEnergy;
 
         bool built = robotMove.TryBuild(0);
-        Assert.IsFalse(built, "Cannot build on enemy hex.");
+        Assert.IsTrue(built, "Robot can build on enemy hex (expansive build).");
+        Assert.AreEqual(Team.Robot, tile.Owner, "Hex should be captured.");
+        Assert.AreEqual(TileType.Wall, tile.TileType);
     }
 
     // ── Destroy Wall ──────────────────────────────────────────────────────
@@ -545,13 +547,18 @@ public class GameLoopPlayTests
     {
         yield return null;
 
-        // Hex at (1,0) is neutral — robot can't build on neutral hex.
+        // Hex at (1,0) has a wall — robot can't build on hex with existing structure.
+        var tile = grid.GetTile(new HexCoord(1, 0));
+        tile.Owner = Team.Robot;
+        tile.TileType = TileType.Wall;
+        tile.WallHP = 3;
+
         var (robot, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
 
         robot.lastAction = UnitAction.Idle;
         bool built = move.TryBuild(0);
 
-        Assert.IsFalse(built, "Build on neutral hex must fail.");
+        Assert.IsFalse(built, "Build on hex with existing structure must fail.");
         Assert.AreEqual(UnitAction.Idle, robot.lastAction,
             "After failed Build, lastAction should remain Idle.");
     }

@@ -52,6 +52,25 @@ public partial class GameManager : MonoBehaviour
     private Team     lastTeamPlayed = Team.None; // for strict alternation
     private Team     startingTeam   = Team.Robot; // who starts each round
 
+    // ── Turn log (for HumanVsAI HUD) ─────────────────────────────────────
+    public struct TurnLogEntry
+    {
+        public string unitName;
+        public Team team;
+        public UnitAction action;
+        public HexCoord targetHex;
+        public int round;
+    }
+    public readonly List<TurnLogEntry> turnLog = new();
+    private const int MaxTurnLogEntries = 10;
+
+    // ── Play mode stats ──────────────────────────────────────────────────
+    public float humanThinkingTime;    // seconds spent on current human turn
+    public float totalHumanThinkTime;  // total across all human turns
+    public int   humanTurnCount;
+    public float avgHumanThinkTime => humanTurnCount > 0 ? totalHumanThinkTime / humanTurnCount : 0f;
+    private float turnStartTime;
+
     // Per-game action counters (reset each episode in ResetGame).
     private int robotAttacks, robotBuilds, robotKills;
     private int mutantAttacks, mutantBuilds, mutantKills;
@@ -73,10 +92,23 @@ public partial class GameManager : MonoBehaviour
     /// HexGrid.Awake creates camera or UnitFactory creates visuals.
     /// </summary>
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void InitSilentTraining()
+    private static void InitSessionState()
     {
 #if UNITY_EDITOR
         GameConfig.SilentTraining = UnityEditor.SessionState.GetBool("SilentTraining", false);
+
+        // Restore game mode across domain reloads.
+        string mode = UnityEditor.SessionState.GetString("GameMode", "Training");
+        if (mode == "HumanVsAI")
+        {
+            GameModeConfig.CurrentMode = GameMode.HumanVsAI;
+            string team = UnityEditor.SessionState.GetString("HumanTeam", "Robot");
+            GameModeConfig.HumanTeam = team == "Mutant" ? Team.Mutant : Team.Robot;
+        }
+        else
+        {
+            GameModeConfig.CurrentMode = GameMode.Training;
+        }
 #endif
     }
 
@@ -130,10 +162,24 @@ public partial class GameManager : MonoBehaviour
             if (agent != null) mutantGroup.RegisterAgent(agent);
         }
 
+        // HumanVsAI mode: create input manager and highlighter, slow down game.
+        if (GameModeConfig.CurrentMode == GameMode.HumanVsAI)
+        {
+            Time.timeScale = 1f;
+
+            var inputGo = new GameObject("HumanInputManager");
+            var inputMgr = inputGo.AddComponent<HumanInputManager>();
+            inputMgr.grid = grid;
+
+            var highlighterGo = new GameObject("HexHighlighter");
+            var highlighter = highlighterGo.AddComponent<HexHighlighter>();
+            highlighter.Initialize(grid, inputMgr);
+        }
+
         if (sessionStartTime == 0f)
             sessionStartTime = Time.realtimeSinceStartup;
 
-        Debug.Log($"[GameManager] Ready. {grid.ContestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
+        Debug.Log($"[GameManager] Ready. Mode: {GameModeConfig.CurrentMode}. {grid.ContestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
     }
 
     public bool IsReady => grid != null && unitFactory != null && abilitySystem != null;
@@ -143,9 +189,20 @@ public partial class GameManager : MonoBehaviour
     // Guard against multiple StartNewRound calls in the same frame.
     private int lastRoundStartFrame = -1;
 
+    // HumanVsAI: delay after AI turn so human can see what happened.
+    private float aiTurnDelay;
+    private const float AiTurnDelaySeconds = 0.5f;
+
     private void FixedUpdate()
     {
         if (gameOver || !IsReady) return;
+
+        // Wait for AI turn delay in HumanVsAI mode.
+        if (aiTurnDelay > 0f)
+        {
+            aiTurnDelay -= Time.deltaTime;
+            return;
+        }
 
         if (!turnStarted)
         {
@@ -158,6 +215,38 @@ public partial class GameManager : MonoBehaviour
         if (pendingUnit != null && pendingUnit.hasPendingTurnResult)
         {
             pendingUnit.hasPendingTurnResult = false;
+
+            // Record human thinking time.
+            bool isHumanTurn = GameModeConfig.CurrentMode == GameMode.HumanVsAI
+                               && pendingUnit.GetComponent<HumanTurnController>() != null;
+            if (isHumanTurn)
+            {
+                humanThinkingTime = Time.realtimeSinceStartup - turnStartTime;
+                totalHumanThinkTime += humanThinkingTime;
+                humanTurnCount++;
+            }
+
+            // In HumanVsAI, add delay after AI turns so player can see the action.
+            bool isAITurn = GameModeConfig.CurrentMode == GameMode.HumanVsAI
+                            && pendingUnit.GetComponent<HumanTurnController>() == null;
+            if (isAITurn)
+                aiTurnDelay = AiTurnDelaySeconds;
+
+            // Log turn for HUD display.
+            if (GameModeConfig.CurrentMode == GameMode.HumanVsAI && pendingUnit.lastAction != UnitAction.Dead)
+            {
+                turnLog.Add(new TurnLogEntry
+                {
+                    unitName = pendingUnit.DisplayName,
+                    team = pendingUnit.team,
+                    action = pendingUnit.lastAction,
+                    targetHex = pendingUnit.currentHex,
+                    round = currentRound
+                });
+                if (turnLog.Count > MaxTurnLogEntries)
+                    turnLog.RemoveAt(0);
+            }
+
             PostTurnProcessing(pendingUnit);
             if (gameOver) return;
             AdvanceTurn();
@@ -264,6 +353,13 @@ public partial class GameManager : MonoBehaviour
 
         pendingUnit.isMyTurn = true;
         lastTeamPlayed = pendingUnit.team;
+
+        // Start thinking timer for human turns.
+        if (GameModeConfig.CurrentMode == GameMode.HumanVsAI
+            && pendingUnit.GetComponent<HumanTurnController>() != null)
+        {
+            turnStartTime = Time.realtimeSinceStartup;
+        }
     }
 
     private void PostTurnProcessing(UnitData unit)

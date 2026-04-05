@@ -259,6 +259,184 @@ public partial class GameManager
 
         DrawSessionStats();
         DrawMatchHistory();
+
+        if (GameModeConfig.CurrentMode == GameMode.HumanVsAI)
+        {
+            DrawHumanPlayerHUD();
+            DrawTurnLog();
+        }
+    }
+
+    // ── Human player HUD ──────────────────────────────────────────────────
+
+    private GUIStyle humanHudStyle;
+    private GUIStyle actionButtonStyle;
+    private GUIStyle activeActionButtonStyle;
+
+    private void DrawHumanPlayerHUD()
+    {
+        if (humanHudStyle == null)
+        {
+            humanHudStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 14,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            humanHudStyle.normal.textColor = Color.white;
+        }
+        if (actionButtonStyle == null)
+        {
+            actionButtonStyle = new GUIStyle(GUI.skin.button) { fontSize = 13 };
+        }
+        if (activeActionButtonStyle == null)
+        {
+            activeActionButtonStyle = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Bold
+            };
+            activeActionButtonStyle.normal.textColor = Color.yellow;
+        }
+
+        var inputMgr = FindFirstObjectByType<HumanInputManager>();
+        if (inputMgr == null) return;
+
+        // Check which unit is active (human-controlled).
+        bool isHumanTurn = pendingUnit != null && pendingUnit.isMyTurn
+                           && pendingUnit.GetComponent<HumanTurnController>() != null;
+        HexMovement activeMovement = isHumanTurn ? pendingUnit.GetComponent<HexMovement>() : null;
+
+        // Check which action modes have at least one valid target.
+        bool canMove = false, canAttack = false, canBuild = false, canDestroy = false;
+        if (activeMovement != null)
+        {
+            for (int dir = 0; dir < 6; dir++)
+            {
+                if (activeMovement.IsValidMove(dir))    canMove = true;
+                if (activeMovement.IsValidAttack(dir))  canAttack = true;
+                if (activeMovement.IsValidBuild(dir))   canBuild = true;
+                if (activeMovement.IsValidDestroyWall(dir)) canDestroy = true;
+            }
+        }
+
+        const float barW = 580f;
+        const float barH = 40f;
+        float barX = (Screen.width - barW) * 0.5f;
+        float barY = Screen.height - barH - 60f;
+
+        // Background.
+        GUI.DrawTexture(new Rect(barX, barY, barW, barH),
+            MakeTex(1, 1, new Color(0.1f, 0.1f, 0.2f, 0.85f)));
+
+        // Action buttons — disabled if no valid targets.
+        float btnW = 100f;
+        float btnH = 30f;
+        float btnY = barY + 5f;
+        float startX = barX + 10f;
+
+        var modes = new[] {
+            (HumanActionMode.Move,        "[1] Move",    canMove),
+            (HumanActionMode.Attack,      "[2] Attack",  canAttack),
+            (HumanActionMode.Build,       "[3] Build",   canBuild),
+            (HumanActionMode.DestroyWall, "[4] Destroy", canDestroy)
+        };
+
+        for (int i = 0; i < modes.Length; i++)
+        {
+            bool enabled = isHumanTurn && modes[i].Item3;
+            GUI.enabled = enabled;
+
+            var style = inputMgr.ActionMode == modes[i].Item1 && enabled
+                ? activeActionButtonStyle : actionButtonStyle;
+            if (GUI.Button(new Rect(startX + i * (btnW + 5f), btnY, btnW, btnH),
+                modes[i].Item2, style))
+            {
+                inputMgr.ActionMode = modes[i].Item1;
+            }
+        }
+
+        // Idle button — always available during human turn.
+        GUI.enabled = isHumanTurn;
+        if (GUI.Button(new Rect(startX + 4 * (btnW + 5f), btnY, 80f, btnH),
+            "[Space] Idle", actionButtonStyle))
+        {
+            inputMgr.IdleRequested = true;
+        }
+        GUI.enabled = true;
+
+        // Active unit info above the toolbar.
+        if (isHumanTurn)
+        {
+            float thinking = Time.realtimeSinceStartup - turnStartTime;
+            string info = $"Your turn: {pendingUnit.DisplayName}  |  Energy: {pendingUnit.Energy}/{pendingUnit.maxEnergy}  |  {thinking:F1}s";
+            GUI.Label(new Rect(barX, barY - 28f, barW, 24f), info, humanHudStyle);
+
+            // Average thinking time.
+            if (humanTurnCount > 0)
+            {
+                string stats = $"Avg think: {avgHumanThinkTime:F1}s  |  Turns: {humanTurnCount}";
+                GUI.Label(new Rect(barX, barY - 48f, barW, 20f), stats, humanHudStyle);
+            }
+        }
+        else if (pendingUnit != null && pendingUnit.isMyTurn)
+        {
+            string info = $"AI thinking: {pendingUnit.DisplayName}";
+            GUI.Label(new Rect(barX, barY - 28f, barW, 24f), info, humanHudStyle);
+        }
+    }
+
+    // ── Turn log (last 10 turns) ─────────────────────────────────────────
+
+    private GUIStyle turnLogStyle;
+    private Texture2D turnLogBg;
+
+    private void DrawTurnLog()
+    {
+        if (turnLog.Count == 0) return;
+
+        if (turnLogStyle == null)
+        {
+            turnLogStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 11,
+                alignment = TextAnchor.MiddleLeft
+            };
+            turnLogStyle.normal.textColor = Color.white;
+        }
+
+        if (turnLogBg == null)
+            turnLogBg = MakeTex(1, 1, new Color(0.06f, 0.06f, 0.14f, 0.80f));
+
+        const float logW = 280f;
+        const float rowH = 16f;
+        const float headerH = 20f;
+        float logH = headerH + turnLog.Count * rowH + 8f;
+        float logX = Screen.width - logW - 10f;
+        float logY = Screen.height - logH - 120f;
+
+        GUI.DrawTexture(new Rect(logX, logY, logW, logH), turnLogBg);
+
+        var headerStyle = new GUIStyle(turnLogStyle) { fontStyle = FontStyle.Bold, fontSize = 12 };
+        GUI.Label(new Rect(logX + 8, logY + 2, logW - 16, headerH), "Last Turns", headerStyle);
+
+        for (int i = turnLog.Count - 1; i >= 0; i--)
+        {
+            var entry = turnLog[i];
+            int row = turnLog.Count - 1 - i;
+            float y = logY + headerH + row * rowH;
+
+            Color c = entry.team == Team.Robot
+                ? new Color(0.5f, 0.7f, 1f)
+                : new Color(0.5f, 1f, 0.5f);
+            turnLogStyle.normal.textColor = c;
+
+            string actionStr = entry.action.ToString();
+            string line = $"R{entry.round} {entry.unitName}: {actionStr}";
+            GUI.Label(new Rect(logX + 8, y, logW - 16, rowH), line, turnLogStyle);
+        }
+
+        turnLogStyle.normal.textColor = Color.white;
     }
 
     // ── Team panel ─────────────────────────────────────────────────────────

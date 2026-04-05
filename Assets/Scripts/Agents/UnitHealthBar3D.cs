@@ -130,9 +130,14 @@ public class UnitHealthBar3D : MonoBehaviour
         barFill.localScale = new Vector3(fillWidth, BarHeight, BarDepth + 0.001f);
         barFill.localPosition = new Vector3((fillWidth - BarWidth) * 0.5f, 0f, 0f);
 
-        // Energy number.
+        // Energy number or respawn cooldown.
         if (energyText != null)
-            energyText.text = unitData.Energy.ToString();
+        {
+            if (!unitData.isAlive && unitData.respawnCooldown > 0)
+                energyText.text = $"\u23F3{unitData.respawnCooldown}"; // ⏳ + cooldown
+            else
+                energyText.text = unitData.Energy.ToString();
+        }
 
         // Grey out model parts from bottom to top based on lost energy.
         if (modelRenderers != null && Mathf.Abs(frac - prevFrac) > 0.01f)

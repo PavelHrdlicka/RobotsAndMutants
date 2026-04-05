@@ -288,6 +288,7 @@ public class ProjectToolsWindow : EditorWindow
         DrawConfigSection();
         DrawTrainingSection();
         DrawObserveSection();
+        DrawPlayVsAISection();
         DrawReplaySection();
         DrawAnalysisSection();
         DrawTestingSection();
@@ -509,6 +510,10 @@ public class ProjectToolsWindow : EditorWindow
             GUI.backgroundColor = new Color(0.3f, 0.8f, 0.3f);
             if (GUILayout.Button("Launch Game", GUILayout.Height(35)))
             {
+                // Reset to Training mode (AI vs AI observation).
+                GameModeConfig.CurrentMode = GameMode.Training;
+                SessionState.SetString("GameMode", "Training");
+
                 if (EditorApplication.isPlaying)
                 {
                     EditorApplication.isPlaying = false;
@@ -541,6 +546,60 @@ public class ProjectToolsWindow : EditorWindow
             if (GUILayout.Button("Reset Game"))
                 ResetGame();
         });
+    }
+
+    // ─── 3a. Play vs AI ─────────────────────────────────────
+
+    private void DrawPlayVsAISection()
+    {
+        DrawSection("Play vs AI", () =>
+        {
+            EditorGUILayout.LabelField("Choose your team and play against trained AI.", EditorStyles.wordWrappedMiniLabel);
+
+            EditorGUILayout.BeginHorizontal();
+
+            GUI.backgroundColor = new Color(0.4f, 0.6f, 1f);
+            if (GUILayout.Button("Play as Robots", GUILayout.Height(30)))
+                LaunchHumanVsAI(Team.Robot);
+
+            GUI.backgroundColor = new Color(0.3f, 0.8f, 0.3f);
+            if (GUILayout.Button("Play as Mutants", GUILayout.Height(30)))
+                LaunchHumanVsAI(Team.Mutant);
+
+            GUI.backgroundColor = Color.white;
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(2);
+            EditorGUILayout.LabelField("Controls: [1] Move  [2] Attack  [3] Build  [4] Destroy  [Space] Idle", EditorStyles.miniLabel);
+        });
+    }
+
+    private void LaunchHumanVsAI(Team humanTeam)
+    {
+        GameModeConfig.CurrentMode = GameMode.HumanVsAI;
+        GameModeConfig.HumanTeam = humanTeam;
+
+        // Persist across domain reload.
+        SessionState.SetString("GameMode", "HumanVsAI");
+        SessionState.SetString("HumanTeam", humanTeam.ToString());
+
+        if (EditorApplication.isPlaying)
+        {
+            EditorApplication.isPlaying = false;
+            void OnExit(PlayModeStateChange s)
+            {
+                if (s == PlayModeStateChange.EnteredEditMode)
+                {
+                    EditorApplication.playModeStateChanged -= OnExit;
+                    DoResetSetupPlay();
+                }
+            };
+            EditorApplication.playModeStateChanged += OnExit;
+        }
+        else
+        {
+            DoResetSetupPlay();
+        }
     }
 
     // ─── 3b. Replay ─────────────────────────────────────────

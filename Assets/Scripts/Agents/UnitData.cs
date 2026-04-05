@@ -10,6 +10,14 @@ public class UnitData : MonoBehaviour
     public Team team;
     public int unitIndex;
 
+    /// <summary>Custom display name set by player. Falls back to GameObject.name.</summary>
+    public string DisplayName
+    {
+        get => string.IsNullOrEmpty(customName) ? gameObject.name : customName;
+        set => customName = value;
+    }
+    [HideInInspector] public string customName;
+
     [Header("Stats")]
     public int maxEnergy = 15;
     [SerializeField] private int energy = 15;

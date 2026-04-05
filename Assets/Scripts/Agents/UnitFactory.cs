@@ -94,7 +94,8 @@ public class UnitFactory : MonoBehaviour
 
     private GameObject CreateUnitPrimitive(Team team, int index)
     {
-        string unitName = team == Team.Robot ? $"Robot_{index}" : $"Mutant_{index}";
+        int displayIndex = index + 1; // 1-based for human readability
+        string unitName = team == Team.Robot ? $"Robot_{displayIndex}" : $"Mutant_{displayIndex}";
 
         var go = new GameObject(unitName);
 
@@ -116,7 +117,7 @@ public class UnitFactory : MonoBehaviour
                 builder.Build();
             }
 
-            CreateUnitLabel(go, index, team);
+            CreateUnitLabel(go, displayIndex, team);
 
             go.AddComponent<UnitHealthBar3D>();
             go.AddComponent<UnitActionIndicator3D>();
@@ -125,25 +126,38 @@ public class UnitFactory : MonoBehaviour
 
         if (!skipMLAgents)
         {
-            var bp = go.AddComponent<BehaviorParameters>();
-            bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
-            bp.BrainParameters.VectorObservationSize = 71;
-            bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(25);
-            bp.TeamId = team == Team.Robot ? 0 : 1;
+            // In HumanVsAI mode, human team gets HumanTurnController instead of ML-Agents.
+            bool isHumanUnit = GameModeConfig.CurrentMode == GameMode.HumanVsAI
+                               && team == GameModeConfig.HumanTeam;
 
-            string modelName = team == Team.Robot ? "HexRobot" : "HexMutant";
-            var model = Resources.Load<ModelAsset>(modelName);
-            if (model != null)
-                bp.Model = model;
+            if (isHumanUnit)
+            {
+                go.AddComponent<HumanTurnController>();
+            }
+            else
+            {
+                var bp = go.AddComponent<BehaviorParameters>();
+                bp.BehaviorName = team == Team.Robot ? "HexRobot" : "HexMutant";
+                bp.BrainParameters.VectorObservationSize = 71;
+                bp.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(25);
+                bp.TeamId = team == Team.Robot ? 0 : 1;
 
-            // Default: connects to Python trainer when running; falls back to
-            // inference (if model loaded) or heuristic when no trainer present.
-            bp.BehaviorType = BehaviorType.Default;
+                string modelName = team == Team.Robot ? "HexRobot" : "HexMutant";
+                var model = Resources.Load<ModelAsset>(modelName);
+                if (model != null)
+                    bp.Model = model;
 
-            go.AddComponent<HexAgent>();
+                // In HumanVsAI, AI team uses inference (ONNX model).
+                // In Training, uses Default (connects to Python trainer or falls back).
+                bp.BehaviorType = GameModeConfig.CurrentMode == GameMode.HumanVsAI
+                    ? BehaviorType.InferenceOnly
+                    : BehaviorType.Default;
 
-            var dr = go.AddComponent<DecisionRequester>();
-            dr.DecisionPeriod = 1;
+                go.AddComponent<HexAgent>();
+
+                var dr = go.AddComponent<DecisionRequester>();
+                dr.DecisionPeriod = 1;
+            }
         }
 
         return go;

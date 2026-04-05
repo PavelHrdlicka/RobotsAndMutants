@@ -81,68 +81,68 @@ public class ReplayPlayerTests
             maxRounds = 10
         };
 
-        // Round 1: Robot_0 moves and captures (0,0)→(1,0).
+        // Round 1: Robot_1 moves and captures (0,0)→(1,0).
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Robot_0", team = "Robot", action = "Capture",
+            round = 1, unitName = "Robot_1", team = "Robot", action = "Capture",
             energy = 15, q = 1, r = 0,
             hasCaptured = true, capturedQ = 1, capturedR = 0,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 2
         });
 
-        // Round 1: Mutant_0 moves and captures (1,-2)→(0,-1).
+        // Round 1: Mutant_1 moves and captures (1,-2)→(0,-1).
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Mutant_0", team = "Mutant", action = "Capture",
+            round = 1, unitName = "Mutant_1", team = "Mutant", action = "Capture",
             energy = 15, q = 0, r = -1,
             hasCaptured = true, capturedQ = 0, capturedR = -1,
             rTiles = 5, mTiles = 5, rAlive = 2, mAlive = 2
         });
 
-        // Round 1: Robot_1 stays idle.
+        // Round 1: Robot_2 stays idle.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Robot_1", team = "Robot", action = "Idle",
+            round = 1, unitName = "Robot_2", team = "Robot", action = "Idle",
             energy = 15, q = -2, r = 2,
             rTiles = 5, mTiles = 5, rAlive = 2, mAlive = 2
         });
 
-        // Round 1: Mutant_1 stays idle.
+        // Round 1: Mutant_2 stays idle.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Mutant_1", team = "Mutant", action = "Idle",
+            round = 1, unitName = "Mutant_2", team = "Mutant", action = "Idle",
             energy = 15, q = 2, r = -2,
             rTiles = 5, mTiles = 5, rAlive = 2, mAlive = 2
         });
 
-        // Round 2: Robot_0 builds wall at (1,0)→built at (0,0).
+        // Round 2: Robot_1 builds wall at (1,0)→built at (0,0).
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Robot_0", team = "Robot", action = "BuildWall",
+            round = 2, unitName = "Robot_1", team = "Robot", action = "BuildWall",
             energy = 12, q = 1, r = 0,
             hasBuilt = true, builtQ = 0, builtR = 0,
             rTiles = 5, mTiles = 5, rAlive = 2, mAlive = 2
         });
 
-        // Round 2: Mutant_0 places slime at (0,-1)→built at (0,-1).
+        // Round 2: Mutant_1 places slime at (0,-1)→built at (0,-1).
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Mutant_0", team = "Mutant", action = "PlaceSlime",
+            round = 2, unitName = "Mutant_1", team = "Mutant", action = "PlaceSlime",
             energy = 13, q = 0, r = -1,
             hasBuilt = true, builtQ = 0, builtR = -1,
             rTiles = 5, mTiles = 5, rAlive = 2, mAlive = 2
         });
 
-        // Round 2: Robot_1 idle, Mutant_1 idle.
+        // Round 2: Robot_2 idle, Mutant_2 idle.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Robot_1", team = "Robot", action = "Idle",
+            round = 2, unitName = "Robot_2", team = "Robot", action = "Idle",
             energy = 15, q = -2, r = 2,
             rTiles = 5, mTiles = 5, rAlive = 2, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Mutant_1", team = "Mutant", action = "Idle",
+            round = 2, unitName = "Mutant_2", team = "Mutant", action = "Idle",
             energy = 15, q = 2, r = -2,
             rTiles = 5, mTiles = 5, rAlive = 2, mAlive = 2
         });
@@ -305,7 +305,7 @@ public class ReplayPlayerTests
 
         player.JumpToRound(1);
 
-        // After round 1: Robot_0 should have captured (1,0).
+        // After round 1: Robot_1 should have captured (1,0).
         var tile = grid.GetTile(new HexCoord(1, 0));
         if (tile != null)
             Assert.AreEqual(Team.Robot, tile.Owner,
@@ -342,7 +342,7 @@ public class ReplayPlayerTests
         var replay = BuildTestReplay();
         player.TestInitialize(replay, grid, factory);
 
-        // Round 2 has Robot_0 BuildWall with built=[0,0].
+        // Round 2 has Robot_1 BuildWall with built=[0,0].
         player.JumpToRound(2);
 
         var wallTile = grid.GetTile(new HexCoord(0, 0));
@@ -475,7 +475,7 @@ public class ReplayPlayerTests
     // ── Dead unit replay tests ──────────────────────────────────────────
 
     /// <summary>
-    /// Build a replay where Robot_0 has energy=0 but action="Capture".
+    /// Build a replay where Robot_1 has energy=0 but action="Capture".
     /// The replay player must ignore the action and treat the unit as dead.
     /// </summary>
     private ReplayData.ReplayFile BuildDeadUnitReplay()
@@ -486,42 +486,42 @@ public class ReplayPlayerTests
             match = 1, unitsPerTeam = 2, gridSize = 3, maxRounds = 3
         };
 
-        // Round 1: Robot_0 moves normally.
+        // Round 1: Robot_1 moves normally.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Robot_0", team = "Robot", action = "Capture",
+            round = 1, unitName = "Robot_1", team = "Robot", action = "Capture",
             energy = 15, q = -1, r = 1,
             hasCaptured = true, capturedQ = -1, capturedR = 1,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 2
         });
 
-        // Round 1: Mutant_0 idle.
+        // Round 1: Mutant_1 idle.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Mutant_0", team = "Mutant", action = "Idle",
+            round = 1, unitName = "Mutant_1", team = "Mutant", action = "Idle",
             energy = 15, q = 2, r = -2,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 2
         });
 
-        // Round 1: Robot_1 idle, Mutant_1 idle.
+        // Round 1: Robot_2 idle, Mutant_2 idle.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Robot_1", team = "Robot", action = "Idle",
+            round = 1, unitName = "Robot_2", team = "Robot", action = "Idle",
             energy = 15, q = -2, r = 2,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Mutant_1", team = "Mutant", action = "Idle",
+            round = 1, unitName = "Mutant_2", team = "Mutant", action = "Idle",
             energy = 15, q = 1, r = -2,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 2
         });
 
-        // Round 2: Robot_0 has energy=0 but replay data says "Capture" at (0,0).
+        // Round 2: Robot_1 has energy=0 but replay data says "Capture" at (0,0).
         // BUG scenario: dead unit must NOT move or capture.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Robot_0", team = "Robot", action = "Capture",
+            round = 2, unitName = "Robot_1", team = "Robot", action = "Capture",
             energy = 0, q = 0, r = 0,
             hasCaptured = true, capturedQ = 0, capturedR = 0,
             rTiles = 5, mTiles = 4, rAlive = 1, mAlive = 2
@@ -530,19 +530,19 @@ public class ReplayPlayerTests
         // Round 2: remaining units idle.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Mutant_0", team = "Mutant", action = "Idle",
+            round = 2, unitName = "Mutant_1", team = "Mutant", action = "Idle",
             energy = 15, q = 2, r = -2,
             rTiles = 5, mTiles = 4, rAlive = 1, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Robot_1", team = "Robot", action = "Idle",
+            round = 2, unitName = "Robot_2", team = "Robot", action = "Idle",
             energy = 15, q = -2, r = 2,
             rTiles = 5, mTiles = 4, rAlive = 1, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Mutant_1", team = "Mutant", action = "Idle",
+            round = 2, unitName = "Mutant_2", team = "Mutant", action = "Idle",
             energy = 15, q = 1, r = -2,
             rTiles = 5, mTiles = 4, rAlive = 1, mAlive = 2
         });
@@ -568,7 +568,7 @@ public class ReplayPlayerTests
         player.JumpToRound(2);
 
         var robot0 = factory.robotUnits[0];
-        Assert.IsFalse(robot0.isAlive, "Robot_0 should be dead after round 2.");
+        Assert.IsFalse(robot0.isAlive, "Robot_1 should be dead after round 2.");
 
         // Dead unit must be on a base hex of its own team, NOT at (0,0).
         var baseTiles = grid.GetBaseTiles(Team.Robot);
@@ -582,7 +582,7 @@ public class ReplayPlayerTests
             }
         }
         Assert.IsTrue(onBase,
-            $"Dead Robot_0 should be on Robot base hex, but is at {robot0.currentHex}.");
+            $"Dead Robot_1 should be on Robot base hex, but is at {robot0.currentHex}.");
     }
 
     [UnityTest]
@@ -595,7 +595,7 @@ public class ReplayPlayerTests
 
         player.JumpToRound(2);
 
-        // The replay says Robot_0 captured (0,0), but it's dead — tile must stay neutral.
+        // The replay says Robot_1 captured (0,0), but it's dead — tile must stay neutral.
         var tile = grid.GetTile(new HexCoord(0, 0));
         if (tile != null && !tile.isBase)
         {
@@ -631,20 +631,20 @@ public class ReplayPlayerTests
             match = 1, unitsPerTeam = 2, gridSize = 3, maxRounds = 2
         };
 
-        // Round 1: Robot_0 attacks Mutant_0 and kills it.
+        // Round 1: Robot_1 attacks Mutant_1 and kills it.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Robot_0", team = "Robot", action = "Attack",
+            round = 1, unitName = "Robot_1", team = "Robot", action = "Attack",
             energy = 12, q = -1, r = 1,
-            hasTarget = true, targetUnit = "Mutant_0", killed = true,
+            hasTarget = true, targetUnit = "Mutant_1", killed = true,
             hasAttackHex = true, attackHexQ = 2, attackHexR = -2,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 1
         });
 
-        // Round 1: Mutant_0 dead (energy=0 after being killed).
+        // Round 1: Mutant_1 dead (energy=0 after being killed).
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Mutant_0", team = "Mutant", action = "Dead",
+            round = 1, unitName = "Mutant_1", team = "Mutant", action = "Dead",
             energy = 0, q = 2, r = -2,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 1
         });
@@ -652,13 +652,13 @@ public class ReplayPlayerTests
         // Round 1: others idle.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Robot_1", team = "Robot", action = "Idle",
+            round = 1, unitName = "Robot_2", team = "Robot", action = "Idle",
             energy = 15, q = -2, r = 2,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 1
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Mutant_1", team = "Mutant", action = "Idle",
+            round = 1, unitName = "Mutant_2", team = "Mutant", action = "Idle",
             energy = 15, q = 1, r = -2,
             rTiles = 5, mTiles = 4, rAlive = 2, mAlive = 1
         });
@@ -683,7 +683,7 @@ public class ReplayPlayerTests
         player.JumpToRound(1);
 
         var mutant0 = factory.mutantUnits[0];
-        Assert.IsFalse(mutant0.isAlive, "Mutant_0 should be dead after being killed.");
+        Assert.IsFalse(mutant0.isAlive, "Mutant_1 should be dead after being killed.");
 
         // Must be on a Mutant base hex.
         var baseTiles = grid.GetBaseTiles(Team.Mutant);
@@ -697,7 +697,7 @@ public class ReplayPlayerTests
             }
         }
         Assert.IsTrue(onBase,
-            $"Killed Mutant_0 should be teleported to Mutant base, but is at {mutant0.currentHex}.");
+            $"Killed Mutant_1 should be teleported to Mutant base, but is at {mutant0.currentHex}.");
     }
 
     [UnityTest]
@@ -705,7 +705,7 @@ public class ReplayPlayerTests
     {
         yield return null;
 
-        // Build a replay where dead Robot_0 tries to BuildWall.
+        // Build a replay where dead Robot_1 tries to BuildWall.
         var replay = new ReplayData.ReplayFile();
         replay.header = new ReplayData.Header
         {
@@ -715,52 +715,52 @@ public class ReplayPlayerTests
         // Round 1: all idle.
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Robot_0", team = "Robot", action = "Idle",
+            round = 1, unitName = "Robot_1", team = "Robot", action = "Idle",
             energy = 15, q = -2, r = 2,
             rTiles = 4, mTiles = 4, rAlive = 2, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Mutant_0", team = "Mutant", action = "Idle",
+            round = 1, unitName = "Mutant_1", team = "Mutant", action = "Idle",
             energy = 15, q = 2, r = -2,
             rTiles = 4, mTiles = 4, rAlive = 2, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Robot_1", team = "Robot", action = "Idle",
+            round = 1, unitName = "Robot_2", team = "Robot", action = "Idle",
             energy = 15, q = -1, r = 2,
             rTiles = 4, mTiles = 4, rAlive = 2, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 1, unitName = "Mutant_1", team = "Mutant", action = "Idle",
+            round = 1, unitName = "Mutant_2", team = "Mutant", action = "Idle",
             energy = 15, q = 1, r = -2,
             rTiles = 4, mTiles = 4, rAlive = 2, mAlive = 2
         });
 
-        // Round 2: Robot_0 dead but replay says BuildWall at (0,0).
+        // Round 2: Robot_1 dead but replay says BuildWall at (0,0).
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Robot_0", team = "Robot", action = "BuildWall",
+            round = 2, unitName = "Robot_1", team = "Robot", action = "BuildWall",
             energy = 0, q = -1, r = 1,
             hasBuilt = true, builtQ = 0, builtR = 0,
             rTiles = 4, mTiles = 4, rAlive = 1, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Mutant_0", team = "Mutant", action = "Idle",
+            round = 2, unitName = "Mutant_1", team = "Mutant", action = "Idle",
             energy = 15, q = 2, r = -2,
             rTiles = 4, mTiles = 4, rAlive = 1, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Robot_1", team = "Robot", action = "Idle",
+            round = 2, unitName = "Robot_2", team = "Robot", action = "Idle",
             energy = 15, q = -1, r = 2,
             rTiles = 4, mTiles = 4, rAlive = 1, mAlive = 2
         });
         replay.turns.Add(new ReplayData.Turn
         {
-            round = 2, unitName = "Mutant_1", team = "Mutant", action = "Idle",
+            round = 2, unitName = "Mutant_2", team = "Mutant", action = "Idle",
             energy = 15, q = 1, r = -2,
             rTiles = 4, mTiles = 4, rAlive = 1, mAlive = 2
         });

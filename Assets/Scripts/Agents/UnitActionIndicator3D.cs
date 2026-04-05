@@ -17,6 +17,10 @@ public class UnitActionIndicator3D : MonoBehaviour
     private Transform indicatorRoot;
     private const float IndicatorY = 0.48f;
 
+    // Active turn marker (pulsing ring at unit feet).
+    private Transform turnMarker;
+    private Renderer turnMarkerRenderer;
+
     // Move arrow.
     private Transform moveArrow;
     private float arrowTimeLeft;
@@ -73,6 +77,7 @@ public class UnitActionIndicator3D : MonoBehaviour
         prevAction = unitData.lastAction;
 
         UpdateVisibility();
+        UpdateTurnMarker();
 
         // Rotate idle ring.
         if (idleRing != null && idleRing.gameObject.activeSelf)
@@ -126,6 +131,57 @@ public class UnitActionIndicator3D : MonoBehaviour
         }
     }
 
+    // ── Active turn marker ────────────────────────────────────────────
+
+    private void UpdateTurnMarker()
+    {
+        if (turnMarker == null) return;
+
+        bool showMarker = unitData.isMyTurn && unitData.isAlive;
+        turnMarker.gameObject.SetActive(showMarker);
+
+        if (showMarker)
+        {
+            // Pulsing scale effect.
+            float pulse = 1f + 0.15f * Mathf.Sin(Time.unscaledTime * 4f);
+            turnMarker.localScale = new Vector3(0.7f * pulse, 0.02f, 0.7f * pulse);
+
+            // Color based on team.
+            if (turnMarkerRenderer != null)
+            {
+                Color c = unitData.team == Team.Robot
+                    ? new Color(0.3f, 0.6f, 1f, 0.6f)   // blue
+                    : new Color(0.3f, 0.9f, 0.3f, 0.6f); // green
+                turnMarkerRenderer.material.color = c;
+            }
+        }
+    }
+
+    private Transform BuildTurnMarker()
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = "TurnMarker";
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = new Vector3(0f, -0.25f, 0f);
+        go.transform.localScale = new Vector3(0.7f, 0.02f, 0.7f);
+        DestroyCol(go);
+
+        var rend = go.GetComponent<Renderer>();
+        var shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+        var mat = new Material(shader);
+        mat.SetFloat("_Surface", 1);
+        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        mat.SetInt("_ZWrite", 0);
+        mat.renderQueue = 3000;
+        rend.material = mat;
+        turnMarkerRenderer = rend;
+
+        go.SetActive(false);
+        return go.transform;
+    }
+
     // ── Build indicator objects ──────────────────────────────────────────
 
     private void BuildIndicators()
@@ -134,6 +190,7 @@ public class UnitActionIndicator3D : MonoBehaviour
         indicatorRoot.SetParent(transform, false);
         indicatorRoot.localPosition = new Vector3(0f, IndicatorY, 0f);
 
+        turnMarker  = BuildTurnMarker();
         moveArrow   = BuildArrow();
         idleRing    = BuildIdleRing();
         attackIcon  = BuildCrossedSwords();
