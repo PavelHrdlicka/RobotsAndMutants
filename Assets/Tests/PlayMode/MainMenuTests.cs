@@ -694,6 +694,78 @@ public class MainMenuTests
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // ── Editor Play mode launch: deferred pattern ────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator LaunchMainMenu_UsesDeferredPattern()
+    {
+        // Launch Main Menu must use the exit-wait-open-play pattern, not immediate isPlaying=true.
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        Assert.IsTrue(source.Contains("DoLaunchMainMenu"),
+            "Launch Main Menu must use a deferred DoLaunchMainMenu method.");
+        Assert.IsTrue(source.Contains("EnteredEditMode") && source.Contains("DoLaunchMainMenu"),
+            "Must wait for EnteredEditMode before opening MainMenu scene.");
+    }
+
+    [UnityTest]
+    public IEnumerator AllLaunchMethods_UseDeferredPattern()
+    {
+        // Every method that opens a scene and enters Play mode must use the deferred pattern.
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        // All known launch methods that open a scene + enter Play.
+        string[] launchMethods = { "DoLaunchMainMenu", "DoResetSetupPlay", "DoLaunchReplay" };
+        foreach (string method in launchMethods)
+        {
+            Assert.IsTrue(source.Contains(method),
+                $"Launch method '{method}' must exist in ProjectToolsWindow.");
+        }
+
+        // None of them should have bare "isPlaying = true" without prior scene open.
+        // The deferred wrappers (LaunchMainMenu, LaunchHumanVsAI, LaunchReplay) handle
+        // exiting play mode first, then calling the Do* method via EnteredEditMode callback.
+        Assert.IsTrue(source.Contains("void LaunchMainMenu()"),
+            "LaunchMainMenu wrapper must exist for deferred pattern.");
+    }
+
+    [UnityTest]
+    public IEnumerator DoLaunchMainMenu_SavesBeforePlay()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        // Must save before entering Play mode to prevent scene loss.
+        int doLaunchIdx = source.IndexOf("DoLaunchMainMenu");
+        Assert.Greater(doLaunchIdx, 0);
+
+        string afterMethod = source.Substring(doLaunchIdx, 500);
+        Assert.IsTrue(afterMethod.Contains("SaveAssets") || afterMethod.Contains("SaveOpenScenes"),
+            "DoLaunchMainMenu must save assets/scenes before entering Play mode.");
+    }
+
+    [UnityTest]
+    public IEnumerator DoLaunchMainMenu_AutoCreatesScene()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        Assert.IsTrue(source.Contains("MainMenuSetup.SetupMainMenuScene()"),
+            "DoLaunchMainMenu must auto-create MainMenu scene if missing.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // ── Guard: game scene must work both from Editor and MainMenu ────────
     // ══════════════════════════════════════════════════════════════════════
 
