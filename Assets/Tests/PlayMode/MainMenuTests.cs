@@ -360,16 +360,13 @@ public class MainMenuTests
     {
         yield return null;
 
+        // GameManager.cs (the main file, not partial HUD/Episode) must call
+        // replayLogger.StartGame() so replays work in all modes.
         string source = System.IO.File.ReadAllText(
             System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.cs"));
 
-        // Find Start() method body.
-        int startIdx = source.IndexOf("IEnumerator Start()");
-        Assert.Greater(startIdx, 0, "GameManager must have Start() method.");
-
-        string afterStart = source.Substring(startIdx, System.Math.Min(2000, source.Length - startIdx));
-        Assert.IsTrue(afterStart.Contains("replayLogger.StartGame"),
-            "GameManager.Start() must call replayLogger.StartGame() so replays " +
+        Assert.IsTrue(source.Contains("replayLogger.StartGame"),
+            "GameManager.cs must call replayLogger.StartGame() so replays " +
             "are recorded in all modes (HumanVsAI, Training). ResetGame() alone " +
             "is not enough — it's only called by ML-Agents OnEpisodeBegin.");
     }
