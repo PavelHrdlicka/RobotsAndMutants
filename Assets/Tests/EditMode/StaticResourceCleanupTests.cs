@@ -136,17 +136,23 @@ public class StaticResourceCleanupTests
             string source = File.ReadAllText(file);
             if (!source.Contains("GetStaticMaterials")) continue;
 
-            // Extract the GetStaticMaterials method body.
+            // Extract the GetStaticMaterials method body (with brace depth counting).
             int methodStart = source.IndexOf("GetStaticMaterials");
             if (methodStart < 0) continue;
 
-            // Find the method body (between first { and matching }).
             int bodyStart = source.IndexOf('{', methodStart);
             if (bodyStart < 0) continue;
-            int bodyEnd = source.IndexOf('}', bodyStart);
-            if (bodyEnd < 0) continue;
 
-            string methodBody = source.Substring(bodyStart, bodyEnd - bodyStart);
+            int depth = 1;
+            int pos = bodyStart + 1;
+            while (pos < source.Length && depth > 0)
+            {
+                if (source[pos] == '{') depth++;
+                else if (source[pos] == '}') depth--;
+                pos++;
+            }
+
+            string methodBody = source.Substring(bodyStart, pos - bodyStart);
 
             // Must contain "= null" to clear the static reference.
             if (!methodBody.Contains("= null"))
