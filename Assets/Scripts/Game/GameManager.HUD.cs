@@ -255,6 +255,20 @@ public partial class GameManager
                     : $"{state.winner.ToString().ToUpper()}S WIN!";
             }
             GUI.Label(new Rect(bannerX, Screen.height * 0.4f + 8, bannerW, 34), winText, gameOverStyle);
+
+            // Post-match buttons (only in HumanVsAI or menu-launched games).
+            if (GameModeConfig.CurrentMode == GameMode.HumanVsAI || GameModeConfig.LaunchedFromMenu)
+            {
+                float btnW = 160f;
+                float btnH = 40f;
+                float btnY = Screen.height * 0.4f + 65f;
+
+                if (GUI.Button(new Rect(bannerX + bannerW * 0.5f - btnW - 10, btnY, btnW, btnH), "Back to Menu"))
+                    MainMenuController.ReturnToMainMenu();
+
+                if (GUI.Button(new Rect(bannerX + bannerW * 0.5f + 10, btnY, btnW, btnH), "Rematch"))
+                    RematchRequested = true;
+            }
         }
 
         DrawSessionStats();

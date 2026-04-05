@@ -29,6 +29,7 @@ public partial class GameManager : MonoBehaviour
     public int   maxRounds    = 500;
     public float winThreshold = 0.6f;
     public bool  autoRestart  = true;
+    public bool  RematchRequested;
     public float restartDelay = 2f;
 
     [Header("Runtime")]
@@ -206,6 +207,14 @@ public partial class GameManager : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (RematchRequested)
+        {
+            RematchRequested = false;
+            autoRestart = false;
+            StartCoroutine(AutoRestartCoroutine());
+            return;
+        }
+
         if (gameOver || !IsReady) return;
 
         // Wait for AI turn delay in HumanVsAI mode.

@@ -508,6 +508,18 @@ public class ProjectToolsWindow : EditorWindow
     {
         DrawSection("Observe (no training)", () =>
         {
+            GUI.backgroundColor = new Color(1f, 0.85f, 0.3f);
+            if (GUILayout.Button("Launch Main Menu", GUILayout.Height(35)))
+            {
+                if (EditorApplication.isPlaying)
+                    EditorApplication.isPlaying = false;
+
+                EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
+                EditorApplication.isPlaying = true;
+            }
+            GUI.backgroundColor = Color.white;
+            GUILayout.Space(5);
+
             GUI.backgroundColor = new Color(0.3f, 0.8f, 0.3f);
             if (GUILayout.Button("Launch Game", GUILayout.Height(35)))
             {
