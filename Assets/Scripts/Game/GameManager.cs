@@ -170,6 +170,7 @@ public partial class GameManager : MonoBehaviour
         if (GameModeConfig.CurrentMode == GameMode.HumanVsAI)
         {
             Time.timeScale = 1f;
+            autoRestart = false;
 
             var inputGo = new GameObject("HumanInputManager");
             var inputMgr = inputGo.AddComponent<HumanInputManager>();
