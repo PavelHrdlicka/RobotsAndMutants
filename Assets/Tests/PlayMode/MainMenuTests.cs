@@ -598,15 +598,30 @@ public class MainMenuTests
     }
 
     [UnityTest]
-    public IEnumerator GameBootstrap_HasAfterSceneLoadAttribute()
+    public IEnumerator GameBootstrap_UsesSceneLoadedEvent()
     {
         yield return null;
 
         string source = System.IO.File.ReadAllText(
             System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
 
-        Assert.IsTrue(source.Contains("RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)"),
-            "GameBootstrap must run at AfterSceneLoad to detect missing HexGrid.");
+        Assert.IsTrue(source.Contains("SceneManager.sceneLoaded"),
+            "GameBootstrap must use SceneManager.sceneLoaded event (not AfterSceneLoad) " +
+            "so it fires on every scene transition, not just app start.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameBootstrap_DoesNotUseAfterSceneLoad()
+    {
+        // AfterSceneLoad fires only once at app start — useless for menu→game transitions.
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsFalse(source.Contains("AfterSceneLoad"),
+            "GameBootstrap must NOT use AfterSceneLoad — it fires only once. " +
+            "Use SceneManager.sceneLoaded event instead.");
     }
 
     [UnityTest]
