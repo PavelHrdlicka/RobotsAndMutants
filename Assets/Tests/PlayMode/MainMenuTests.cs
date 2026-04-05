@@ -83,6 +83,7 @@ public class MainMenuTests
         GameModeConfig.AIDifficulty = origDiff;
         GameModeConfig.LaunchedFromMenu = origLaunched;
         GameModeConfig.AITurnDelay = origDelay;
+        ReplayPlayer.PendingReplayPath = null;
 
         yield return null;
     }
