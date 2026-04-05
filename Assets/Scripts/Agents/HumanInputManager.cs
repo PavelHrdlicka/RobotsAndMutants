@@ -12,8 +12,8 @@ public class HumanInputManager : MonoBehaviour
     /// <summary>Currently selected action mode.</summary>
     public HumanActionMode ActionMode { get; set; } = HumanActionMode.Move;
 
-    /// <summary>True when a valid hex was clicked this frame.</summary>
-    public bool HasClick { get; private set; }
+    /// <summary>True when a valid hex was clicked. Consumed by HumanTurnController.</summary>
+    public bool HasClick { get; set; }
 
     /// <summary>The hex coordinate that was clicked.</summary>
     public HexCoord ClickedHex { get; private set; }
@@ -30,8 +30,6 @@ public class HumanInputManager : MonoBehaviour
 
     private void Update()
     {
-        HasClick = false;
-        IdleRequested = false;
 
         // Action mode hotkeys.
         if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.M))

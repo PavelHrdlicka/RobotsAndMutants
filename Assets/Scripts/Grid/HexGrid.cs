@@ -185,58 +185,60 @@ public class HexGrid : MonoBehaviour
     }
 
     /// <summary>
-    /// Robot base: bottom-left cluster (q negative, r positive).
-    /// Mutant base: top-right cluster (q positive, r negative).
-    /// Each base is the corner hex plus its neighbors (up to 7 tiles).
+    /// Robot base: spread along left edge (q = -max).
+    /// Mutant base: spread along right edge (q = +max).
+    /// Each unit gets its own base hex along the edge for strategic variety.
     /// </summary>
     private void SetupBases()
     {
         int max = boardSide - 1;
-
-        // Robot base: corner at (-max, max) — bottom-left of the hex board.
-        SetupBaseCluster(new HexCoord(-max, max), Team.Robot);
-
-        // Mutant base: corner at (max, -max) — top-right of the hex board.
-        SetupBaseCluster(new HexCoord(max, -max), Team.Mutant);
-    }
-
-    private void SetupBaseCluster(HexCoord center, Team team)
-    {
-        // Base size = unitsPerTeam from config (need at least that many spawn tiles).
         var config = GameConfig.Instance;
         int targetSize = config != null ? config.unitsPerTeam : 4;
 
-        // BFS outward from center to fill base up to targetSize tiles.
-        var baseCoords = new System.Collections.Generic.List<HexCoord>();
-        var queue = new System.Collections.Generic.Queue<HexCoord>();
-        var visited = new System.Collections.Generic.HashSet<HexCoord>();
+        // Robot base: left edge (q = -max), r from 0..max.
+        SetupEdgeBase(-max, Team.Robot, targetSize);
 
-        queue.Enqueue(center);
-        visited.Add(center);
+        // Mutant base: right edge (q = +max), r from -max..0.
+        SetupEdgeBase(max, Team.Mutant, targetSize);
+    }
 
-        while (queue.Count > 0 && baseCoords.Count < targetSize)
+    private void SetupEdgeBase(int q, Team team, int targetSize)
+    {
+        // Collect all valid hexes at this q column.
+        var edgeCoords = new System.Collections.Generic.List<HexCoord>();
+        int max = boardSide - 1;
+        int rMin = Mathf.Max(-max, -q - max);
+        int rMax = Mathf.Min(max, -q + max);
+
+        for (int r = rMin; r <= rMax; r++)
         {
-            var coord = queue.Dequeue();
-            if (!tiles.ContainsKey(coord)) continue;
-
-            baseCoords.Add(coord);
-
-            for (int i = 0; i < 6; i++)
-            {
-                var neighbor = coord.Neighbor(i);
-                if (!visited.Contains(neighbor) && tiles.ContainsKey(neighbor))
-                {
-                    visited.Add(neighbor);
-                    queue.Enqueue(neighbor);
-                }
-            }
+            var coord = new HexCoord(q, r);
+            if (tiles.ContainsKey(coord))
+                edgeCoords.Add(coord);
         }
 
-        foreach (var coord in baseCoords)
+        // Spread evenly: pick targetSize hexes distributed along the edge.
+        int available = edgeCoords.Count;
+        int count = Mathf.Min(targetSize, available);
+
+        if (count == available)
         {
-            var tile = GetTile(coord);
-            if (tile != null)
-                MarkAsBase(tile, team);
+            // Use all edge hexes.
+            foreach (var coord in edgeCoords)
+            {
+                var tile = GetTile(coord);
+                if (tile != null) MarkAsBase(tile, team);
+            }
+        }
+        else
+        {
+            // Distribute evenly along the edge.
+            for (int i = 0; i < count; i++)
+            {
+                int idx = Mathf.RoundToInt((float)i / (count - 1) * (available - 1));
+                var tile = GetTile(edgeCoords[idx]);
+                if (tile != null) MarkAsBase(tile, team);
+            }
         }
     }
 

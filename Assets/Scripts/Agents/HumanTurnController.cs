@@ -33,9 +33,10 @@ public class HumanTurnController : MonoBehaviour
             if (inputManager == null) return;
         }
 
-        // Idle via Space.
+        // Idle via Space or button.
         if (inputManager.IdleRequested)
         {
+            inputManager.IdleRequested = false; // consume
             unitData.lastAction = UnitAction.Idle;
             CompleteTurn();
             return;
@@ -44,6 +45,7 @@ public class HumanTurnController : MonoBehaviour
         // Click on hex.
         if (!inputManager.HasClick)
             return;
+        inputManager.HasClick = false; // consume
 
         HexCoord targetHex = inputManager.ClickedHex;
         HexCoord currentHex = unitData.currentHex;

@@ -389,7 +389,15 @@ public partial class GameManager
     // ── Turn log (last 10 turns) ─────────────────────────────────────────
 
     private GUIStyle turnLogStyle;
+    private GUIStyle turnLogHeaderStyle;
+    private GUIStyle turnLogNumStyle;
     private Texture2D turnLogBg;
+
+    /// <summary>Format unit name for display: "Robot_1" → "Robot 1".</summary>
+    private static string FormatUnitName(string name)
+    {
+        return name != null ? name.Replace("_", " ") : "";
+    }
 
     private void DrawTurnLog()
     {
@@ -404,36 +412,82 @@ public partial class GameManager
             };
             turnLogStyle.normal.textColor = Color.white;
         }
+        if (turnLogHeaderStyle == null)
+        {
+            turnLogHeaderStyle = new GUIStyle(turnLogStyle)
+            {
+                fontStyle = FontStyle.Bold,
+                fontSize = 12
+            };
+        }
+        if (turnLogNumStyle == null)
+        {
+            turnLogNumStyle = new GUIStyle(turnLogStyle)
+            {
+                alignment = TextAnchor.MiddleRight
+            };
+            turnLogNumStyle.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
+        }
 
         if (turnLogBg == null)
             turnLogBg = MakeTex(1, 1, new Color(0.06f, 0.06f, 0.14f, 0.80f));
 
-        const float logW = 280f;
-        const float rowH = 16f;
-        const float headerH = 20f;
-        float logH = headerH + turnLog.Count * rowH + 8f;
+        // Column layout:  #(24)  Unit(90)  Action(70)
+        const float colNum    = 24f;
+        const float colUnit   = 90f;
+        const float colAction = 70f;
+        const float pad       = 8f;
+        const float logW      = pad + colNum + colUnit + colAction + pad;
+        const float rowH      = 17f;
+        const float headerH   = 22f;
+        const float subHeaderH = 16f;
+        float logH = headerH + subHeaderH + turnLog.Count * rowH + pad;
         float logX = Screen.width - logW - 10f;
         float logY = Screen.height - logH - 120f;
 
         GUI.DrawTexture(new Rect(logX, logY, logW, logH), turnLogBg);
 
-        var headerStyle = new GUIStyle(turnLogStyle) { fontStyle = FontStyle.Bold, fontSize = 12 };
-        GUI.Label(new Rect(logX + 8, logY + 2, logW - 16, headerH), "Last Turns", headerStyle);
+        float y = logY + 3f;
 
+        // Title.
+        GUI.Label(new Rect(logX + pad, y, logW - pad * 2, headerH), "Last Turns", turnLogHeaderStyle);
+        y += headerH;
+
+        // Column headers.
+        turnLogNumStyle.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
+        GUI.Label(new Rect(logX + pad, y, colNum, subHeaderH), "#", turnLogNumStyle);
+        turnLogStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+        GUI.Label(new Rect(logX + pad + colNum, y, colUnit, subHeaderH), "Unit", turnLogStyle);
+        GUI.Label(new Rect(logX + pad + colNum + colUnit, y, colAction, subHeaderH), "Action", turnLogStyle);
+        y += subHeaderH;
+
+        // Separator line.
+        GUI.color = new Color(0.4f, 0.4f, 0.4f, 0.4f);
+        GUI.DrawTexture(new Rect(logX + pad, y - 1, logW - pad * 2, 1), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // Rows (newest first).
         for (int i = turnLog.Count - 1; i >= 0; i--)
         {
             var entry = turnLog[i];
-            int row = turnLog.Count - 1 - i;
-            float y = logY + headerH + row * rowH;
+            int displayNum = turnLog.Count - i; // 1 = newest
 
-            Color c = entry.team == Team.Robot
+            Color rowColor = entry.team == Team.Robot
                 ? new Color(0.5f, 0.7f, 1f)
                 : new Color(0.5f, 1f, 0.5f);
-            turnLogStyle.normal.textColor = c;
 
-            string actionStr = entry.action.ToString();
-            string line = $"R{entry.round} {entry.unitName}: {actionStr}";
-            GUI.Label(new Rect(logX + 8, y, logW - 16, rowH), line, turnLogStyle);
+            // Row number (grey).
+            turnLogNumStyle.normal.textColor = new Color(0.45f, 0.45f, 0.45f);
+            GUI.Label(new Rect(logX + pad, y, colNum, rowH), $"{displayNum}", turnLogNumStyle);
+
+            // Unit name (team color, no underscore).
+            turnLogStyle.normal.textColor = rowColor;
+            GUI.Label(new Rect(logX + pad + colNum, y, colUnit, rowH), FormatUnitName(entry.unitName), turnLogStyle);
+
+            // Action (team color, aligned).
+            GUI.Label(new Rect(logX + pad + colNum + colUnit, y, colAction, rowH), entry.action.ToString(), turnLogStyle);
+
+            y += rowH;
         }
 
         turnLogStyle.normal.textColor = Color.white;
@@ -537,7 +591,8 @@ public partial class GameManager
         // 176 : Atk-R (28)  204 : Atk-M (28)
         // 234 : Die-R (28)  262 : Die-M (28)
         // 292 : Bld-R (28)  320 : Bld-M (28)
-        const float panelW  = 360f;
+        bool showTime = GameModeConfig.CurrentMode == GameMode.HumanVsAI;
+        float panelW  = showTime ? 410f : 360f;
         const float rowH    = 18f;
         const float titleH  = 24f;
         const float headerH = 36f;   // two-line header (group + sub)
@@ -568,6 +623,7 @@ public partial class GameManager
         GUI.Label(new Rect(panelX + 176, y,  56, 16), "Atk/rnd",    historyHeaderStyle);
         GUI.Label(new Rect(panelX + 234, y,  56, 16), "Dth/rnd",    historyHeaderStyle);
         GUI.Label(new Rect(panelX + 292, y,  56, 16), "Bld/rnd",    historyHeaderStyle);
+        if (showTime) GUI.Label(new Rect(panelX + 350, y, 50, 16), "Time", historyHeaderStyle);
         y += 16f;
 
         // Sub-header row (bottom line).
@@ -629,6 +685,13 @@ public partial class GameManager
             GUI.Label(new Rect(panelX + 262, y,  26, rowH), $"{m.mutantDeaths  / r:F1}",       historyRowStyle);
             GUI.Label(new Rect(panelX + 292, y,  26, rowH), $"{m.robotBuilds   / r:F1}",       historyRowStyle);
             GUI.Label(new Rect(panelX + 320, y,  26, rowH), $"{m.mutantBuilds  / r:F1}",       historyRowStyle);
+
+            if (showTime)
+            {
+                int mins = (int)(m.durationSeconds / 60f);
+                int secs = (int)(m.durationSeconds % 60f);
+                GUI.Label(new Rect(panelX + 350, y, 50, rowH), $"{mins}:{secs:D2}", historyRowStyle);
+            }
 
             y += rowH;
         }

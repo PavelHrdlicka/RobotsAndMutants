@@ -559,4 +559,109 @@ public class HumanVsAITests
         Assert.AreEqual(initialChildCount, highlighterGo.transform.childCount,
             "After 50 turn cycles, no new GameObjects should be created. Pool must be reused.");
     }
+
+    // ── Idle button timing: OnGUI sets flag, Update reads it ────────────
+
+    [UnityTest]
+    public IEnumerator IdleFlag_PersistsUntilConsumed()
+    {
+        // IdleRequested persists until HumanTurnController consumes it.
+        var inputGo = new GameObject("InputMgr");
+        var inputMgr = inputGo.AddComponent<HumanInputManager>();
+        inputMgr.grid = grid;
+        spawnedObjects.Add(inputGo);
+        yield return null;
+
+        inputMgr.IdleRequested = true;
+        yield return null; // no consumer → flag persists
+
+        Assert.IsTrue(inputMgr.IdleRequested,
+            "IdleRequested must persist until consumed (no auto-reset).");
+
+        // Manual consume.
+        inputMgr.IdleRequested = false;
+        Assert.IsFalse(inputMgr.IdleRequested);
+    }
+
+    [UnityTest]
+    public IEnumerator IdleButton_HumanTurnController_ConsumesAndCompletesTurn()
+    {
+        var (data, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        data.gameObject.AddComponent<HumanTurnController>();
+
+        var inputGo = new GameObject("InputMgr");
+        var inputMgr = inputGo.AddComponent<HumanInputManager>();
+        inputMgr.grid = grid;
+        spawnedObjects.Add(inputGo);
+
+        data.isMyTurn = true;
+        data.hasPendingTurnResult = false;
+        yield return null;
+
+        // Simulate Idle button click.
+        inputMgr.IdleRequested = true;
+        yield return null; // HumanTurnController.Update consumes flag and completes turn
+
+        Assert.IsFalse(data.isMyTurn,
+            "After Idle consumed, isMyTurn should be false.");
+        Assert.IsTrue(data.hasPendingTurnResult,
+            "After Idle consumed, hasPendingTurnResult should be true.");
+        Assert.IsFalse(inputMgr.IdleRequested,
+            "IdleRequested should be consumed (set to false) by HumanTurnController.");
+    }
+
+    [UnityTest]
+    public IEnumerator HasClick_ConsumedByHumanTurnController()
+    {
+        var (data, move) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+        data.gameObject.AddComponent<HumanTurnController>();
+
+        var inputGo = new GameObject("InputMgr");
+        var inputMgr = inputGo.AddComponent<HumanInputManager>();
+        inputMgr.grid = grid;
+        spawnedObjects.Add(inputGo);
+
+        data.isMyTurn = true;
+        yield return null;
+
+        // Set a click on an invalid hex (same hex — distance 0 for Move).
+        inputMgr.HasClick = true;
+        inputMgr.ActionMode = HumanActionMode.Move;
+        // ClickedHex defaults to (0,0) — same as unit, not adjacent → action fails
+        yield return null;
+
+        // HasClick should still be consumed even if action failed.
+        Assert.IsFalse(inputMgr.HasClick,
+            "HasClick should be consumed by HumanTurnController.");
+    }
+
+    // ── Guard: input flags are consumed, not auto-reset ─────────────────
+
+    [UnityTest]
+    public IEnumerator InputManager_SourceCode_NoAutoReset()
+    {
+        // Static analysis: HumanInputManager must NOT reset HasClick/IdleRequested.
+        // They are consumed by HumanTurnController.
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Agents", "HumanInputManager.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+
+            // Count "HasClick = false" in the file — should NOT appear in HumanInputManager.
+            // (It only appears in HumanTurnController which consumes the flag.)
+            int resetCount = 0;
+            int idx = 0;
+            while ((idx = source.IndexOf("HasClick = false", idx, System.StringComparison.Ordinal)) >= 0)
+            {
+                resetCount++;
+                idx += 16;
+            }
+
+            Assert.AreEqual(0, resetCount,
+                "HumanInputManager must NOT reset HasClick. " +
+                "Flags are consumed by HumanTurnController to avoid frame timing issues.");
+        }
+    }
 }

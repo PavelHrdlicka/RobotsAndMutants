@@ -20,12 +20,14 @@ public partial class GameManager
         public int robotAttacks,  mutantAttacks;
         public int robotDeaths,   mutantDeaths;   // deaths = kills by opponent
         public int robotBuilds,   mutantBuilds;
+        public float durationSeconds; // match wall-clock duration (HumanVsAI)
     }
 
     private static readonly List<MatchResult> matchHistory = new();
     private static int   matchCounter;
     private static long  totalTurns;
     private static float sessionStartTime;
+    private float matchStartTime; // wall-clock time when current match started
 
     // ── ResetGame ──────────────────────────────────────────────────────────
 
@@ -60,6 +62,8 @@ public partial class GameManager
         unitFactory.ClearUnits();
         unitFactory.SpawnAllUnits();
 
+        matchStartTime = Time.realtimeSinceStartup;
+
         // Throttle per-episode logging to avoid stack-trace overhead during training.
         if (PlayerPrefs.GetInt("TotalGames", 0) % 50 == 0)
             Debug.Log("[GameManager] Game reset.");
@@ -72,14 +76,14 @@ public partial class GameManager
         matchCounter++;
         matchHistory.Add(new MatchResult
         {
-            winner         = matchWinner,
-            rounds         = rounds,
-            winnerPct      = winnerTiles / total * 100f,
-            matchNumber    = matchCounter,
-            // robotKills = mutant deaths, mutantKills = robot deaths
-            robotAttacks   = robotAttacks,   mutantAttacks  = mutantAttacks,
-            robotDeaths    = mutantKills,    mutantDeaths   = robotKills,
-            robotBuilds    = robotBuilds,    mutantBuilds   = mutantBuilds,
+            winner           = matchWinner,
+            rounds           = rounds,
+            winnerPct        = winnerTiles / total * 100f,
+            matchNumber      = matchCounter,
+            robotAttacks     = robotAttacks,   mutantAttacks  = mutantAttacks,
+            robotDeaths      = mutantKills,    mutantDeaths   = robotKills,
+            robotBuilds      = robotBuilds,    mutantBuilds   = mutantBuilds,
+            durationSeconds  = Time.realtimeSinceStartup - matchStartTime,
         });
         while (matchHistory.Count > 20) matchHistory.RemoveAt(0);
     }

@@ -17,9 +17,10 @@ public class UnitActionIndicator3D : MonoBehaviour
     private Transform indicatorRoot;
     private const float IndicatorY = 0.48f;
 
-    // Active turn marker (pulsing ring at unit feet).
-    private Transform turnMarker;
-    private Renderer turnMarkerRenderer;
+    // Active turn glow (pulsing emission on model renderers).
+    private Renderer[] modelRenderers;
+    private Color[] originalEmission;
+    private bool glowActive;
 
     // Move arrow.
     private Transform moveArrow;
@@ -77,7 +78,7 @@ public class UnitActionIndicator3D : MonoBehaviour
         prevAction = unitData.lastAction;
 
         UpdateVisibility();
-        UpdateTurnMarker();
+        UpdateTurnGlow();
 
         // Rotate idle ring.
         if (idleRing != null && idleRing.gameObject.activeSelf)
@@ -131,55 +132,74 @@ public class UnitActionIndicator3D : MonoBehaviour
         }
     }
 
-    // ── Active turn marker ────────────────────────────────────────────
+    // ── Active turn glow ────────────────────────────────────────────
 
-    private void UpdateTurnMarker()
+    private void UpdateTurnGlow()
     {
-        if (turnMarker == null) return;
+        if (modelRenderers == null || modelRenderers.Length == 0) return;
 
-        bool showMarker = unitData.isMyTurn && unitData.isAlive;
-        turnMarker.gameObject.SetActive(showMarker);
+        bool shouldGlow = unitData.isMyTurn && unitData.isAlive;
 
-        if (showMarker)
+        if (shouldGlow)
         {
-            // Pulsing scale effect.
-            float pulse = 1f + 0.15f * Mathf.Sin(Time.unscaledTime * 4f);
-            turnMarker.localScale = new Vector3(0.7f * pulse, 0.02f, 0.7f * pulse);
-
-            // Color based on team.
-            if (turnMarkerRenderer != null)
+            if (!glowActive)
             {
-                Color c = unitData.team == Team.Robot
-                    ? new Color(0.3f, 0.6f, 1f, 0.6f)   // blue
-                    : new Color(0.3f, 0.9f, 0.3f, 0.6f); // green
-                turnMarkerRenderer.material.color = c;
+                // Enable emission on all model materials.
+                foreach (var rend in modelRenderers)
+                {
+                    if (rend == null) continue;
+                    rend.material.EnableKeyword("_EMISSION");
+                }
+                glowActive = true;
             }
+
+            // Pulsing emission intensity.
+            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);
+            Color glowColor = unitData.team == Team.Robot
+                ? new Color(0.3f, 0.5f, 1f) * (1.5f + pulse * 1.5f)
+                : new Color(0.3f, 1f, 0.3f) * (1.5f + pulse * 1.5f);
+
+            foreach (var rend in modelRenderers)
+            {
+                if (rend == null) continue;
+                var mat = rend.material;
+                if (mat.HasProperty("_EmissionColor"))
+                    mat.SetColor("_EmissionColor", glowColor);
+            }
+        }
+        else if (glowActive)
+        {
+            // Turn off emission.
+            foreach (var rend in modelRenderers)
+            {
+                if (rend == null) continue;
+                rend.material.SetColor("_EmissionColor", Color.black);
+                rend.material.DisableKeyword("_EMISSION");
+            }
+            glowActive = false;
         }
     }
 
-    private Transform BuildTurnMarker()
+    private void CacheModelRenderers()
     {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        go.name = "TurnMarker";
-        go.transform.SetParent(transform, false);
-        go.transform.localPosition = new Vector3(0f, -0.25f, 0f);
-        go.transform.localScale = new Vector3(0.7f, 0.02f, 0.7f);
-        DestroyCol(go);
-
-        var rend = go.GetComponent<Renderer>();
-        var shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
-        var mat = new Material(shader);
-        mat.SetFloat("_Surface", 1);
-        mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-        mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-        mat.SetInt("_ZWrite", 0);
-        mat.renderQueue = 3000;
-        rend.material = mat;
-        turnMarkerRenderer = rend;
-
-        go.SetActive(false);
-        return go.transform;
+        var modelRoot = transform.Find("ModelRoot");
+        if (modelRoot != null)
+        {
+            modelRenderers = modelRoot.GetComponentsInChildren<Renderer>();
+            originalEmission = new Color[modelRenderers.Length];
+            for (int i = 0; i < modelRenderers.Length; i++)
+            {
+                var mat = modelRenderers[i].material;
+                originalEmission[i] = mat.HasProperty("_EmissionColor")
+                    ? mat.GetColor("_EmissionColor")
+                    : Color.black;
+            }
+        }
+        else
+        {
+            modelRenderers = System.Array.Empty<Renderer>();
+            originalEmission = System.Array.Empty<Color>();
+        }
     }
 
     // ── Build indicator objects ──────────────────────────────────────────
@@ -190,7 +210,7 @@ public class UnitActionIndicator3D : MonoBehaviour
         indicatorRoot.SetParent(transform, false);
         indicatorRoot.localPosition = new Vector3(0f, IndicatorY, 0f);
 
-        turnMarker  = BuildTurnMarker();
+        CacheModelRenderers();
         moveArrow   = BuildArrow();
         idleRing    = BuildIdleRing();
         attackIcon  = BuildCrossedSwords();

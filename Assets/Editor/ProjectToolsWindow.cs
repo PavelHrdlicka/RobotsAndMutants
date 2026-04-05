@@ -648,17 +648,19 @@ public class ProjectToolsWindow : EditorWindow
                 if (System.IO.Directory.Exists(dir))
                 {
                     var files = System.IO.Directory.GetFiles(dir, "game_*.jsonl");
-                    if (files.Length > 0)
+                    string latest = null;
+                    var latestTime = System.DateTime.MinValue;
+                    foreach (var f in files)
                     {
-                        string latest = files[0];
-                        var latestTime = System.IO.File.GetLastWriteTime(latest);
-                        foreach (var f in files)
-                        {
-                            var t = System.IO.File.GetLastWriteTime(f);
-                            if (t > latestTime) { latest = f; latestTime = t; }
-                        }
-                        selectedReplayPath = latest;
+                        // Skip incomplete replays (no summary line = fewer than 3 lines).
+                        var info = new System.IO.FileInfo(f);
+                        if (info.Length < 100) continue; // too small to be valid
+
+                        var t = info.LastWriteTime;
+                        if (t > latestTime) { latest = f; latestTime = t; }
                     }
+                    if (latest != null)
+                        selectedReplayPath = latest;
                 }
             }
             GUI.enabled = true;

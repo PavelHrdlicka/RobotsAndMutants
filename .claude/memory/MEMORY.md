@@ -35,10 +35,15 @@
 - [feedback_test_visibility.md](feedback_test_visibility.md) — Metody volané z testů musí být public, ne internal (Unity asmdef boundary)
 - [feedback_button_full_text.md](feedback_button_full_text.md) — Tlačítka musí být dostatečně široká pro celý text labelu
 - [feedback_no_hardcoded_values.md](feedback_no_hardcoded_values.md) — Nikdy nehardcodovat herní hodnoty v testech — vždy číst z GameConfig
+- [feedback_no_physics_raycast_without_colliders.md](feedback_no_physics_raycast_without_colliders.md) — Nikdy Physics.Raycast bez colliderů — použít Plane.Raycast
+- [feedback_pool_gpu_resources.md](feedback_pool_gpu_resources.md) — Nikdy new Material/Texture za běhu — pre-alokovat pool
+- [feedback_ui_display_names.md](feedback_ui_display_names.md) — V UI nikdy podtržítka — Robot_1 → Robot 1
+- [feedback_ui_table_alignment.md](feedback_ui_table_alignment.md) — UI tabulky: zarovnané sloupce, číslování řádků, header
 
 ## Project
 - [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)
 - [project_two_modes.md](project_two_modes.md) — Dva módy: TRAINING (max speed, no graphics) a REPLAY (krásné vizuály pro video)
+- [project_playable_version.md](project_playable_version.md) — Plán na hratelnou verzi pro lidi (human vs human / vs AI)
 
 ## Reference
 - [reference_unity_log.md](reference_unity_log.md) — Unity Editor log: C:\Users\mail\AppData\Local\Unity\Editor\Editor.log

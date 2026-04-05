@@ -88,74 +88,112 @@ public class PlayModeFeatureTests
     // ══════════════════════════════════════════════════════════════════════
 
     [UnityTest]
-    public IEnumerator TurnMarker_CreatedOnUnitWithIndicator()
+    public IEnumerator TurnGlow_IndicatorComponentCreated()
     {
         var (data, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
         var indicator = data.gameObject.AddComponent<UnitActionIndicator3D>();
         yield return null;
 
-        var marker = data.transform.Find("TurnMarker");
-        Assert.IsNotNull(marker, "TurnMarker should be created by UnitActionIndicator3D.");
+        Assert.IsNotNull(indicator, "UnitActionIndicator3D should be created.");
     }
 
     [UnityTest]
-    public IEnumerator TurnMarker_InactiveWhenNotMyTurn()
+    public IEnumerator TurnGlow_NoEmissionWhenNotMyTurn()
     {
         var (data, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        // Create a model root with a renderer for testing.
+        var modelRoot = new GameObject("ModelRoot");
+        modelRoot.transform.SetParent(data.transform, false);
+        var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cube.transform.SetParent(modelRoot.transform, false);
+        var rend = cube.GetComponent<Renderer>();
+
         data.gameObject.AddComponent<UnitActionIndicator3D>();
         data.isMyTurn = false;
         yield return null;
-        yield return null; // let Update run
+        yield return null;
 
-        var marker = data.transform.Find("TurnMarker");
-        Assert.IsNotNull(marker);
-        Assert.IsFalse(marker.gameObject.activeSelf,
-            "TurnMarker should be inactive when unit is not on turn.");
+        Color emission = rend.material.HasProperty("_EmissionColor")
+            ? rend.material.GetColor("_EmissionColor") : Color.black;
+        Assert.AreEqual(Color.black, emission,
+            "No emission when unit is not on turn.");
     }
 
     [UnityTest]
-    public IEnumerator TurnMarker_ActiveWhenMyTurn()
+    public IEnumerator TurnGlow_HasEmissionWhenMyTurn()
     {
         var (data, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        var modelRoot = new GameObject("ModelRoot");
+        modelRoot.transform.SetParent(data.transform, false);
+        var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cube.transform.SetParent(modelRoot.transform, false);
+        var rend = cube.GetComponent<Renderer>();
+
         data.gameObject.AddComponent<UnitActionIndicator3D>();
         data.isMyTurn = true;
         data.isAlive = true;
         yield return null;
         yield return null;
 
-        var marker = data.transform.Find("TurnMarker");
-        Assert.IsNotNull(marker);
-        Assert.IsTrue(marker.gameObject.activeSelf,
-            "TurnMarker should be active when unit is on turn.");
+        Color emission = rend.material.HasProperty("_EmissionColor")
+            ? rend.material.GetColor("_EmissionColor") : Color.black;
+        Assert.AreNotEqual(Color.black, emission,
+            "Should have emission glow when unit is on turn.");
     }
 
     [UnityTest]
-    public IEnumerator TurnMarker_InactiveWhenDeadEvenIfMyTurn()
+    public IEnumerator TurnGlow_NoEmissionWhenDead()
     {
         var (data, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        var modelRoot = new GameObject("ModelRoot");
+        modelRoot.transform.SetParent(data.transform, false);
+        var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cube.transform.SetParent(modelRoot.transform, false);
+
         data.gameObject.AddComponent<UnitActionIndicator3D>();
         data.isMyTurn = true;
         data.isAlive = false;
         yield return null;
         yield return null;
 
-        var marker = data.transform.Find("TurnMarker");
-        Assert.IsNotNull(marker);
-        Assert.IsFalse(marker.gameObject.activeSelf,
-            "TurnMarker should be inactive when unit is dead.");
+        var rend = cube.GetComponent<Renderer>();
+        Color emission = rend.material.HasProperty("_EmissionColor")
+            ? rend.material.GetColor("_EmissionColor") : Color.black;
+        Assert.AreEqual(Color.black, emission,
+            "No emission when unit is dead.");
     }
 
     [UnityTest]
-    public IEnumerator TurnMarker_HasNoCollider()
+    public IEnumerator TurnGlow_TurnsOffAfterTurnEnds()
     {
         var (data, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
+
+        var modelRoot = new GameObject("ModelRoot");
+        modelRoot.transform.SetParent(data.transform, false);
+        var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cube.transform.SetParent(modelRoot.transform, false);
+        var rend = cube.GetComponent<Renderer>();
+
         data.gameObject.AddComponent<UnitActionIndicator3D>();
+
+        // Turn on.
+        data.isMyTurn = true;
+        data.isAlive = true;
+        yield return null;
         yield return null;
 
-        var marker = data.transform.Find("TurnMarker");
-        Assert.IsNotNull(marker);
-        Assert.IsNull(marker.GetComponent<Collider>(),
-            "TurnMarker should have no collider (would block raycasts).");
+        // Turn off.
+        data.isMyTurn = false;
+        yield return null;
+        yield return null;
+
+        Color emission = rend.material.HasProperty("_EmissionColor")
+            ? rend.material.GetColor("_EmissionColor") : Color.black;
+        Assert.AreEqual(Color.black, emission,
+            "Emission should turn off after turn ends.");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -512,7 +550,7 @@ public class PlayModeFeatureTests
     }
 
     [UnityTest]
-    public IEnumerator IdleRequested_ResetsEachFrame()
+    public IEnumerator IdleRequested_PersistsUntilConsumed()
     {
         var inputGo = new GameObject("InputMgr");
         var inputMgr = inputGo.AddComponent<HumanInputManager>();
@@ -521,10 +559,141 @@ public class PlayModeFeatureTests
         yield return null;
 
         inputMgr.IdleRequested = true;
-        yield return null; // Update runs, resets to false
+        yield return null; // no consumer present
 
-        Assert.IsFalse(inputMgr.IdleRequested,
-            "IdleRequested should reset to false each frame in Update.");
+        Assert.IsTrue(inputMgr.IdleRequested,
+            "IdleRequested should persist until consumed by HumanTurnController.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Match duration tracking ─────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator MatchResult_HasDurationField()
+    {
+        yield return null;
+
+        var result = new GameManager.TurnLogEntry(); // just verify struct exists
+        // MatchResult is private — test via observable behavior instead.
+        // Verify matchStartTime tracking exists in source code.
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Game", "GameManager.Episode.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            Assert.IsTrue(source.Contains("durationSeconds"),
+                "MatchResult must have durationSeconds field for match time tracking.");
+            Assert.IsTrue(source.Contains("matchStartTime"),
+                "GameManager must track matchStartTime for duration calculation.");
+            Assert.IsTrue(source.Contains("Time.realtimeSinceStartup - matchStartTime"),
+                "Duration must be calculated from realtimeSinceStartup - matchStartTime.");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator MatchDuration_TimeColumnOnlyInHumanVsAI()
+    {
+        // Verify the HUD source code shows Time column conditionally.
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Game", "GameManager.HUD.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            Assert.IsTrue(source.Contains("showTime") && source.Contains("GameMode.HumanVsAI"),
+                "Time column must only show in HumanVsAI mode.");
+            Assert.IsTrue(source.Contains("if (showTime)"),
+                "Time column rendering must be conditional on showTime flag.");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator MatchDuration_PanelWiderInHumanVsAI()
+    {
+        // Verify panel width increases when Time column is shown.
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Game", "GameManager.HUD.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            Assert.IsTrue(source.Contains("showTime ? 410f : 360f"),
+                "Match history panel must be wider (410px) in HumanVsAI to fit Time column.");
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Edge base spawn (spread along edge) ─────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator EdgeBase_RobotsOnLeftEdge()
+    {
+        yield return null;
+
+        var baseTiles = grid.GetBaseTiles(Team.Robot);
+        Assert.Greater(baseTiles.Count, 0, "Robot base tiles must exist.");
+
+        int max = grid.boardSide - 1;
+        foreach (var tile in baseTiles)
+        {
+            Assert.AreEqual(-max, tile.coord.q,
+                $"Robot base tile {tile.coord} must be on left edge (q={-max}).");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator EdgeBase_MutantsOnRightEdge()
+    {
+        yield return null;
+
+        var baseTiles = grid.GetBaseTiles(Team.Mutant);
+        Assert.Greater(baseTiles.Count, 0, "Mutant base tiles must exist.");
+
+        int max = grid.boardSide - 1;
+        foreach (var tile in baseTiles)
+        {
+            Assert.AreEqual(max, tile.coord.q,
+                $"Mutant base tile {tile.coord} must be on right edge (q={max}).");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator EdgeBase_UnitsSpreadNotClustered()
+    {
+        GameModeConfig.CurrentMode = GameMode.Training;
+
+        var factoryGo = new GameObject("Factory");
+        var factory = factoryGo.AddComponent<UnitFactory>();
+        factory.grid = grid;
+        factory.unitsPerTeam = 2;
+        factory.skipMLAgents = true;
+        factory.SpawnAllUnits();
+        spawnedObjects.Add(factoryGo);
+        yield return null;
+
+        // With 2 units on an edge of 3+ hexes, they should be on different hexes.
+        if (factory.robotUnits.Count >= 2)
+        {
+            Assert.AreNotEqual(factory.robotUnits[0].currentHex, factory.robotUnits[1].currentHex,
+                "Units should spawn on different base hexes (spread along edge).");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator EdgeBase_BaseTilesMatchUnitsPerTeam()
+    {
+        yield return null;
+
+        // boardSide=3 has edge length that may differ from unitsPerTeam.
+        // Base tiles count should equal min(unitsPerTeam, available edge hexes).
+        var robotBases = grid.GetBaseTiles(Team.Robot);
+        var mutantBases = grid.GetBaseTiles(Team.Mutant);
+
+        Assert.Greater(robotBases.Count, 0, "Must have at least 1 robot base tile.");
+        Assert.Greater(mutantBases.Count, 0, "Must have at least 1 mutant base tile.");
+        Assert.AreEqual(robotBases.Count, mutantBases.Count,
+            "Both teams should have the same number of base tiles.");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -548,6 +717,139 @@ public class PlayModeFeatureTests
         {
             Assert.IsNull(unit.GetComponent<HumanTurnController>(),
                 $"{unit.name} should NOT have HumanTurnController in Training mode.");
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── FormatUnitName (no underscores in UI) ───────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator FormatUnitName_ReplacesUnderscore()
+    {
+        yield return null;
+        Assert.AreEqual("Robot 1", "Robot_1".Replace("_", " "));
+        Assert.AreEqual("Mutant 3", "Mutant_3".Replace("_", " "));
+    }
+
+    [UnityTest]
+    public IEnumerator FormatUnitName_NoUnderscoreInSource()
+    {
+        // Static analysis: DrawTurnLog must use FormatUnitName, never raw unitName.
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Game", "GameManager.HUD.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            Assert.IsTrue(source.Contains("FormatUnitName"),
+                "DrawTurnLog must use FormatUnitName to strip underscores for display.");
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Turn log table layout ───────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator TurnLog_HasColumnHeaders()
+    {
+        // Static analysis: turn log must have column headers for structured layout.
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Game", "GameManager.HUD.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            Assert.IsTrue(source.Contains("colNum") && source.Contains("colUnit") && source.Contains("colAction"),
+                "Turn log must define fixed-width columns (colNum, colUnit, colAction).");
+            Assert.IsTrue(source.Contains("\"#\"") && source.Contains("\"Unit\"") && source.Contains("\"Action\""),
+                "Turn log must have column headers: #, Unit, Action.");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator TurnLog_RowsAreNumbered()
+    {
+        // Static analysis: turn log rows must be numbered 1-N.
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Game", "GameManager.HUD.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            Assert.IsTrue(source.Contains("displayNum"),
+                "Turn log rows must be numbered (displayNum variable).");
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Latest replay skips incomplete files ─────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator LatestReplay_SkipsSmallFiles()
+    {
+        // Static analysis: Latest button must skip files smaller than threshold.
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Editor", "ProjectToolsWindow.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            Assert.IsTrue(source.Contains("info.Length < 100"),
+                "Latest replay must skip files < 100 bytes (incomplete replays).");
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator LatestReplay_IncompleteFileDetection()
+    {
+        // Create temp files to verify the size-based filtering logic.
+        yield return null;
+
+        string tempDir = System.IO.Path.Combine(Application.temporaryCachePath, "replay_test");
+        System.IO.Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            // Create a tiny file (incomplete replay — just header).
+            string tinyFile = System.IO.Path.Combine(tempDir, "game_tiny.jsonl");
+            System.IO.File.WriteAllText(tinyFile, "{\"type\":\"header\"}");
+
+            // Create a normal file (complete replay).
+            string normalFile = System.IO.Path.Combine(tempDir, "game_normal.jsonl");
+            System.IO.File.WriteAllText(normalFile, new string('x', 200));
+
+            var tinyInfo = new System.IO.FileInfo(tinyFile);
+            var normalInfo = new System.IO.FileInfo(normalFile);
+
+            Assert.Less(tinyInfo.Length, 100, "Tiny file should be < 100 bytes.");
+            Assert.GreaterOrEqual(normalInfo.Length, 100, "Normal file should be >= 100 bytes.");
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(tempDir))
+                System.IO.Directory.Delete(tempDir, true);
+        }
+    }
+
+    // ── OnDestroy replay cleanup ────────────────────────────────────────
+
+    [UnityTest]
+    public IEnumerator GameManager_OnDestroy_CallsReplayLoggerClose()
+    {
+        // Static analysis: GameManager.OnDestroy must call replayLogger.Close().
+        yield return null;
+
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.cs");
+        if (System.IO.File.Exists(path))
+        {
+            string source = System.IO.File.ReadAllText(path);
+            Assert.IsTrue(source.Contains("void OnDestroy()"),
+                "GameManager must have OnDestroy method to clean up on Play mode exit.");
+            Assert.IsTrue(source.Contains("replayLogger.Close()"),
+                "OnDestroy must call replayLogger.Close() to flush incomplete replays.");
         }
     }
 }

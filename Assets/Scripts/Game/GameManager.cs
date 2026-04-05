@@ -184,6 +184,12 @@ public partial class GameManager : MonoBehaviour
 
     public bool IsReady => grid != null && unitFactory != null && abilitySystem != null;
 
+    private void OnDestroy()
+    {
+        // Close replay logger on exit Play mode to clean up incomplete files.
+        replayLogger.Close();
+    }
+
     // ── Sequential turn loop ───────────────────────────────────────────────
 
     // Guard against multiple StartNewRound calls in the same frame.
