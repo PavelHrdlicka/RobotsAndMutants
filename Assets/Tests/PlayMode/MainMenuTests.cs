@@ -744,12 +744,12 @@ public class MainMenuTests
         string source = System.IO.File.ReadAllText(
             System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
 
-        // Must save before entering Play mode to prevent scene loss.
-        int doLaunchIdx = source.IndexOf("DoLaunchMainMenu");
-        Assert.Greater(doLaunchIdx, 0);
+        // Find the method definition (not a call site).
+        int defIdx = source.IndexOf("static void DoLaunchMainMenu");
+        Assert.Greater(defIdx, 0, "DoLaunchMainMenu method definition must exist.");
 
-        string afterMethod = source.Substring(doLaunchIdx, 500);
-        Assert.IsTrue(afterMethod.Contains("SaveAssets") || afterMethod.Contains("SaveOpenScenes"),
+        string methodBody = source.Substring(defIdx, System.Math.Min(600, source.Length - defIdx));
+        Assert.IsTrue(methodBody.Contains("SaveAssets") || methodBody.Contains("SaveOpenScenes"),
             "DoLaunchMainMenu must save assets/scenes before entering Play mode.");
     }
 
