@@ -4,6 +4,7 @@ using UnityEditor.SceneManagement;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Unity.MLAgents.Policies;
 using Debug = UnityEngine.Debug;
 
@@ -830,9 +831,26 @@ public class ProjectToolsWindow : EditorWindow
 
     private enum TrainingMode { Force, Resume, InitFrom }
 
+    /// <summary>Validate run ID to prevent command injection (alphanumeric + underscore only).</summary>
+    private static bool IsValidRunId(string id)
+    {
+        return !string.IsNullOrEmpty(id) && Regex.IsMatch(id, @"^[a-zA-Z0-9_]+$");
+    }
+
     private static void StartTraining(TrainingMode mode = TrainingMode.Force, string initFromRunId = null)
     {
         StopTraining();
+
+        if (!IsValidRunId(runId))
+        {
+            Debug.LogError($"[ML-Train] Invalid run ID: '{runId}'. Only alphanumeric and underscore allowed.");
+            return;
+        }
+        if (initFromRunId != null && !IsValidRunId(initFromRunId))
+        {
+            Debug.LogError($"[ML-Train] Invalid init-from run ID: '{initFromRunId}'. Only alphanumeric and underscore allowed.");
+            return;
+        }
 
         if (!File.Exists(PythonExe))
         {

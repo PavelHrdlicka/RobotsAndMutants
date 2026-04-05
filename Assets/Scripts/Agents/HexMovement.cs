@@ -488,16 +488,11 @@ public class HexMovement : MonoBehaviour
         for (int i = 0; i < 6; i++)
         {
             HexCoord neighbor = unit.currentHex.Neighbor(i);
-            foreach (var other in UnitCache.GetAll())
+            var other = UnitCache.GetAliveAt(neighbor);
+            if (other != null && other != unit && other.team == unit.team)
             {
-                if (other == unit || !other.isAlive) continue;
-                if (other.team != unit.team) continue;
-                if (other.currentHex == neighbor)
-                {
-                    count++;
-                    if (count >= 3) return 3;
-                    break;
-                }
+                count++;
+                if (count >= 3) return 3;
             }
         }
         return count;
@@ -505,18 +500,14 @@ public class HexMovement : MonoBehaviour
 
     private UnitData FindEnemyAt(HexCoord coord)
     {
-        foreach (var unit in UnitCache.GetAll())
+        var unit = UnitCache.GetAliveAt(coord);
+        if (unit != null && unit.team != unitData.team)
         {
-            if (!unit.isAlive)             continue;
-            if (unit.team == unitData.team) continue;
-            if (unit.currentHex == coord)
-            {
-                // Units on their own base are immune to attack.
-                var tile = grid.GetTile(coord);
-                if (tile != null && tile.isBase && tile.baseTeam == unit.team)
-                    return null;
-                return unit;
-            }
+            // Units on their own base are immune to attack.
+            var tile = grid.GetTile(coord);
+            if (tile != null && tile.isBase && tile.baseTeam == unit.team)
+                return null;
+            return unit;
         }
         return null;
     }

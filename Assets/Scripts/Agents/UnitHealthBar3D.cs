@@ -20,8 +20,11 @@ public class UnitHealthBar3D : MonoBehaviour
     // Model greying.
     private Renderer[] modelRenderers;
     private Color[] originalColors;
+    private MaterialPropertyBlock[] greyBlocks;
     private float prevFrac = -1f;
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
+    private MaterialPropertyBlock fillBlock;
     private static Material barMaterial;
 
     private const float BarWidth  = 0.14f;
@@ -71,6 +74,7 @@ public class UnitHealthBar3D : MonoBehaviour
         if (col != null) Destroy(col);
         fillRenderer = fillGo.GetComponent<Renderer>();
         fillRenderer.material = new Material(barMaterial);
+        fillBlock = new MaterialPropertyBlock();
         barFill = fillGo.transform;
 
         // Energy number text.
@@ -97,9 +101,11 @@ public class UnitHealthBar3D : MonoBehaviour
         {
             modelRenderers = modelRoot.GetComponentsInChildren<Renderer>();
             originalColors = new Color[modelRenderers.Length];
+            greyBlocks = new MaterialPropertyBlock[modelRenderers.Length];
             for (int i = 0; i < modelRenderers.Length; i++)
             {
-                var mat = modelRenderers[i].material;
+                greyBlocks[i] = new MaterialPropertyBlock();
+                var mat = modelRenderers[i].sharedMaterial;
                 originalColors[i] = mat.HasProperty("_BaseColor")
                     ? mat.GetColor("_BaseColor")
                     : mat.color;
@@ -123,7 +129,8 @@ public class UnitHealthBar3D : MonoBehaviour
         Color activeColor = frac > 0.6f ? FullColor :
                             frac > 0.3f ? MidColor  : LowColor;
 
-        fillRenderer.material.SetColor("_BaseColor", activeColor);
+        fillBlock.SetColor(BaseColorId, activeColor);
+        fillRenderer.SetPropertyBlock(fillBlock);
 
         // Scale fill bar horizontally, anchor left.
         float fillWidth = BarWidth * frac;
@@ -152,7 +159,7 @@ public class UnitHealthBar3D : MonoBehaviour
 
     private void UpdateModelGreying(float energyFrac)
     {
-        if (modelRenderers == null) return;
+        if (modelRenderers == null || greyBlocks == null) return;
 
         // Dead unit → fully black.
         bool isDead = unitData != null && !unitData.isAlive;
@@ -161,11 +168,8 @@ public class UnitHealthBar3D : MonoBehaviour
             for (int i = 0; i < modelRenderers.Length; i++)
             {
                 if (modelRenderers[i] == null) continue;
-                var mat = modelRenderers[i].material;
-                if (mat.HasProperty("_BaseColor"))
-                    mat.SetColor("_BaseColor", DeadColor);
-                else
-                    mat.color = DeadColor;
+                greyBlocks[i].SetColor(BaseColorId, DeadColor);
+                modelRenderers[i].SetPropertyBlock(greyBlocks[i]);
             }
             return;
         }
@@ -189,11 +193,8 @@ public class UnitHealthBar3D : MonoBehaviour
                 t = 0f;
 
             Color c = Color.Lerp(originalColors[i], GreyColor, t);
-            var mat = modelRenderers[i].material;
-            if (mat.HasProperty("_BaseColor"))
-                mat.SetColor("_BaseColor", c);
-            else
-                mat.color = c;
+            greyBlocks[i].SetColor(BaseColorId, c);
+            modelRenderers[i].SetPropertyBlock(greyBlocks[i]);
         }
     }
 

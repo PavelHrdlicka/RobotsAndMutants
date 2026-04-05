@@ -1,70 +1,76 @@
 using NUnit.Framework;
 
 /// <summary>
-/// Tests for base placement on the hex board.
-/// Uses HexCoord logic only (no GameObjects needed).
-/// Parametrized to work with any board size.
+/// Tests for edge-based base placement on the hex board.
+/// Robots spread along left edge (q = -max), Mutants along right edge (q = +max).
 /// </summary>
 public class HexBaseTests
 {
     private static readonly int[] BoardSizes = { 3, 5, 7, 10 };
 
     [Test]
-    public void RobotBaseCorner_IsInsideBoard([ValueSource(nameof(BoardSizes))] int side)
+    public void RobotEdgeBase_AllHexesInsideBoard([ValueSource(nameof(BoardSizes))] int side)
     {
         int max = side - 1;
-        var corner = new HexCoord(-max, max);
-        Assert.IsTrue(corner.IsInsideHexBoard(side), $"Robot base corner should be inside board (side={side}).");
-    }
+        int q = -max;
+        int rMin = System.Math.Max(-max, -q - max);
+        int rMax = System.Math.Min(max, -q + max);
 
-    [Test]
-    public void MutantBaseCorner_IsInsideBoard([ValueSource(nameof(BoardSizes))] int side)
-    {
-        int max = side - 1;
-        var corner = new HexCoord(max, -max);
-        Assert.IsTrue(corner.IsInsideHexBoard(side), $"Mutant base corner should be inside board (side={side}).");
-    }
-
-    [Test]
-    public void RobotBaseCorner_Has3NeighborsInsideBoard([ValueSource(nameof(BoardSizes))] int side)
-    {
-        int max = side - 1;
-        var corner = new HexCoord(-max, max);
-
-        int insideCount = 0;
-        for (int i = 0; i < 6; i++)
+        for (int r = rMin; r <= rMax; r++)
         {
-            if (corner.Neighbor(i).IsInsideHexBoard(side))
-                insideCount++;
+            var coord = new HexCoord(q, r);
+            Assert.IsTrue(coord.IsInsideHexBoard(side),
+                $"Robot edge hex ({q},{r}) should be inside board (side={side}).");
         }
-
-        Assert.AreEqual(3, insideCount, $"Corner hex should have 3 neighbors inside the board (side={side}).");
     }
 
     [Test]
-    public void BasesAreOnOppositeCorners([ValueSource(nameof(BoardSizes))] int side)
+    public void MutantEdgeBase_AllHexesInsideBoard([ValueSource(nameof(BoardSizes))] int side)
     {
         int max = side - 1;
-        var robotBase = new HexCoord(-max, max);
-        var mutantBase = new HexCoord(max, -max);
+        int q = max;
+        int rMin = System.Math.Max(-max, -q - max);
+        int rMax = System.Math.Min(max, -q + max);
 
-        int distance = HexCoord.Distance(robotBase, mutantBase);
-        Assert.AreEqual(2 * max, distance, $"Bases should be at maximum distance across the board (side={side}).");
-    }
-
-    [Test]
-    public void BaseCluster_Has4Tiles([ValueSource(nameof(BoardSizes))] int side)
-    {
-        int max = side - 1;
-        var corner = new HexCoord(-max, max);
-
-        int count = 1;
-        for (int i = 0; i < 6; i++)
+        for (int r = rMin; r <= rMax; r++)
         {
-            if (corner.Neighbor(i).IsInsideHexBoard(side))
-                count++;
+            var coord = new HexCoord(q, r);
+            Assert.IsTrue(coord.IsInsideHexBoard(side),
+                $"Mutant edge hex ({q},{r}) should be inside board (side={side}).");
         }
-        Assert.AreEqual(4, count, $"Base cluster should have 4 tiles (side={side}).");
+    }
+
+    [Test]
+    public void BasesAreOnOppositeEdges([ValueSource(nameof(BoardSizes))] int side)
+    {
+        int max = side - 1;
+        var robotEdge = new HexCoord(-max, 0);
+        var mutantEdge = new HexCoord(max, 0);
+
+        int distance = HexCoord.Distance(robotEdge, mutantEdge);
+        Assert.AreEqual(2 * max, distance,
+            $"Center of opposite edges should be at maximum q-distance (side={side}).");
+    }
+
+    [Test]
+    public void EdgeHexCount_MatchesBoardSide([ValueSource(nameof(BoardSizes))] int side)
+    {
+        int max = side - 1;
+        int q = -max;
+        int rMin = System.Math.Max(-max, -q - max);
+        int rMax = System.Math.Min(max, -q + max);
+        int edgeCount = rMax - rMin + 1;
+
+        Assert.AreEqual(side, edgeCount,
+            $"Edge at q={q} should have {side} hexes (side={side}).");
+    }
+
+    [Test]
+    public void RobotAndMutantEdges_DoNotOverlap([ValueSource(nameof(BoardSizes))] int side)
+    {
+        int max = side - 1;
+        Assert.AreNotEqual(-max, max,
+            "Robot edge (q=-max) and Mutant edge (q=+max) must differ when side > 1.");
     }
 
     [Test]

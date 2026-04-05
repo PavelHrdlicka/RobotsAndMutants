@@ -20,6 +20,7 @@ public class UnitActionIndicator3D : MonoBehaviour
     // Active turn glow (pulsing emission on model renderers).
     private Renderer[] modelRenderers;
     private Color[] originalEmission;
+    private MaterialPropertyBlock[] glowBlocks;
     private bool glowActive;
 
     // Move arrow.
@@ -134,6 +135,8 @@ public class UnitActionIndicator3D : MonoBehaviour
 
     // ── Active turn glow ────────────────────────────────────────────
 
+    private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
     private void UpdateTurnGlow()
     {
         if (modelRenderers == null || modelRenderers.Length == 0) return;
@@ -144,37 +147,37 @@ public class UnitActionIndicator3D : MonoBehaviour
         {
             if (!glowActive)
             {
-                // Enable emission on all model materials.
+                // Enable emission keyword on shared materials (one-time, not per-frame).
                 foreach (var rend in modelRenderers)
                 {
                     if (rend == null) continue;
-                    rend.material.EnableKeyword("_EMISSION");
+                    rend.sharedMaterial.EnableKeyword("_EMISSION");
                 }
                 glowActive = true;
             }
 
-            // Pulsing emission intensity.
+            // Pulsing emission intensity via MaterialPropertyBlock (zero allocation).
             float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);
             Color glowColor = unitData.team == Team.Robot
                 ? new Color(0.3f, 0.5f, 1f) * (1.5f + pulse * 1.5f)
                 : new Color(0.3f, 1f, 0.3f) * (1.5f + pulse * 1.5f);
 
-            foreach (var rend in modelRenderers)
+            for (int i = 0; i < modelRenderers.Length; i++)
             {
-                if (rend == null) continue;
-                var mat = rend.material;
-                if (mat.HasProperty("_EmissionColor"))
-                    mat.SetColor("_EmissionColor", glowColor);
+                if (modelRenderers[i] == null) continue;
+                glowBlocks[i].SetColor(EmissionColorId, glowColor);
+                modelRenderers[i].SetPropertyBlock(glowBlocks[i]);
             }
         }
         else if (glowActive)
         {
-            // Turn off emission.
-            foreach (var rend in modelRenderers)
+            // Turn off emission via PropertyBlock.
+            for (int i = 0; i < modelRenderers.Length; i++)
             {
-                if (rend == null) continue;
-                rend.material.SetColor("_EmissionColor", Color.black);
-                rend.material.DisableKeyword("_EMISSION");
+                if (modelRenderers[i] == null) continue;
+                glowBlocks[i].SetColor(EmissionColorId, Color.black);
+                modelRenderers[i].SetPropertyBlock(glowBlocks[i]);
+                modelRenderers[i].sharedMaterial.DisableKeyword("_EMISSION");
             }
             glowActive = false;
         }
@@ -187,9 +190,11 @@ public class UnitActionIndicator3D : MonoBehaviour
         {
             modelRenderers = modelRoot.GetComponentsInChildren<Renderer>();
             originalEmission = new Color[modelRenderers.Length];
+            glowBlocks = new MaterialPropertyBlock[modelRenderers.Length];
             for (int i = 0; i < modelRenderers.Length; i++)
             {
-                var mat = modelRenderers[i].material;
+                glowBlocks[i] = new MaterialPropertyBlock();
+                var mat = modelRenderers[i].sharedMaterial;
                 originalEmission[i] = mat.HasProperty("_EmissionColor")
                     ? mat.GetColor("_EmissionColor")
                     : Color.black;
@@ -199,6 +204,7 @@ public class UnitActionIndicator3D : MonoBehaviour
         {
             modelRenderers = System.Array.Empty<Renderer>();
             originalEmission = System.Array.Empty<Color>();
+            glowBlocks = System.Array.Empty<MaterialPropertyBlock>();
         }
     }
 

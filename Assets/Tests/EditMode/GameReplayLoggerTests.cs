@@ -71,7 +71,7 @@ public class GameReplayLoggerTests
     {
         var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
 
-        var go = new GameObject("Robot_0");
+        var go = new GameObject("Robot_1");
         var unit = go.AddComponent<UnitData>();
         unit.team = Team.Robot;
         unit.unitIndex = 0;
@@ -99,7 +99,7 @@ public class GameReplayLoggerTests
 
         // Turn line.
         Assert.IsTrue(lines[1].Contains("\"type\":\"turn\""));
-        Assert.IsTrue(lines[1].Contains("\"unit\":\"Robot_0\""));
+        Assert.IsTrue(lines[1].Contains("\"unit\":\"Robot_1\""));
         Assert.IsTrue(lines[1].Contains("\"team\":\"Robot\""));
         Assert.IsTrue(lines[1].Contains("\"pos\":[2,-1]"));
         Assert.IsTrue(lines[1].Contains("\"rTiles\":10"));
@@ -119,14 +119,14 @@ public class GameReplayLoggerTests
     {
         var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
 
-        var attackerGo = new GameObject("Robot_0");
+        var attackerGo = new GameObject("Robot_1");
         var attacker = attackerGo.AddComponent<UnitData>();
         attacker.team = Team.Robot;
         attacker.Energy = 5;
         attacker.currentHex = new HexCoord(1, 0);
         attacker.lastAction = UnitAction.Attack;
 
-        var targetGo = new GameObject("Mutant_0");
+        var targetGo = new GameObject("Mutant_1");
         var target = targetGo.AddComponent<UnitData>();
         target.team = Team.Mutant;
         target.currentHex = new HexCoord(2, 0);
@@ -144,7 +144,7 @@ public class GameReplayLoggerTests
         string[] files = Directory.GetFiles(tempDir, "game_*.jsonl");
         string[] lines = File.ReadAllLines(files[0]);
 
-        Assert.IsTrue(lines[1].Contains("\"targetUnit\":\"Mutant_0\""));
+        Assert.IsTrue(lines[1].Contains("\"targetUnit\":\"Mutant_1\""));
         Assert.IsTrue(lines[1].Contains("\"killed\":true"));
         Assert.IsTrue(lines[1].Contains("\"target\":[2,0]"));
     }
@@ -154,7 +154,7 @@ public class GameReplayLoggerTests
     {
         var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
 
-        var go = new GameObject("Robot_0");
+        var go = new GameObject("Robot_1");
         var unit = go.AddComponent<UnitData>();
         unit.team = Team.Robot;
         unit.Energy = 5;
@@ -183,7 +183,7 @@ public class GameReplayLoggerTests
     {
         var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
 
-        var go = new GameObject("Robot_0");
+        var go = new GameObject("Robot_1");
         var unit = go.AddComponent<UnitData>();
         unit.team = Team.Robot;
         unit.Energy = 12;
@@ -211,7 +211,7 @@ public class GameReplayLoggerTests
     {
         var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
 
-        var go = new GameObject("Mutant_0");
+        var go = new GameObject("Mutant_1");
         var unit = go.AddComponent<UnitData>();
         unit.team = Team.Mutant;
         unit.Energy = 13;
@@ -237,7 +237,7 @@ public class GameReplayLoggerTests
     {
         var logger = new TestReplayLogger(tempDir) { logEveryNthGame = 1 };
 
-        var go = new GameObject("Robot_0");
+        var go = new GameObject("Robot_1");
         var unit = go.AddComponent<UnitData>();
         unit.team = Team.Robot;
         unit.Energy = 15;

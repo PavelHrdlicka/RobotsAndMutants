@@ -348,32 +348,21 @@ public class HexAgent : Agent
 
     private bool HasEnemyUnit(HexCoord coord)
     {
-        foreach (var u in UnitCache.GetAll())
-        {
-            if (!u.isAlive) continue;
-            if (u.team != unitData.team && u.currentHex == coord) return true;
-        }
-        return false;
+        var u = UnitCache.GetAliveAt(coord);
+        return u != null && u.team != unitData.team;
     }
 
     private bool HasAllyUnit(HexCoord coord)
     {
-        foreach (var u in UnitCache.GetAll())
-        {
-            if (u == unitData || !u.isAlive) continue;
-            if (u.team == unitData.team && u.currentHex == coord) return true;
-        }
-        return false;
+        var u = UnitCache.GetAliveAt(coord);
+        return u != null && u != unitData && u.team == unitData.team;
     }
 
     private float GetEnemyEnergyNorm(HexCoord coord)
     {
-        foreach (var u in UnitCache.GetAll())
-        {
-            if (!u.isAlive) continue;
-            if (u.team != unitData.team && u.currentHex == coord)
-                return u.maxEnergy > 0 ? u.Energy / (float)u.maxEnergy : 0f;
-        }
+        var u = UnitCache.GetAliveAt(coord);
+        if (u != null && u.team != unitData.team)
+            return u.maxEnergy > 0 ? u.Energy / (float)u.maxEnergy : 0f;
         return 0f;
     }
 
