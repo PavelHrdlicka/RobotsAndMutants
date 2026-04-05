@@ -514,7 +514,12 @@ public class ProjectToolsWindow : EditorWindow
                 if (EditorApplication.isPlaying)
                     EditorApplication.isPlaying = false;
 
-                EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
+                // Auto-create MainMenu scene if it doesn't exist yet.
+                if (!System.IO.File.Exists("Assets/Scenes/MainMenu.unity"))
+                    MainMenuSetup.SetupMainMenuScene();
+                else
+                    EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
+
                 EditorApplication.isPlaying = true;
             }
             GUI.backgroundColor = Color.white;
