@@ -511,16 +511,7 @@ public class ProjectToolsWindow : EditorWindow
             GUI.backgroundColor = new Color(1f, 0.85f, 0.3f);
             if (GUILayout.Button("Launch Main Menu", GUILayout.Height(35)))
             {
-                if (EditorApplication.isPlaying)
-                    EditorApplication.isPlaying = false;
-
-                // Auto-create MainMenu scene if it doesn't exist yet.
-                if (!System.IO.File.Exists("Assets/Scenes/MainMenu.unity"))
-                    MainMenuSetup.SetupMainMenuScene();
-                else
-                    EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
-
-                EditorApplication.isPlaying = true;
+                LaunchMainMenu();
             }
             GUI.backgroundColor = Color.white;
             GUILayout.Space(5);
@@ -590,6 +581,40 @@ public class ProjectToolsWindow : EditorWindow
             EditorGUILayout.Space(2);
             EditorGUILayout.LabelField("Controls: [1] Move  [2] Attack  [3] Build  [4] Destroy  [Space] Idle", EditorStyles.miniLabel);
         });
+    }
+
+    private void LaunchMainMenu()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            EditorApplication.isPlaying = false;
+            void OnExit(PlayModeStateChange s)
+            {
+                if (s == PlayModeStateChange.EnteredEditMode)
+                {
+                    EditorApplication.playModeStateChanged -= OnExit;
+                    DoLaunchMainMenu();
+                }
+            };
+            EditorApplication.playModeStateChanged += OnExit;
+        }
+        else
+        {
+            DoLaunchMainMenu();
+        }
+    }
+
+    private static void DoLaunchMainMenu()
+    {
+        // Auto-create MainMenu scene if it doesn't exist yet.
+        if (!System.IO.File.Exists("Assets/Scenes/MainMenu.unity"))
+            MainMenuSetup.SetupMainMenuScene();
+        else
+            EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
+
+        AssetDatabase.SaveAssets();
+        EditorSceneManager.SaveOpenScenes();
+        EditorApplication.isPlaying = true;
     }
 
     private void LaunchHumanVsAI(Team humanTeam)
