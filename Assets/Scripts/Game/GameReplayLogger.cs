@@ -19,6 +19,9 @@ public class GameReplayLogger
     private bool gameFinished;
     private string currentFilePath;
 
+    /// <summary>Path of the last successfully completed replay file.</summary>
+    public string LastCompletedReplayPath { get; private set; }
+
     // Write OUTSIDE Assets/ to avoid triggering Unity Asset Pipeline imports.
     // Path.GetFullPath("Replays") resolves to project root (working dir).
     private static readonly string DefaultReplayDir = Path.GetFullPath("Replays");
@@ -202,6 +205,7 @@ public class GameReplayLogger
             WriteTerritorySnapshot(grid, winner);
 
             gameFinished = true;
+            LastCompletedReplayPath = currentFilePath;
         }
         catch (System.Exception ex)
         {

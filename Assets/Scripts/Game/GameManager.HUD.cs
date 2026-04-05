@@ -259,14 +259,28 @@ public partial class GameManager
             // Post-match buttons (only in HumanVsAI or menu-launched games).
             if (GameModeConfig.CurrentMode == GameMode.HumanVsAI || GameModeConfig.LaunchedFromMenu)
             {
-                float btnW = 160f;
+                float btnW = 130f;
                 float btnH = 40f;
                 float btnY = Screen.height * 0.4f + 65f;
+                float totalW = btnW * 3 + 20;
+                float startX = bannerX + (bannerW - totalW) * 0.5f;
 
-                if (GUI.Button(new Rect(bannerX + bannerW * 0.5f - btnW - 10, btnY, btnW, btnH), "Back to Menu"))
+                if (GUI.Button(new Rect(startX, btnY, btnW, btnH), "Back to Menu"))
                     MainMenuController.ReturnToMainMenu();
 
-                if (GUI.Button(new Rect(bannerX + bannerW * 0.5f + 10, btnY, btnW, btnH), "Rematch"))
+                if (GUI.Button(new Rect(startX + btnW + 10, btnY, btnW, btnH), "Watch Replay"))
+                {
+                    string replayPath = replayLogger.LastCompletedReplayPath;
+                    if (!string.IsNullOrEmpty(replayPath) && System.IO.File.Exists(replayPath))
+                    {
+                        GameModeConfig.CurrentMode = GameMode.Replay;
+                        ReplayPlayer.PendingReplayPath = replayPath;
+                        UnityEngine.SceneManagement.SceneManager.LoadScene(
+                            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+                    }
+                }
+
+                if (GUI.Button(new Rect(startX + (btnW + 10) * 2, btnY, btnW, btnH), "Rematch"))
                     RematchRequested = true;
             }
         }
