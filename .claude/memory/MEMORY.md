@@ -40,6 +40,7 @@
 - [feedback_ui_display_names.md](feedback_ui_display_names.md) — V UI nikdy podtržítka — Robot_1 → Robot 1
 - [feedback_ui_table_alignment.md](feedback_ui_table_alignment.md) — UI tabulky: zarovnané sloupce, číslování řádků, header
 - [feedback_no_backward_compat.md](feedback_no_backward_compat.md) — Žádná zpětná kompatibilita — vždy aplikovat nová pravidla
+- [feedback_sessionstate_gamemode.md](feedback_sessionstate_gamemode.md) — Každý Play mode entry point musí nastavit SessionState("GameMode")
 
 ## Project
 - [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)

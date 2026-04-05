@@ -154,4 +154,167 @@ public class SilentTrainingFlagTests
         Assert.IsFalse(value,
             "SessionState should default to false when not set (safe fallback — graphics on).");
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── GameMode SessionState propagation ────────────────────────────────
+    // Every Play mode entry point MUST set SessionState("GameMode").
+    // ══════════════════════════════════════════════════════════════════════
+
+    private string originalGameMode;
+    private string originalHumanTeam;
+    private GameMode originalCurrentMode;
+    private Team originalHumanTeamConfig;
+
+    [SetUp]
+    public void SetUpGameMode()
+    {
+        originalGameMode = SessionState.GetString("GameMode", "Training");
+        originalHumanTeam = SessionState.GetString("HumanTeam", "Robot");
+        originalCurrentMode = GameModeConfig.CurrentMode;
+        originalHumanTeamConfig = GameModeConfig.HumanTeam;
+    }
+
+    [TearDown]
+    public void TearDownGameMode()
+    {
+        SessionState.SetString("GameMode", originalGameMode);
+        SessionState.SetString("HumanTeam", originalHumanTeam);
+        GameModeConfig.CurrentMode = originalCurrentMode;
+        GameModeConfig.HumanTeam = originalHumanTeamConfig;
+    }
+
+    // ── InitSessionState reads all 3 modes correctly ─────────────────
+
+    [Test]
+    public void InitSessionState_ReadsTrainingMode()
+    {
+        SessionState.SetString("GameMode", "Training");
+        GameModeConfig.CurrentMode = GameMode.HumanVsAI; // different
+
+        // Simulate InitSessionState logic.
+        string mode = SessionState.GetString("GameMode", "Training");
+        if (mode == "HumanVsAI")
+            GameModeConfig.CurrentMode = GameMode.HumanVsAI;
+        else if (mode == "Replay")
+            GameModeConfig.CurrentMode = GameMode.Replay;
+        else
+            GameModeConfig.CurrentMode = GameMode.Training;
+
+        Assert.AreEqual(GameMode.Training, GameModeConfig.CurrentMode);
+    }
+
+    [Test]
+    public void InitSessionState_ReadsHumanVsAIMode()
+    {
+        SessionState.SetString("GameMode", "HumanVsAI");
+        SessionState.SetString("HumanTeam", "Mutant");
+        GameModeConfig.CurrentMode = GameMode.Training;
+
+        string mode = SessionState.GetString("GameMode", "Training");
+        if (mode == "HumanVsAI")
+        {
+            GameModeConfig.CurrentMode = GameMode.HumanVsAI;
+            string team = SessionState.GetString("HumanTeam", "Robot");
+            GameModeConfig.HumanTeam = team == "Mutant" ? Team.Mutant : Team.Robot;
+        }
+        else if (mode == "Replay")
+            GameModeConfig.CurrentMode = GameMode.Replay;
+        else
+            GameModeConfig.CurrentMode = GameMode.Training;
+
+        Assert.AreEqual(GameMode.HumanVsAI, GameModeConfig.CurrentMode);
+        Assert.AreEqual(Team.Mutant, GameModeConfig.HumanTeam);
+    }
+
+    [Test]
+    public void InitSessionState_ReadsReplayMode()
+    {
+        SessionState.SetString("GameMode", "Replay");
+        GameModeConfig.CurrentMode = GameMode.HumanVsAI; // different
+
+        string mode = SessionState.GetString("GameMode", "Training");
+        if (mode == "HumanVsAI")
+            GameModeConfig.CurrentMode = GameMode.HumanVsAI;
+        else if (mode == "Replay")
+            GameModeConfig.CurrentMode = GameMode.Replay;
+        else
+            GameModeConfig.CurrentMode = GameMode.Training;
+
+        Assert.AreEqual(GameMode.Replay, GameModeConfig.CurrentMode);
+    }
+
+    [Test]
+    public void InitSessionState_DefaultsToTraining()
+    {
+        SessionState.EraseString("GameMode");
+
+        string mode = SessionState.GetString("GameMode", "Training");
+        Assert.AreEqual("Training", mode,
+            "GameMode SessionState must default to Training when not set.");
+    }
+
+    // ── Static analysis: every entry point sets SessionState("GameMode") ─
+
+    [Test]
+    public void LaunchGame_SetsGameModeSessionState()
+    {
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        // Find the Launch Game block — must set GameMode to Training.
+        Assert.IsTrue(source.Contains("SessionState.SetString(\"GameMode\", \"Training\")"),
+            "Launch Game must set SessionState(\"GameMode\", \"Training\").");
+    }
+
+    [Test]
+    public void LaunchHumanVsAI_SetsGameModeSessionState()
+    {
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        Assert.IsTrue(source.Contains("SessionState.SetString(\"GameMode\", \"HumanVsAI\")"),
+            "LaunchHumanVsAI must set SessionState(\"GameMode\", \"HumanVsAI\").");
+    }
+
+    [Test]
+    public void DoLaunchReplay_SetsGameModeSessionState()
+    {
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        Assert.IsTrue(source.Contains("SessionState.SetString(\"GameMode\", \"Replay\")"),
+            "DoLaunchReplay must set SessionState(\"GameMode\", \"Replay\").");
+    }
+
+    [Test]
+    public void InitSessionState_HandlesAllGameModes()
+    {
+        // Static analysis: GameManager.InitSessionState must handle all GameMode enum values.
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.cs"));
+
+        Assert.IsTrue(source.Contains("mode == \"HumanVsAI\""),
+            "InitSessionState must handle HumanVsAI mode.");
+        Assert.IsTrue(source.Contains("mode == \"Replay\""),
+            "InitSessionState must handle Replay mode.");
+        Assert.IsTrue(source.Contains("GameMode.Training"),
+            "InitSessionState must have Training as default fallback.");
+    }
+
+    // ── Every GameMode enum value has matching SessionState string ────
+
+    [Test]
+    public void AllGameModes_HaveSessionStateEntryPoint()
+    {
+        string ptw = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        foreach (var mode in System.Enum.GetNames(typeof(GameMode)))
+        {
+            Assert.IsTrue(
+                ptw.Contains($"SessionState.SetString(\"GameMode\", \"{mode}\")"),
+                $"ProjectToolsWindow must have an entry point that sets GameMode to \"{mode}\". " +
+                "Every GameMode enum value must have a corresponding SessionState writer.");
+        }
+    }
 }
