@@ -288,9 +288,23 @@ public class StaticResourceCleanupTests
             }
             string buildBody = source.Substring(braceStart, pos - braceStart);
 
-            // Must not have "new Material(" inside Build() — all materials must be static cached.
-            if (buildBody.Contains("new Material("))
-                violations.Add(fileName);
+            // Check for unguarded "new Material(" — allowed inside "if (x == null)" cache guards.
+            var lines = buildBody.Split('\n');
+            for (int li = 0; li < lines.Length; li++)
+            {
+                string line = lines[li].Trim();
+                if (!line.Contains("new Material(")) continue;
+
+                // Check if this line or the preceding line has a null guard.
+                bool hasGuard = line.Contains("== null");
+                if (li > 0)
+                    hasGuard |= lines[li - 1].Trim().Contains("== null");
+                if (li > 1)
+                    hasGuard |= lines[li - 2].Trim().Contains("== null");
+
+                if (!hasGuard)
+                    violations.Add(fileName + ": " + line);
+            }
         }
 
         Assert.IsEmpty(violations,
