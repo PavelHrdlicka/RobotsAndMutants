@@ -579,7 +579,7 @@ public class PlayModeFeatureTests
     {
         yield return null;
 
-        var result = new GameManager.TurnLogEntry(); // just verify struct exists
+        _ = new GameManager.TurnLogEntry(); // just verify struct exists
         // MatchResult is private — test via observable behavior instead.
         // Verify matchStartTime tracking exists in source code.
         string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Game", "GameManager.Episode.cs");

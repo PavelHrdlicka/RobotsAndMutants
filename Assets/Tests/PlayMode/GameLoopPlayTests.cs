@@ -608,7 +608,6 @@ public class GameLoopPlayTests
         // We test this by checking the turnOrder list directly isn't available,
         // but we can verify via the interleave pattern.
         // With 3 robots starting: R, M, R, M, R, M
-        Team prev = Team.None;
         var order = new List<Team>();
 
         // Build interleaved order manually (same logic as GameManager).
