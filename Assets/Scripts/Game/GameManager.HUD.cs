@@ -39,6 +39,9 @@ public partial class GameManager
     private float cachedRobotPct, cachedMutantPct;
     private int cachedRobotAlive, cachedMutantAlive;
     private int cachedRobotTotal, cachedMutantTotal;
+    private int cachedWallCount, cachedWallMax;
+    private int cachedSlimeCount, cachedSlimeMax;
+    private float cachedNeutralPct;
 
     // Cached stats strings (rebuilt every HudCacheInterval).
     private string statsLine1 = "", statsLine2 = "", statsLine3 = "", statsLine4 = "";
@@ -147,6 +150,13 @@ public partial class GameManager
         cachedMutantAlive = cachedState.mutantAlive;
         cachedRobotTotal  = unitFactory != null ? unitFactory.robotUnits.Count  : 0;
         cachedMutantTotal = unitFactory != null ? unitFactory.mutantUnits.Count : 0;
+        cachedNeutralPct  = 100f - cachedRobotPct - cachedMutantPct;
+
+        var cfg = GameConfig.Instance;
+        cachedWallCount  = grid != null ? grid.CountStructures(TileType.Wall)  : 0;
+        cachedSlimeCount = grid != null ? grid.CountStructures(TileType.Slime) : 0;
+        cachedWallMax    = cfg != null ? cfg.maxWalls : 8;
+        cachedSlimeMax   = cfg != null ? cfg.maxSlime : 8;
 
         RefreshStatsStrings();
     }
@@ -218,7 +228,8 @@ public partial class GameManager
             "ROBOTS", robotBg, iconRobot,
             new Color(0.3f, 0.5f, 0.95f),
             cachedRobotTotal, cachedRobotAlive, state.robotTiles, robotPct,
-            robotAttacks, robotKills, robotBuilds);
+            robotAttacks, robotKills, robotBuilds,
+            cachedWallCount, cachedWallMax);
 
         // Mutant panel (right of center).
         float mutantX = centerX + centerW + margin;
@@ -226,7 +237,12 @@ public partial class GameManager
             "MUTANTS", mutantBg, iconMutant,
             new Color(0.35f, 0.85f, 0.25f),
             cachedMutantTotal, cachedMutantAlive, state.mutantTiles, mutantPct,
-            mutantAttacks, mutantKills, mutantBuilds);
+            mutantAttacks, mutantKills, mutantBuilds,
+            cachedSlimeCount, cachedSlimeMax);
+
+        // Unified territory bar (below round counter).
+        DrawTerritoryBar(centerX, margin + centerH + 4, centerW, 14,
+            robotPct, mutantPct);
 
         // Game over banner — suppress during replay playback (gameOver is used to block game loop).
         var replayPlayer = GetComponent<ReplayPlayer>();
@@ -275,6 +291,10 @@ public partial class GameManager
                     {
                         GameModeConfig.CurrentMode = GameMode.Replay;
                         ReplayPlayer.PendingReplayPath = replayPath;
+#if UNITY_EDITOR
+                        UnityEditor.SessionState.SetString("GameMode", "Replay");
+                        UnityEditor.SessionState.SetString("ReplayPlayer_PendingPath", replayPath);
+#endif
                         UnityEngine.SceneManagement.SceneManager.LoadScene(
                             UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
                     }
@@ -285,8 +305,12 @@ public partial class GameManager
             }
         }
 
-        DrawSessionStats();
-        DrawMatchHistory();
+        // Hide session stats and match history during replay (ReplayPlayerHUD handles its own display).
+        if (!isReplayActive)
+        {
+            DrawSessionStats();
+            DrawMatchHistory();
+        }
 
         if (GameModeConfig.CurrentMode == GameMode.HumanVsAI)
         {
@@ -427,6 +451,21 @@ public partial class GameManager
         return name != null ? name.Replace("_", " ") : "";
     }
 
+    /// <summary>Format action for display: "PlaceSlime" → "Place Slime", "BuildWall" → "Build Wall".</summary>
+    public static string FormatAction(string action)
+    {
+        if (string.IsNullOrEmpty(action)) return "";
+        // Insert space before uppercase letters (PascalCase → spaced).
+        var sb = new System.Text.StringBuilder(action.Length + 4);
+        for (int i = 0; i < action.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(action[i]) && char.IsLower(action[i - 1]))
+                sb.Append(' ');
+            sb.Append(action[i]);
+        }
+        return sb.ToString();
+    }
+
     private void DrawTurnLog()
     {
         if (turnLog.Count == 0) return;
@@ -469,7 +508,8 @@ public partial class GameManager
         const float rowH      = 17f;
         const float headerH   = 22f;
         const float subHeaderH = 16f;
-        float logH = headerH + subHeaderH + turnLog.Count * rowH + pad;
+        const int maxVisibleRows = 10;
+        float logH = headerH + subHeaderH + maxVisibleRows * rowH + pad;
         float logX = Screen.width - logW - 10f;
         float logY = Screen.height - logH - 120f;
 
@@ -512,10 +552,10 @@ public partial class GameManager
             turnLogStyle.normal.textColor = rowColor;
             GUI.Label(new Rect(logX + pad + colNum, y, colUnit, rowH), FormatUnitName(entry.unitName), turnLogStyle);
 
-            // Action (team color, aligned). Show "Respawn X" for dead units.
+            // Action (team color, aligned). Show "Waiting" for dead units, format PascalCase.
             string actionText = entry.action == UnitAction.Dead
                 ? "\u23F3 Waiting"
-                : entry.action.ToString();
+                : FormatAction(entry.action.ToString());
             GUI.Label(new Rect(logX + pad + colNum + colUnit, y, colAction, rowH), actionText, turnLogStyle);
 
             y += rowH;
@@ -529,7 +569,8 @@ public partial class GameManager
     private void DrawTeamPanel(float px, float py, float pw, float ph,
         string title, Texture2D bg, Texture2D unitIcon, Color teamColor,
         int unitTotal, int aliveCount, int tiles, float tilePct,
-        int attacks, int kills, int builds)
+        int attacks, int kills, int builds,
+        int structCount, int structMax)
     {
         const float iconS = 16f;
         const float gap   = 3f;
@@ -556,11 +597,58 @@ public partial class GameManager
 
         float sy2 = py + 72;
         GUI.DrawTexture(new Rect(px + 10, sy2, iconS, iconS), iconHammer);
-        GUI.Label(new Rect(px + 30, sy2, 40, iconS), $"{builds}", statNumStyle);
-        GUI.DrawTexture(new Rect(px + 75, sy2, iconS, iconS), iconTiles);
-        GUI.Label(new Rect(px + 95, sy2, 100, iconS), $"{tiles} ({tilePct:F0}%)", statNumStyle);
+        string buildLabel = structMax > 0 ? $"{builds} ({structCount}/{structMax})" : $"{builds}";
+        GUI.Label(new Rect(px + 30, sy2, 100, iconS), buildLabel, statNumStyle);
+        GUI.DrawTexture(new Rect(px + 140, sy2, iconS, iconS), iconTiles);
+        GUI.Label(new Rect(px + 160, sy2, 45, iconS), $"{tiles}", statNumStyle);
+    }
 
-        DrawBar(new Rect(px + 10, py + 96, pw - 20, 6), tilePct / 100f, teamColor);
+    /// <summary>Unified territory bar: blue (robots) | green (mutants) | gray (neutral), with % labels.</summary>
+    private void DrawTerritoryBar(float x, float y, float w, float h, float robotPct, float mutantPct)
+    {
+        float neutralPct = Mathf.Max(0, 100f - robotPct - mutantPct);
+        float rW = w * robotPct / 100f;
+        float mW = w * mutantPct / 100f;
+        float nW = w - rW - mW;
+
+        // Background.
+        GUI.color = new Color(0.15f, 0.15f, 0.15f, 0.8f);
+        GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
+
+        // Robot portion (blue).
+        if (rW > 0)
+        {
+            GUI.color = new Color(0.25f, 0.45f, 0.9f);
+            GUI.DrawTexture(new Rect(x, y, rW, h), Texture2D.whiteTexture);
+        }
+        // Neutral portion (gray) in the middle.
+        if (nW > 0)
+        {
+            GUI.color = new Color(0.35f, 0.35f, 0.35f);
+            GUI.DrawTexture(new Rect(x + rW, y, nW, h), Texture2D.whiteTexture);
+        }
+        // Mutant portion (green).
+        if (mW > 0)
+        {
+            GUI.color = new Color(0.2f, 0.7f, 0.2f);
+            GUI.DrawTexture(new Rect(x + rW + nW, y, mW, h), Texture2D.whiteTexture);
+        }
+        GUI.color = Color.white;
+
+        // Labels.
+        var barLabelStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 10, fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = Color.white }
+        };
+
+        if (robotPct >= 5f)
+            GUI.Label(new Rect(x, y, rW, h), $"{robotPct:F0}%", barLabelStyle);
+        if (neutralPct >= 8f)
+            GUI.Label(new Rect(x + rW, y, nW, h), $"{neutralPct:F0}%", barLabelStyle);
+        if (mutantPct >= 5f)
+            GUI.Label(new Rect(x + rW + nW, y, mW, h), $"{mutantPct:F0}%", barLabelStyle);
     }
 
     private static void DrawBar(Rect rect, float fill, Color color)

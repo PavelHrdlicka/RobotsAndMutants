@@ -18,6 +18,14 @@ public class MainMenuController : MonoBehaviour
         ShowMain();
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        // Fix button hover: Image.color must be white, Button.colors handles tinting.
+        foreach (var btn in GetComponentsInChildren<UnityEngine.UI.Button>(true))
+        {
+            var img = btn.GetComponent<UnityEngine.UI.Image>();
+            if (img != null)
+                img.color = Color.white;
+        }
     }
 
     // ── Panel navigation ────────────────────────────────────────────────
@@ -42,13 +50,74 @@ public class MainMenuController : MonoBehaviour
         SetActivePanel(settingsPanel);
     }
 
+    private bool showQuitConfirm;
+
     public void QuitGame()
+    {
+        showQuitConfirm = true;
+    }
+
+    private void DoQuit()
     {
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
         Application.Quit();
 #endif
+    }
+
+    private void Update()
+    {
+        // Block Canvas raycasts while quit modal is visible.
+        var canvas = GetComponentInChildren<UnityEngine.UI.GraphicRaycaster>();
+        if (canvas != null)
+            canvas.enabled = !showQuitConfirm;
+    }
+
+    private int quitModalId = 12345;
+
+    private void OnGUI()
+    {
+        if (!showQuitConfirm) return;
+
+        // Dark overlay behind modal.
+        GUI.color = new Color(0, 0, 0, 0.85f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        float w = 320f, h = 140f;
+        float x = (Screen.width - w) * 0.5f;
+        float y = (Screen.height - h) * 0.5f;
+
+        // ModalWindow blocks all OnGUI input outside itself.
+        GUI.ModalWindow(quitModalId, new Rect(x, y, w, h), DrawQuitModal, GUIContent.none);
+    }
+
+    private void DrawQuitModal(int id)
+    {
+        var labelStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 18, fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = Color.white }
+        };
+        GUI.Label(new Rect(0, 15, 320, 30), "Quit Game?", labelStyle);
+
+        var subStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 13, alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = new Color(0.7f, 0.7f, 0.7f) }
+        };
+        GUI.Label(new Rect(0, 45, 320, 24), "Are you sure you want to quit?", subStyle);
+
+        var btnStyle = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold };
+        float btnW = 120f, btnH = 36f;
+        float btnY = 140f - btnH - 16f;
+
+        if (GUI.Button(new Rect(320f * 0.5f - btnW - 8, btnY, btnW, btnH), "Quit", btnStyle))
+            DoQuit();
+        if (GUI.Button(new Rect(320f * 0.5f + 8, btnY, btnW, btnH), "Cancel", btnStyle))
+            showQuitConfirm = false;
     }
 
     // ── Game launch ─────────────────────────────────────────────────────

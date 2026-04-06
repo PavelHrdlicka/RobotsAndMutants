@@ -361,6 +361,95 @@ public class GameReplayLoggerTests
             "turnTime must use invariant culture (dot as decimal separator).");
     }
 
+    // ── Replay subdirectories per game mode ───────────────────────────
+
+    [Test]
+    public void GetReplayDirForMode_Training_ReturnsTrainingSubdir()
+    {
+        string dir = GameReplayLogger.GetReplayDirForMode(GameMode.Training);
+        Assert.IsTrue(dir.EndsWith("Training") || dir.EndsWith("Training" + Path.DirectorySeparatorChar),
+            $"Training mode should use Training subdirectory, got: {dir}");
+        Assert.IsTrue(dir.Contains("Replays"),
+            "Path should be under Replays root.");
+    }
+
+    [Test]
+    public void GetReplayDirForMode_HumanVsAI_ReturnsHumanVsAISubdir()
+    {
+        string dir = GameReplayLogger.GetReplayDirForMode(GameMode.HumanVsAI);
+        Assert.IsTrue(dir.EndsWith("HumanVsAI") || dir.EndsWith("HumanVsAI" + Path.DirectorySeparatorChar),
+            $"HumanVsAI mode should use HumanVsAI subdirectory, got: {dir}");
+        Assert.IsTrue(dir.Contains("Replays"),
+            "Path should be under Replays root.");
+    }
+
+    [Test]
+    public void GetReplayDirForMode_Replay_ReturnsTrainingSubdir()
+    {
+        // Replay mode doesn't write replays, but if called should fallback to Training.
+        string dir = GameReplayLogger.GetReplayDirForMode(GameMode.Replay);
+        Assert.IsTrue(dir.EndsWith("Training") || dir.EndsWith("Training" + Path.DirectorySeparatorChar),
+            "Replay mode should default to Training subdirectory.");
+    }
+
+    [Test]
+    public void TrainingAndHumanVsAI_AreDifferentDirs()
+    {
+        string training = GameReplayLogger.TrainingReplayDir;
+        string humanVsAI = GameReplayLogger.HumanVsAIReplayDir;
+        Assert.AreNotEqual(training, humanVsAI,
+            "Training and HumanVsAI replay directories must be different.");
+    }
+
+    [Test]
+    public void ReplayRootDir_IsNotUnderAssets()
+    {
+        string root = GameReplayLogger.ReplayRootDir;
+        string assetsDir = Path.GetFullPath("Assets");
+        Assert.IsFalse(root.StartsWith(assetsDir, System.StringComparison.OrdinalIgnoreCase),
+            "Replay root must not be under Assets/.");
+    }
+
+    // ── Static analysis: consumers use correct subdirectory ──────────────
+
+    [Test]
+    public void ReplaysPanel_UsesHumanVsAIDir()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+        Assert.IsTrue(source.Contains("GameReplayLogger.HumanVsAIReplayDir"),
+            "ReplaysPanel (player-facing) must read from HumanVsAI subdirectory.");
+        Assert.IsFalse(source.Contains("Path.GetFullPath(\"Replays\")"),
+            "ReplaysPanel must not use hardcoded Replays path — use GameReplayLogger constants.");
+    }
+
+    [Test]
+    public void StrategyAnalyzer_UsesTrainingDir()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(Application.dataPath, "Editor/StrategyAnalyzer.cs"));
+        Assert.IsTrue(source.Contains("GameReplayLogger.TrainingReplayDir"),
+            "StrategyAnalyzer must read from Training subdirectory.");
+    }
+
+    [Test]
+    public void NoHardcodedReplayPath_InScripts()
+    {
+        // Scan all script files to ensure no hardcoded Path.GetFullPath("Replays").
+        string scriptsDir = Path.Combine(Application.dataPath, "Scripts");
+        var files = Directory.GetFiles(scriptsDir, "*.cs", SearchOption.AllDirectories);
+        foreach (var file in files)
+        {
+            string content = File.ReadAllText(file);
+            string name = Path.GetFileName(file);
+            // Allow GameReplayLogger itself (it defines the constants).
+            if (name == "GameReplayLogger.cs") continue;
+            Assert.IsFalse(content.Contains("Path.GetFullPath(\"Replays\")"),
+                $"{name} must use GameReplayLogger.ReplayRootDir/TrainingReplayDir/HumanVsAIReplayDir " +
+                "instead of hardcoded Path.GetFullPath(\"Replays\").");
+        }
+    }
+
     // ── Static analysis: turnTime field in source ───────────────────────
 
     [Test]

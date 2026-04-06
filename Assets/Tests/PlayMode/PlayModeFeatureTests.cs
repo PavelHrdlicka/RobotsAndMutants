@@ -122,28 +122,47 @@ public class PlayModeFeatureTests
     }
 
     [UnityTest]
-    public IEnumerator TurnGlow_HasEmissionWhenMyTurn()
+    public IEnumerator TurnGlow_EmissionRemoved()
     {
-        var (data, _) = SpawnUnit(Team.Robot, new HexCoord(0, 0));
-
-        var modelRoot = new GameObject("ModelRoot");
-        modelRoot.transform.SetParent(data.transform, false);
-        var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        cube.transform.SetParent(modelRoot.transform, false);
-        var rend = cube.GetComponent<Renderer>();
-
-        data.gameObject.AddComponent<UnitActionIndicator3D>();
-        data.isMyTurn = true;
-        data.isAlive = true;
-        yield return null;
+        // Emission-based turn glow was removed (caused massive bloom).
+        // Verify the indicator no longer sets _EmissionColor.
         yield return null;
 
-        // Glow is set via MaterialPropertyBlock, read it from there.
-        var block = new MaterialPropertyBlock();
-        rend.GetPropertyBlock(block);
-        Color emission = block.GetColor("_EmissionColor");
-        Assert.Greater(emission.r + emission.g + emission.b, 0f,
-            "Should have emission glow when unit is on turn.");
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/UnitActionIndicator3D.cs"));
+
+        Assert.IsFalse(source.Contains("_EmissionColor"),
+            "UnitActionIndicator3D must not use emission glow (removed due to bloom).");
+    }
+
+    [UnityTest]
+    public IEnumerator TurnHighlight_UsesBrightnessNotEmission()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/UnitActionIndicator3D.cs"));
+
+        // Turn highlight must use _BaseColor brightness pulse, not _EmissionColor.
+        Assert.IsTrue(source.Contains("UpdateTurnHighlight"),
+            "UnitActionIndicator3D must have UpdateTurnHighlight for active turn visual.");
+        Assert.IsTrue(source.Contains("_BaseColor") && source.Contains("Color.Lerp"),
+            "Turn highlight must pulse brightness via _BaseColor lerp toward white.");
+        Assert.IsTrue(source.Contains("originalColors"),
+            "Turn highlight must cache and restore original colors.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayVisuals_NoLitMaterials()
+    {
+        // All runtime visuals must use Unlit shaders to prevent bloom artifacts.
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        Assert.IsFalse(source.Contains(".material.color"),
+            "ReplayPlayer must not use .material.color (creates Lit instances, causes bloom). Use MaterialPropertyBlock.");
     }
 
     [UnityTest]
@@ -798,7 +817,7 @@ public class PlayModeFeatureTests
         // Static analysis: Latest button must skip files smaller than threshold.
         yield return null;
 
-        string path = System.IO.Path.Combine(Application.dataPath, "Editor", "ProjectToolsWindow.cs");
+        string path = System.IO.Path.Combine(Application.dataPath, "Scripts", "Game", "MainMenu", "ReplaysPanel.cs");
         if (System.IO.File.Exists(path))
         {
             string source = System.IO.File.ReadAllText(path);

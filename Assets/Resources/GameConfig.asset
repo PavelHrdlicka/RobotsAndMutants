@@ -41,7 +41,7 @@ MonoBehaviour:
   enemyLossRewardPerTile: 0.1
   buildAdjacencyBonus: 0.05
   hexCaptureReward: 0.05
-  wallPlacementReward: 0.10
+  wallPlacementReward: 0.1
   slimePlacementReward: 0.08
   slimeNetworkBonus: 0.04
   cohesionBonus: 0.02

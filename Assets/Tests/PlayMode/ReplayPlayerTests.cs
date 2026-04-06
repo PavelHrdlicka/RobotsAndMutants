@@ -700,6 +700,75 @@ public class ReplayPlayerTests
             $"Killed Mutant_1 should be teleported to Mutant base, but is at {mutant0.currentHex}.");
     }
 
+    // ── Play / Restart / Finished behavior ──────────────────────────────
+
+    [UnityTest]
+    public IEnumerator Play_WhenFinished_DoesNotRestart()
+    {
+        yield return null;
+
+        var replay = BuildTestReplay();
+        player.TestInitialize(replay, grid, factory);
+
+        player.JumpToEnd();
+        Assert.AreEqual(ReplayPlayer.PlaybackState.Finished, player.state);
+
+        int turnBefore = player.currentTurnIndex;
+        player.Play(); // Should do nothing when Finished.
+        Assert.AreEqual(ReplayPlayer.PlaybackState.Finished, player.state,
+            "Play() must not restart when state is Finished — use Restart() instead.");
+        Assert.AreEqual(turnBefore, player.currentTurnIndex);
+    }
+
+    [UnityTest]
+    public IEnumerator Restart_WhenFinished_GoesToStartAndPlays()
+    {
+        yield return null;
+
+        var replay = BuildTestReplay();
+        player.TestInitialize(replay, grid, factory);
+
+        player.JumpToEnd();
+        Assert.AreEqual(ReplayPlayer.PlaybackState.Finished, player.state);
+
+        player.Restart();
+        Assert.AreEqual(ReplayPlayer.PlaybackState.Playing, player.state,
+            "Restart() should set state to Playing.");
+        Assert.AreEqual(0, player.currentTurnIndex,
+            "Restart() should reset turn index to 0.");
+        Assert.AreEqual(0, player.currentRound,
+            "Restart() should reset round to 0.");
+    }
+
+    [UnityTest]
+    public IEnumerator Restart_WhenPaused_GoesToStartAndPlays()
+    {
+        yield return null;
+
+        var replay = BuildTestReplay();
+        player.TestInitialize(replay, grid, factory);
+
+        player.JumpToRound(1);
+        Assert.AreEqual(ReplayPlayer.PlaybackState.Paused, player.state,
+            "JumpToRound(1) should leave state as Paused (not all turns consumed).");
+
+        player.Restart();
+        Assert.AreEqual(ReplayPlayer.PlaybackState.Playing, player.state);
+        Assert.AreEqual(0, player.currentTurnIndex);
+    }
+
+    [UnityTest]
+    public IEnumerator DefaultTurnDelay_IsOneSecond()
+    {
+        yield return null;
+
+        // Verify the default is 1.0s (not the old 0.3s).
+        Assert.AreEqual(1.0f, player.turnDelay, 0.01f,
+            "Default turnDelay should be 1.0 second per turn.");
+    }
+
+    // ── Dead unit replay tests (existing) ──────────────────────────────
+
     [UnityTest]
     public IEnumerator DeadUnit_DoesNotBuild_TileStaysEmpty()
     {

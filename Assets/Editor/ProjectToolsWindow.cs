@@ -18,7 +18,6 @@ public class ProjectToolsWindow : EditorWindow
     private Vector2 scrollPos;
 
     // Replay analysis state.
-    private int analyzeCount = 10;
     private string lastAnalysisResult;
 
     // Foldout states (persisted via EditorPrefs).
@@ -288,10 +287,7 @@ public class ProjectToolsWindow : EditorWindow
 
         DrawConfigSection();
         DrawTrainingSection();
-        DrawObserveSection();
-        DrawPlayVsAISection();
-        DrawReplaySection();
-        DrawAnalysisSection();
+        DrawLaunchSection();
         DrawTestingSection();
 
         EditorGUILayout.EndScrollView();
@@ -504,22 +500,20 @@ public class ProjectToolsWindow : EditorWindow
 
     // ─── 3. Observe ───────────────────────────────────────
 
-    private void DrawObserveSection()
+    private void DrawLaunchSection()
     {
-        DrawSection("Observe (no training)", () =>
+        DrawSection("Launch", () =>
         {
             GUI.backgroundColor = new Color(1f, 0.85f, 0.3f);
             if (GUILayout.Button("Launch Main Menu", GUILayout.Height(35)))
-            {
                 LaunchMainMenu();
-            }
             GUI.backgroundColor = Color.white;
+
             GUILayout.Space(5);
 
             GUI.backgroundColor = new Color(0.3f, 0.8f, 0.3f);
-            if (GUILayout.Button("Launch Game", GUILayout.Height(35)))
+            if (GUILayout.Button("Launch AI vs AI (observe)", GUILayout.Height(30)))
             {
-                // Reset to Training mode (AI vs AI observation).
                 GameModeConfig.CurrentMode = GameMode.Training;
                 SessionState.SetString("GameMode", "Training");
 
@@ -543,43 +537,7 @@ public class ProjectToolsWindow : EditorWindow
             }
             GUI.backgroundColor = Color.white;
 
-            // Speed info (read-only, config is edited in Configuration section).
-            var config = GameConfigEditor.GetOrCreateConfig();
-            if (config != null)
-            {
-                float ticksPerSec = 1000f / config.msPerTick;
-                EditorGUILayout.LabelField($"Speed: {config.msPerTick}ms/tick ({ticksPerSec:F0} ticks/s)", EditorStyles.miniLabel);
-            }
-
-            EditorGUILayout.Space(4);
-            if (GUILayout.Button("Reset Game"))
-                ResetGame();
-        });
-    }
-
-    // ─── 3a. Play vs AI ─────────────────────────────────────
-
-    private void DrawPlayVsAISection()
-    {
-        DrawSection("Play vs AI", () =>
-        {
-            EditorGUILayout.LabelField("Choose your team and play against trained AI.", EditorStyles.wordWrappedMiniLabel);
-
-            EditorGUILayout.BeginHorizontal();
-
-            GUI.backgroundColor = new Color(0.4f, 0.6f, 1f);
-            if (GUILayout.Button("Play as Robots", GUILayout.Height(30)))
-                LaunchHumanVsAI(Team.Robot);
-
-            GUI.backgroundColor = new Color(0.3f, 0.8f, 0.3f);
-            if (GUILayout.Button("Play as Mutants", GUILayout.Height(30)))
-                LaunchHumanVsAI(Team.Mutant);
-
-            GUI.backgroundColor = Color.white;
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.Space(2);
-            EditorGUILayout.LabelField("Controls: [1] Move  [2] Attack  [3] Build  [4] Destroy  [Space] Idle", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("Play vs AI, Replays, Settings → use Main Menu", EditorStyles.miniLabel);
         });
     }
 
@@ -617,227 +575,11 @@ public class ProjectToolsWindow : EditorWindow
         EditorApplication.isPlaying = true;
     }
 
-    private void LaunchHumanVsAI(Team humanTeam)
-    {
-        GameModeConfig.CurrentMode = GameMode.HumanVsAI;
-        GameModeConfig.HumanTeam = humanTeam;
-
-        // Persist across domain reload.
-        SessionState.SetString("GameMode", "HumanVsAI");
-        SessionState.SetString("HumanTeam", humanTeam.ToString());
-
-        if (EditorApplication.isPlaying)
-        {
-            EditorApplication.isPlaying = false;
-            void OnExit(PlayModeStateChange s)
-            {
-                if (s == PlayModeStateChange.EnteredEditMode)
-                {
-                    EditorApplication.playModeStateChanged -= OnExit;
-                    DoResetSetupPlay();
-                }
-            };
-            EditorApplication.playModeStateChanged += OnExit;
-        }
-        else
-        {
-            DoResetSetupPlay();
-        }
-    }
-
-    // ─── 3b. Replay ─────────────────────────────────────────
-
-    private string selectedReplayPath;
-    private bool cachedHasReplays;
-
-    private void DrawReplaySection()
-    {
-        // Cache replay availability on Layout for stable controls.
-        if (Event.current.type == EventType.Layout)
-        {
-            string dir = System.IO.Path.GetFullPath("Replays");
-            cachedHasReplays = System.IO.Directory.Exists(dir)
-                && System.IO.Directory.GetFiles(dir, "game_*.jsonl").Length > 0;
-
-            // Clear selected path if file was deleted.
-            if (!string.IsNullOrEmpty(selectedReplayPath) && !System.IO.File.Exists(selectedReplayPath))
-                selectedReplayPath = null;
-        }
-
-        DrawSection("Replay", () =>
-        {
-            // ── File selection ──
-            EditorGUILayout.BeginHorizontal();
-            string displayName = string.IsNullOrEmpty(selectedReplayPath)
-                ? "(no file selected)"
-                : System.IO.Path.GetFileName(selectedReplayPath);
-            EditorGUILayout.LabelField(displayName, EditorStyles.miniLabel);
-
-            if (GUILayout.Button("Browse...", GUILayout.Width(70)))
-            {
-                string dir = System.IO.Path.GetFullPath("Replays");
-                if (!System.IO.Directory.Exists(dir)) dir = System.IO.Path.GetFullPath(".");
-                string path = EditorUtility.OpenFilePanel("Select Replay File", dir, "jsonl");
-                if (!string.IsNullOrEmpty(path))
-                    selectedReplayPath = path;
-            }
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            GUI.enabled = cachedHasReplays;
-            if (GUILayout.Button("Latest"))
-            {
-                string dir = System.IO.Path.GetFullPath("Replays");
-                if (System.IO.Directory.Exists(dir))
-                {
-                    var files = System.IO.Directory.GetFiles(dir, "game_*.jsonl");
-                    string latest = null;
-                    var latestTime = System.DateTime.MinValue;
-                    foreach (var f in files)
-                    {
-                        // Skip incomplete replays (no summary line = fewer than 3 lines).
-                        var info = new System.IO.FileInfo(f);
-                        if (info.Length < 100) continue; // too small to be valid
-
-                        var t = info.LastWriteTime;
-                        if (t > latestTime) { latest = f; latestTime = t; }
-                    }
-                    if (latest != null)
-                        selectedReplayPath = latest;
-                }
-            }
-            GUI.enabled = true;
-            if (GUILayout.Button("Open Folder"))
-            {
-                string dir = System.IO.Path.GetFullPath("Replays");
-                if (System.IO.Directory.Exists(dir))
-                    EditorUtility.RevealInFinder(dir);
-                else
-                    Debug.LogWarning("[Replay] No Replays folder yet.");
-            }
-            EditorGUILayout.EndHorizontal();
-
-            // ── Load button ──
-            EditorGUILayout.Space(4);
-            GUI.enabled = !string.IsNullOrEmpty(selectedReplayPath);
-            GUI.backgroundColor = new Color(1f, 0.84f, 0f);
-            if (GUILayout.Button("Load Replay", GUILayout.Height(30)))
-                LaunchReplay(selectedReplayPath);
-            GUI.backgroundColor = Color.white;
-            GUI.enabled = true;
-        });
-    }
-
-    private static void LaunchReplay(string replayPath)
-    {
-        if (EditorApplication.isPlaying)
-        {
-            EditorApplication.isPlaying = false;
-            void OnExit(PlayModeStateChange s)
-            {
-                if (s == PlayModeStateChange.EnteredEditMode)
-                {
-                    EditorApplication.playModeStateChanged -= OnExit;
-                    DoLaunchReplay(replayPath);
-                }
-            };
-            EditorApplication.playModeStateChanged += OnExit;
-        }
-        else
-        {
-            DoLaunchReplay(replayPath);
-        }
-    }
-
-    private static void DoLaunchReplay(string replayPath)
-    {
-        // Reset game mode to Replay so GameManager doesn't start in HumanVsAI.
-        GameModeConfig.CurrentMode = GameMode.Replay;
-        SessionState.SetString("GameMode", "Replay");
-
-        // SessionState survives domain reload (unlike static fields).
-        SessionState.SetString("ReplayPlayer_PendingPath", replayPath);
-        ReplayPlayer.PendingReplayPath = replayPath;
-
-        var scenePath = "Assets/Scenes/SampleScene.unity";
-        if (System.IO.File.Exists(scenePath))
-            EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
-
-        HexGridSetup.Reset();
-        HexGridSetup.SetupScene();
-        AssetDatabase.SaveAssets();
-        EditorSceneManager.SaveOpenScenes();
-        EditorApplication.isPlaying = true;
-    }
-
-    // ─── 4. Analysis ──────────────────────────────────────
-
-    private void DrawAnalysisSection()
-    {
-        DrawSection("Analysis", () =>
-        {
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Last N games:", GUILayout.Width(90));
-            analyzeCount = EditorGUILayout.IntField(analyzeCount, GUILayout.Width(50));
-            if (GUILayout.Button("Analyze"))
-            {
-                var results = StrategyAnalyzer.AnalyzeLast(analyzeCount);
-                StrategyAnalyzer.LogResults(results);
-                lastAnalysisResult = results.Count > 0
-                    ? $"Analyzed {results.Count} games. See Console."
-                    : "No replay files found.";
-            }
-            EditorGUILayout.EndHorizontal();
-
-            if (GUILayout.Button("Analyze All Replays"))
-            {
-                var results = StrategyAnalyzer.AnalyzeAll();
-                StrategyAnalyzer.LogResults(results);
-                lastAnalysisResult = results.Count > 0
-                    ? $"Analyzed {results.Count} games. CSV exported."
-                    : "No replay files found.";
-            }
-
-            EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
-            EditorGUILayout.LabelField("AI Highlights", EditorStyles.miniBoldLabel);
-
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Detect Highlights (Last N)"))
-            {
-                string path = HighlightDetector.AnalyzeAndExport(analyzeCount);
-                lastAnalysisResult = path != null
-                    ? $"Highlights exported to {path}. Open in Claude Code for AI interpretation."
-                    : "No replay files found.";
-            }
-            if (GUILayout.Button("Detect All"))
-            {
-                string path = HighlightDetector.AnalyzeAndExport();
-                lastAnalysisResult = path != null
-                    ? $"Highlights exported to {path}. Open in Claude Code for AI interpretation."
-                    : "No replay files found.";
-            }
-            EditorGUILayout.EndHorizontal();
-
-            if (GUILayout.Button("Open Replays Folder"))
-            {
-                string dir = System.IO.Path.GetFullPath("Replays");
-                if (System.IO.Directory.Exists(dir))
-                    EditorUtility.RevealInFinder(dir);
-                else
-                    Debug.LogWarning("[ProjectTools] Replays folder not found yet. Play some games first.");
-            }
-
-            if (!string.IsNullOrEmpty(lastAnalysisResult))
-                EditorGUILayout.HelpBox(lastAnalysisResult, MessageType.Info);
-        });
-    }
-
-    // ─── 5. Testing ───────────────────────────────────────
+    // ─── 4. Testing ───────────────────────────────────────
 
     private void DrawTestingSection()
     {
-        DrawSection("Testing", () =>
+        DrawSection("Testing & Analysis", () =>
         {
             GUI.backgroundColor = new Color(0.3f, 0.8f, 1f);
             if (GUILayout.Button("Run All Tests", GUILayout.Height(35)))
@@ -854,8 +596,8 @@ public class ProjectToolsWindow : EditorWindow
             }
             GUI.backgroundColor = Color.white;
 
-            if (GUILayout.Button("Open Test Runner"))
-                EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
+            if (GUILayout.Button("Open Test Runner (expanded)"))
+                OpenTestRunnerExpanded();
 
             EditorGUILayout.Space(4);
             bool autoTest = AutoTestRunner.Enabled;
@@ -863,6 +605,34 @@ public class ProjectToolsWindow : EditorWindow
             if (newAutoTest != autoTest)
                 AutoTestRunner.Enabled = newAutoTest;
 
+            // ── Replay analysis ──
+            EditorGUILayout.Space(8);
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            EditorGUILayout.LabelField("Replay Analysis", EditorStyles.miniBoldLabel);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Analyze All Replays"))
+            {
+                var results = StrategyAnalyzer.AnalyzeAll();
+                StrategyAnalyzer.LogResults(results);
+                lastAnalysisResult = results.Count > 0
+                    ? $"Analyzed {results.Count} games. CSV exported."
+                    : "No replay files found.";
+            }
+            if (GUILayout.Button("Open Replays Folder"))
+            {
+                string dir = GameReplayLogger.ReplayRootDir;
+                if (System.IO.Directory.Exists(dir))
+                    EditorUtility.RevealInFinder(dir);
+                else
+                    Debug.LogWarning("[ProjectTools] Replays folder not found yet.");
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(lastAnalysisResult))
+                EditorGUILayout.HelpBox(lastAnalysisResult, MessageType.Info);
+
+            // ── Danger zone ──
             EditorGUILayout.Space(8);
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
             GUI.backgroundColor = new Color(1f, 0.4f, 0.3f);
@@ -872,6 +642,165 @@ public class ProjectToolsWindow : EditorWindow
         });
     }
 
+
+    private static void OpenTestRunnerExpanded()
+    {
+        EditorApplication.ExecuteMenuItem("Window/General/Test Runner");
+
+        EditorApplication.delayCall += () =>
+        {
+            try
+            {
+                var asm = System.Reflection.Assembly.Load("UnityEditor.TestRunner");
+                if (asm == null) return;
+
+                var windowType = asm.GetType("UnityEditor.TestTools.TestRunner.TestRunnerWindow");
+                if (windowType == null) return;
+
+                var window = EditorWindow.GetWindow(windowType);
+                if (window == null) return;
+
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                          | System.Reflection.BindingFlags.Instance;
+
+                // Keep whichever tab the user had selected (expand both anyway).
+
+                // Expand all trees in both EditMode and PlayMode GUIs.
+                var guisField = windowType.GetField("m_TestListGUIs", flags);
+                if (guisField != null)
+                {
+                    var arr = guisField.GetValue(window) as System.Array;
+                    if (arr != null)
+                    {
+                        foreach (var gui in arr)
+                        {
+                            if (gui == null) continue;
+                            ExpandTestListTree(gui, flags);
+                        }
+                    }
+                }
+
+                window.Repaint();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[ProjectTools] Test Runner expand failed: {ex.Message}");
+            }
+        };
+    }
+
+    private static void ExpandTestListTree(object testListGui, System.Reflection.BindingFlags flags)
+    {
+        var guiType = testListGui.GetType();
+
+        // Get TreeViewController to read actual item IDs.
+        var treeField = guiType.GetField("m_TestListTree", flags);
+        if (treeField == null) return;
+        var tree = treeField.GetValue(testListGui);
+        if (tree == null) return;
+
+        // Get TreeViewState to set expandedIDs.
+        var stateField = guiType.GetField("m_TestListState", flags);
+        if (stateField == null) return;
+        var state = stateField.GetValue(testListGui);
+        if (state == null) return;
+
+        // Collect item IDs from top 3 levels (root → dll → test classes), not individual tests.
+        var ids = new System.Collections.Generic.List<int>();
+        CollectItemIDsToDepth(tree, flags, ids, 3);
+
+        if (ids.Count == 0)
+        {
+            // Fallback: brute-force range including negative IDs.
+            for (int i = -1000; i < 1000; i++) ids.Add(i);
+        }
+
+        ids.Sort();
+
+        var expandedProp = state.GetType().GetProperty("expandedIDs");
+        if (expandedProp != null)
+            expandedProp.SetValue(state, ids);
+
+        // Reload tree to apply.
+        var reload = tree.GetType().GetMethod("ReloadData", flags);
+        if (reload != null) reload.Invoke(tree, null);
+    }
+
+    private static void CollectItemIDsToDepth(object tree, System.Reflection.BindingFlags flags,
+        System.Collections.Generic.List<int> ids, int maxDepth)
+    {
+        var treeType = tree.GetType();
+
+        // Try data source with root → children traversal (depth-limited).
+        foreach (var prop in treeType.GetProperties(flags))
+        {
+            if (prop.Name == "data" || prop.Name == "dataSource")
+            {
+                try
+                {
+                    var data = prop.GetValue(tree);
+                    if (data == null) continue;
+                    var rootProp = data.GetType().GetProperty("root", flags);
+                    if (rootProp != null)
+                    {
+                        var root = rootProp.GetValue(data);
+                        if (root != null)
+                        {
+                            CollectIDsToDepth(root, flags, ids, 0, maxDepth);
+                            if (ids.Count > 0) return;
+                        }
+                    }
+                }
+                catch { /* skip */ }
+            }
+        }
+
+        // Fallback: use GetRows (flat list) — expand items with depth < maxDepth.
+        var getRows = treeType.GetMethod("GetRows", flags);
+        if (getRows != null)
+        {
+            try
+            {
+                var rows = getRows.Invoke(tree, null) as System.Collections.IEnumerable;
+                if (rows != null)
+                {
+                    foreach (var item in rows)
+                    {
+                        var depthProp = item.GetType().GetProperty("depth", flags);
+                        var idProp = item.GetType().GetProperty("id", flags);
+                        if (idProp == null) continue;
+
+                        int depth = depthProp != null ? (int)depthProp.GetValue(item) : 0;
+                        if (depth < maxDepth)
+                            ids.Add((int)idProp.GetValue(item));
+                    }
+                }
+            }
+            catch { /* skip */ }
+        }
+
+        // Last resort: brute force.
+        if (ids.Count == 0)
+            for (int i = -1000; i < 1000; i++) ids.Add(i);
+    }
+
+    private static void CollectIDsToDepth(object item, System.Reflection.BindingFlags flags,
+        System.Collections.Generic.List<int> ids, int currentDepth, int maxDepth)
+    {
+        if (item == null || currentDepth >= maxDepth) return;
+
+        var idProp = item.GetType().GetProperty("id", flags);
+        if (idProp != null)
+            ids.Add((int)idProp.GetValue(item));
+
+        var childrenProp = item.GetType().GetProperty("children", flags);
+        if (childrenProp == null) return;
+        var children = childrenProp.GetValue(item) as System.Collections.IEnumerable;
+        if (children == null) return;
+
+        foreach (var child in children)
+            CollectIDsToDepth(child, flags, ids, currentDepth + 1, maxDepth);
+    }
 
     // ─── ML Training Logic ────────────────────────────────
 
@@ -1347,11 +1276,11 @@ public class ProjectToolsWindow : EditorWindow
         }
 
         // 4. Replay files.
-        string replayDir = Path.GetFullPath("Replays");
-        if (Directory.Exists(replayDir))
+        string replayRoot = GameReplayLogger.ReplayRootDir;
+        if (Directory.Exists(replayRoot))
         {
-            Directory.Delete(replayDir, true);
-            Debug.Log($"[Reset] Deleted {replayDir}");
+            Directory.Delete(replayRoot, true);
+            Debug.Log($"[Reset] Deleted {replayRoot}");
         }
 
         // 5. Training results.
@@ -1365,10 +1294,6 @@ public class ProjectToolsWindow : EditorWindow
         // 6. Reset run counter to 1.
         RunCounter = 1;
         runId = "run1";
-
-        // 7. Clear selected replay path in UI.
-        if (HasOpenInstances<ProjectToolsWindow>())
-            GetWindow<ProjectToolsWindow>().selectedReplayPath = null;
 
         AssetDatabase.Refresh();
         Debug.Log("[Reset] All history, models, results, and replays cleared. Fresh start.");

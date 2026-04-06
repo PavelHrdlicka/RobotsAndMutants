@@ -144,8 +144,14 @@ public class HexMeshGenerator : MonoBehaviour
     /// <summary>
     /// Change the hex color at runtime using a MaterialPropertyBlock (no material clone).
     /// </summary>
+    private Color currentColor;
+
+    /// <summary>Current hex color (set via SetColor).</summary>
+    public Color CurrentColor => currentColor;
+
     public void SetColor(Color color)
     {
+        currentColor = color;
         if (meshRenderer == null) meshRenderer = GetComponent<MeshRenderer>();
         if (propertyBlock == null) propertyBlock = new MaterialPropertyBlock();
         meshRenderer.GetPropertyBlock(propertyBlock);

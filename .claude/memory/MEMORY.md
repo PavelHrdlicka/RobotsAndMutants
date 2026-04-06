@@ -49,6 +49,20 @@
 - [feedback_shared_material_in_builders.md](feedback_shared_material_in_builders.md) — Model builders: static cached materiály + .sharedMaterial, nikdy per-unit kopie
 - [feedback_replay_start_in_all_modes.md](feedback_replay_start_in_all_modes.md) — replayLogger.StartGame() musí být v Start(), ne jen v ResetGame()
 - [feedback_new_input_system_only.md](feedback_new_input_system_only.md) — Pouze nový Input System (InputAction), starý Input API zakázán
+- [feedback_replay_timescale_reset.md](feedback_replay_timescale_reset.md) — Replay musí explicitně nastavit Time.timeScale=1f
+- [feedback_replay_no_autoloop.md](feedback_replay_no_autoloop.md) — Play() po Finished nesmí restartovat, vyžadovat Restart()
+- [feedback_sessionstate_all_transitions.md](feedback_sessionstate_all_transitions.md) — Každá změna GameMode musí nastavit SessionState (i runtime UI)
+- [feedback_replay_summary_not_last_line.md](feedback_replay_summary_not_last_line.md) — Replay summary není poslední řádek, hledat podle type
+- [feedback_replay_components_on_every_scene.md](feedback_replay_components_on_every_scene.md) — ReplayPlayer+HUD musí být na KAŽDÉ herní scéně (GameBootstrap)
+- [feedback_ui_runtime_fallback.md](feedback_ui_runtime_fallback.md) — Canvas UI musí mít runtime fallback pro null serializované reference
+- [feedback_no_technical_info_in_ui.md](feedback_no_technical_info_in_ui.md) — V UI nikdy technické info (názvy souborů, GUID, cesty) — pouze lidsky čitelné
+- [feedback_delete_requires_confirmation.md](feedback_delete_requires_confirmation.md) — Jakékoliv mazání musí být potvrzeno modálním oknem
+- [feedback_all_buttons_hover.md](feedback_all_buttons_hover.md) — Všechna tlačítka musí mít vizuální hover feedback
+- [feedback_destructive_actions_confirm.md](feedback_destructive_actions_confirm.md) — Quit/delete/reset vyžadují potvrzovací dialog
+- [feedback_no_redundant_ui.md](feedback_no_redundant_ui.md) — Každá funkce jen na jednom místě (menu vs editor tools)
+- [feedback_modal_blocks_all_input.md](feedback_modal_blocks_all_input.md) — Modální okno musí blokovat Canvas i OnGUI eventy
+- [feedback_no_lit_runtime_visuals.md](feedback_no_lit_runtime_visuals.md) — Runtime vizuály: Unlit shader + sharedMaterial + MaterialPropertyBlock, nikdy Lit/.material.color
+- [feedback_no_emission_bloom.md](feedback_no_emission_bloom.md) — Žádná emise s HDR > 1.0 — triggeruje URP bloom
 
 ## Project
 - [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)

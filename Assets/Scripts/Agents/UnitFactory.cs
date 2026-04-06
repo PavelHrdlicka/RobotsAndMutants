@@ -122,6 +122,7 @@ public class UnitFactory : MonoBehaviour
             go.AddComponent<UnitHealthBar3D>();
             go.AddComponent<UnitActionIndicator3D>();
             go.AddComponent<AttackEffects>();
+            go.AddComponent<AdjacencyAura>();
         }
 
         if (!skipMLAgents)

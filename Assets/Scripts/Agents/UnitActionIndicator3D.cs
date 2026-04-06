@@ -17,12 +17,6 @@ public class UnitActionIndicator3D : MonoBehaviour
     private Transform indicatorRoot;
     private const float IndicatorY = 0.48f;
 
-    // Active turn glow (pulsing emission on model renderers).
-    private Renderer[] modelRenderers;
-    private Color[] originalEmission;
-    private MaterialPropertyBlock[] glowBlocks;
-    private bool glowActive;
-
     // Move arrow.
     private Transform moveArrow;
     private float arrowTimeLeft;
@@ -42,6 +36,13 @@ public class UnitActionIndicator3D : MonoBehaviour
 
     // Build.
     private Transform buildIcon;
+
+    // Active turn highlight (pulsing brightness via MaterialPropertyBlock).
+    private Renderer[] modelRenderers;
+    private MaterialPropertyBlock[] turnBlocks;
+    private Color[] originalColors;
+    private bool turnHighlightActive;
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
     private static Material redMat, blueMat, yellowMat, greyMat, cyanMat, orangeMat;
 
@@ -79,7 +80,7 @@ public class UnitActionIndicator3D : MonoBehaviour
         prevAction = unitData.lastAction;
 
         UpdateVisibility();
-        UpdateTurnGlow();
+        UpdateTurnHighlight();
 
         // Rotate idle ring.
         if (idleRing != null && idleRing.gameObject.activeSelf)
@@ -133,81 +134,6 @@ public class UnitActionIndicator3D : MonoBehaviour
         }
     }
 
-    // ── Active turn glow ────────────────────────────────────────────
-
-    private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
-
-    private void UpdateTurnGlow()
-    {
-        if (modelRenderers == null || modelRenderers.Length == 0) return;
-
-        bool shouldGlow = unitData.isMyTurn && unitData.isAlive;
-
-        if (shouldGlow)
-        {
-            if (!glowActive)
-            {
-                // Enable emission keyword on shared materials (one-time, not per-frame).
-                foreach (var rend in modelRenderers)
-                {
-                    if (rend == null) continue;
-                    rend.sharedMaterial.EnableKeyword("_EMISSION");
-                }
-                glowActive = true;
-            }
-
-            // Pulsing emission intensity via MaterialPropertyBlock (zero allocation).
-            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);
-            Color glowColor = unitData.team == Team.Robot
-                ? new Color(0.3f, 0.5f, 1f) * (1.5f + pulse * 1.5f)
-                : new Color(0.3f, 1f, 0.3f) * (1.5f + pulse * 1.5f);
-
-            for (int i = 0; i < modelRenderers.Length; i++)
-            {
-                if (modelRenderers[i] == null) continue;
-                glowBlocks[i].SetColor(EmissionColorId, glowColor);
-                modelRenderers[i].SetPropertyBlock(glowBlocks[i]);
-            }
-        }
-        else if (glowActive)
-        {
-            // Turn off emission via PropertyBlock.
-            for (int i = 0; i < modelRenderers.Length; i++)
-            {
-                if (modelRenderers[i] == null) continue;
-                glowBlocks[i].SetColor(EmissionColorId, Color.black);
-                modelRenderers[i].SetPropertyBlock(glowBlocks[i]);
-                modelRenderers[i].sharedMaterial.DisableKeyword("_EMISSION");
-            }
-            glowActive = false;
-        }
-    }
-
-    private void CacheModelRenderers()
-    {
-        var modelRoot = transform.Find("ModelRoot");
-        if (modelRoot != null)
-        {
-            modelRenderers = modelRoot.GetComponentsInChildren<Renderer>();
-            originalEmission = new Color[modelRenderers.Length];
-            glowBlocks = new MaterialPropertyBlock[modelRenderers.Length];
-            for (int i = 0; i < modelRenderers.Length; i++)
-            {
-                glowBlocks[i] = new MaterialPropertyBlock();
-                var mat = modelRenderers[i].sharedMaterial;
-                originalEmission[i] = mat.HasProperty("_EmissionColor")
-                    ? mat.GetColor("_EmissionColor")
-                    : Color.black;
-            }
-        }
-        else
-        {
-            modelRenderers = System.Array.Empty<Renderer>();
-            originalEmission = System.Array.Empty<Color>();
-            glowBlocks = System.Array.Empty<MaterialPropertyBlock>();
-        }
-    }
-
     // ── Build indicator objects ──────────────────────────────────────────
 
     private void BuildIndicators()
@@ -215,13 +141,13 @@ public class UnitActionIndicator3D : MonoBehaviour
         indicatorRoot = new GameObject("Indicators").transform;
         indicatorRoot.SetParent(transform, false);
         indicatorRoot.localPosition = new Vector3(0f, IndicatorY, 0f);
-
-        CacheModelRenderers();
         moveArrow   = BuildArrow();
         idleRing    = BuildIdleRing();
         attackIcon  = BuildCrossedSwords();
         captureIcon = BuildPlusSign();
         buildIcon   = BuildBuildIcon();
+
+        CacheModelRenderers();
 
         // All start hidden.
         moveArrow.gameObject.SetActive(false);
@@ -229,6 +155,68 @@ public class UnitActionIndicator3D : MonoBehaviour
         attackIcon.gameObject.SetActive(false);
         captureIcon.gameObject.SetActive(false);
         buildIcon.gameObject.SetActive(false);
+    }
+
+    // ── Active turn highlight (pulsing brightness) ─────────────────────
+
+    private void CacheModelRenderers()
+    {
+        var modelRoot = transform.Find("ModelRoot");
+        if (modelRoot != null)
+        {
+            modelRenderers = modelRoot.GetComponentsInChildren<Renderer>();
+            turnBlocks = new MaterialPropertyBlock[modelRenderers.Length];
+            originalColors = new Color[modelRenderers.Length];
+            for (int i = 0; i < modelRenderers.Length; i++)
+            {
+                turnBlocks[i] = new MaterialPropertyBlock();
+                var mat = modelRenderers[i].sharedMaterial;
+                originalColors[i] = mat.HasProperty("_BaseColor")
+                    ? mat.GetColor("_BaseColor")
+                    : Color.white;
+            }
+        }
+        else
+        {
+            modelRenderers = System.Array.Empty<Renderer>();
+            turnBlocks = System.Array.Empty<MaterialPropertyBlock>();
+            originalColors = System.Array.Empty<Color>();
+        }
+    }
+
+    private void UpdateTurnHighlight()
+    {
+        if (modelRenderers == null || modelRenderers.Length == 0) return;
+
+        bool shouldHighlight = unitData.isMyTurn && unitData.isAlive;
+
+        if (shouldHighlight)
+        {
+            // Pulsing brightness: lerp base color toward white (max 0.85 to avoid bloom).
+            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 4f);
+            float boost = 0.15f + pulse * 0.25f; // 0.15 .. 0.40
+
+            for (int i = 0; i < modelRenderers.Length; i++)
+            {
+                if (modelRenderers[i] == null) continue;
+                Color bright = Color.Lerp(originalColors[i], Color.white, boost);
+                bright.a = originalColors[i].a;
+                turnBlocks[i].SetColor(BaseColorId, bright);
+                modelRenderers[i].SetPropertyBlock(turnBlocks[i]);
+            }
+            turnHighlightActive = true;
+        }
+        else if (turnHighlightActive)
+        {
+            // Restore original colors.
+            for (int i = 0; i < modelRenderers.Length; i++)
+            {
+                if (modelRenderers[i] == null) continue;
+                turnBlocks[i].SetColor(BaseColorId, originalColors[i]);
+                modelRenderers[i].SetPropertyBlock(turnBlocks[i]);
+            }
+            turnHighlightActive = false;
+        }
     }
 
     private Transform BuildArrow()

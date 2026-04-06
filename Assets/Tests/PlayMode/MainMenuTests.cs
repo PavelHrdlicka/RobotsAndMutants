@@ -450,6 +450,43 @@ public class MainMenuTests
             "WatchReplay must set SessionState GameMode for domain reload safety.");
     }
 
+    [UnityTest]
+    public IEnumerator WatchReplayHUD_SetsSessionState()
+    {
+        yield return null;
+
+        // The post-match Watch Replay button in GameManager.HUD must also set SessionState.
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+
+        Assert.IsTrue(source.Contains("SessionState.SetString(\"GameMode\", \"Replay\")"),
+            "GameManager.HUD Watch Replay button must set SessionState(\"GameMode\", \"Replay\") " +
+            "so InitSessionState restores Replay mode after domain reload.");
+        Assert.IsTrue(source.Contains("SessionState.SetString(\"ReplayPlayer_PendingPath\""),
+            "GameManager.HUD Watch Replay button must persist replay path to SessionState " +
+            "so ReplayPlayer.Awake can recover it after domain reload.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_ParsesSummaryNotLastLine()
+    {
+        yield return null;
+
+        // ReplaysPanel must find the summary line explicitly, not assume it's the last line.
+        // The territory snapshot line follows the summary line in replay files.
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        // In raw file text, escaped quotes appear as backslash-quote.
+        Assert.IsTrue(source.Contains("type") && source.Contains("summary"),
+            "ReplaysPanel must search for the summary line by type, not assume last line.");
+
+        // The while loop must filter lines — not blindly assign every line to lastLine.
+        // Correct pattern: if (line.Contains(...summary...)) lastLine = line;
+        Assert.IsTrue(source.Contains("if (line.Contains("),
+            "ReplaysPanel must filter lines inside the while loop by summary type.");
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // ── Button wiring ────────────────────────────────────────────────────
     // ══════════════════════════════════════════════════════════════════════
@@ -546,29 +583,41 @@ public class MainMenuTests
     // ══════════════════════════════════════════════════════════════════════
 
     [UnityTest]
-    public IEnumerator ReplaysPanel_HidesButtonsWhenEmpty()
+    public IEnumerator ReplaysPanel_ShowsEmptyMessage()
     {
         yield return null;
 
         string source = System.IO.File.ReadAllText(
             System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
 
-        Assert.IsTrue(source.Contains("watchButton") && source.Contains("SetActive(!empty)"),
-            "Watch button must be hidden when replay list is empty.");
-        Assert.IsTrue(source.Contains("deleteButton") && source.Contains("SetActive(!empty)"),
-            "Delete button must be hidden when replay list is empty.");
+        Assert.IsTrue(source.Contains("No replays found"),
+            "ReplaysPanel must show 'No replays found' when list is empty.");
     }
 
     [UnityTest]
-    public IEnumerator ReplaysPanel_ShowsNoReplaysText()
+    public IEnumerator ReplaysPanel_DisablesButtonsWhenNoSelection()
     {
         yield return null;
 
         string source = System.IO.File.ReadAllText(
             System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
 
-        Assert.IsTrue(source.Contains("noReplaysText") && source.Contains("SetActive(empty)"),
-            "Must show 'No replays' text when list is empty.");
+        Assert.IsTrue(source.Contains("GUI.enabled") && source.Contains("selectedIndex >= 0"),
+            "Watch/Delete buttons must be disabled when no replay is selected.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_UsesOnGUI()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("void OnGUI()"),
+            "ReplaysPanel must use OnGUI for rendering (not Canvas, which loses serialized refs).");
+        Assert.IsTrue(source.Contains("GUI.BeginScrollView"),
+            "ReplaysPanel must have scrollable list via GUI.BeginScrollView.");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -622,11 +671,9 @@ public class MainMenuTests
         string replays = System.IO.File.ReadAllText(
             System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
 
-        // Watch/Delete must respect selection state.
-        Assert.IsTrue(replays.Contains("watchButton.interactable = selectedIndex >= 0"),
-            "Watch must be disabled when no replay is selected.");
-        Assert.IsTrue(replays.Contains("deleteButton.interactable = selectedIndex >= 0"),
-            "Delete must be disabled when no replay is selected.");
+        // Watch/Delete must respect selection state (OnGUI: GUI.enabled guard).
+        Assert.IsTrue(replays.Contains("GUI.enabled") && replays.Contains("selectedIndex >= 0"),
+            "Watch/Delete must be disabled when no replay is selected.");
     }
 
     [UnityTest]
@@ -755,6 +802,48 @@ public class MainMenuTests
     }
 
     [UnityTest]
+    public IEnumerator GameBootstrap_EnsuresReplayComponents()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameBootstrap.cs"));
+
+        Assert.IsTrue(source.Contains("EnsureReplayComponents"),
+            "GameBootstrap must call EnsureReplayComponents on every scene load.");
+        Assert.IsTrue(source.Contains("AddComponent<ReplayPlayer>()"),
+            "GameBootstrap must add ReplayPlayer component if missing.");
+        Assert.IsTrue(source.Contains("AddComponent<ReplayPlayerHUD>()"),
+            "GameBootstrap must add ReplayPlayerHUD component if missing.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameManager_HandlesReplayMode()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.cs"));
+
+        Assert.IsTrue(source.Contains("GameMode.Replay") && source.Contains("gameOver = true"),
+            "GameManager.Start must set gameOver=true in Replay mode to prevent game loop.");
+        Assert.IsTrue(source.Contains("GameMode.Replay") && source.Contains("autoRestart = false"),
+            "GameManager.Start must set autoRestart=false in Replay mode.");
+    }
+
+    [UnityTest]
+    public IEnumerator GameManager_SkipsReplayLoggingInReplayMode()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.cs"));
+
+        Assert.IsTrue(source.Contains("CurrentMode != GameMode.Replay") && source.Contains("replayLogger.StartGame"),
+            "GameManager must NOT start replay logging when in Replay mode (watching, not recording).");
+    }
+
+    [UnityTest]
     public IEnumerator GameBootstrap_ConfiguresCamera()
     {
         yield return null;
@@ -795,16 +884,14 @@ public class MainMenuTests
             System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
 
         // All known launch methods that open a scene + enter Play.
-        string[] launchMethods = { "DoLaunchMainMenu", "DoResetSetupPlay", "DoLaunchReplay" };
+        string[] launchMethods = { "DoLaunchMainMenu", "DoResetSetupPlay" };
         foreach (string method in launchMethods)
         {
             Assert.IsTrue(source.Contains(method),
                 $"Launch method '{method}' must exist in ProjectToolsWindow.");
         }
 
-        // None of them should have bare "isPlaying = true" without prior scene open.
-        // The deferred wrappers (LaunchMainMenu, LaunchHumanVsAI, LaunchReplay) handle
-        // exiting play mode first, then calling the Do* method via EnteredEditMode callback.
+        // The deferred wrapper handles exiting play mode first, then calling Do* method.
         Assert.IsTrue(source.Contains("void LaunchMainMenu()"),
             "LaunchMainMenu wrapper must exist for deferred pattern.");
     }
@@ -942,6 +1029,765 @@ public class MainMenuTests
         // Unity.InputSystem GUID: 75469ad4d38634e559750d17036d5f7c
         Assert.IsTrue(source.Contains("75469ad4d38634e559750d17036d5f7c"),
             "Agents.asmdef must reference Unity.InputSystem package.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── HUD feature tests ────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator HUD_HasUnifiedTerritoryBar()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+
+        Assert.IsTrue(source.Contains("DrawTerritoryBar"),
+            "HUD must have a unified territory bar (blue/green/gray) instead of separate team bars.");
+    }
+
+    [UnityTest]
+    public IEnumerator HUD_ShowsBuildCountWithCap()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+
+        Assert.IsTrue(source.Contains("structCount") && source.Contains("structMax"),
+            "Team panel must show structure count/max (e.g. 5/8) for wall/slime limits.");
+    }
+
+    [UnityTest]
+    public IEnumerator HUD_HidesSessionStatsInReplay()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+
+        Assert.IsTrue(source.Contains("isReplayActive") && source.Contains("DrawSessionStats"),
+            "HUD must hide session stats and match history during replay playback.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayHUD_HasTurnLog()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayerHUD.cs"));
+
+        Assert.IsTrue(source.Contains("DrawReplayTurnLog"),
+            "ReplayPlayerHUD must display a turn log showing last 10 turns.");
+    }
+
+    [UnityTest]
+    public IEnumerator AdjacencyAura_ExistsAndRegistered()
+    {
+        yield return null;
+
+        Assert.IsTrue(System.IO.File.Exists(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/AdjacencyAura.cs")),
+            "AdjacencyAura.cs must exist for visual adjacency bonus indication.");
+
+        string cleanup = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/StaticResourceCleanup.cs"));
+        Assert.IsTrue(cleanup.Contains("AdjacencyAura.GetStaticMaterials"),
+            "AdjacencyAura must be registered in StaticResourceCleanup.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_HasBackButton()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("BACK") && source.Contains("OnBack"),
+            "ReplaysPanel must have a Back button visible at all times.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_HasClickableRows()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("selectedIndex = i"),
+            "ReplaysPanel rows must be clickable to select a replay.");
+    }
+
+    [UnityTest]
+    public IEnumerator AdjacencyAura_AddedToUnits()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/UnitFactory.cs"));
+
+        Assert.IsTrue(source.Contains("AddComponent<AdjacencyAura>()"),
+            "UnitFactory must add AdjacencyAura component to spawned units.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── ReplaysPanel OnGUI rendering ─────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_HidesCanvasChildren()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("transform.GetChild(i).gameObject.SetActive(false)"),
+            "ReplaysPanel.OnEnable must hide all Canvas children — OnGUI handles rendering.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_UsesListIndex_NotMatchNum()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        // Row numbering must use sequential index, not matchNum from replay header.
+        Assert.IsTrue(source.Contains("rowNum + 1") || source.Contains("i + 1"),
+            "ReplaysPanel must display row number as sequential index (1,2,3...), not matchNum from header.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_HasScrollView()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("GUI.BeginScrollView") && source.Contains("GUI.EndScrollView"),
+            "ReplaysPanel must use scrollable view for replay list.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_HasWatchDeleteBack()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("Watch Replay") && source.Contains("OnWatch"),
+            "ReplaysPanel must have Watch Replay button that calls OnWatch.");
+        Assert.IsTrue(source.Contains("BACK") && source.Contains("OnBack"),
+            "ReplaysPanel must have Back button that calls OnBack.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_ShowsDateResultDuration()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        // Columns: date, result, duration must be displayed in each row.
+        Assert.IsTrue(source.Contains("e.date") && source.Contains("e.result") && source.Contains("e.duration"),
+            "ReplaysPanel rows must display date, result, and duration columns.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_HighlightsSelectedRow()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("selectedBg") && source.Contains("i == selectedIndex"),
+            "ReplaysPanel must visually highlight the selected row.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_DeleteRemovesFile()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("File.Delete(path)") && source.Contains("RefreshList"),
+            "OnDelete must delete the file and refresh the list.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Human starts first, territory bar, replay HUD ────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator HumanPlayer_AlwaysStartsFirst()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.cs"));
+
+        Assert.IsTrue(source.Contains("startingTeam = GameModeConfig.HumanTeam"),
+            "In HumanVsAI mode, starting team must be set to human player's team.");
+    }
+
+    [UnityTest]
+    public IEnumerator TerritoryBar_SameWidthAsRoundCounter()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+
+        // Territory bar call must use centerX and centerW (same as round counter).
+        Assert.IsTrue(source.Contains("DrawTerritoryBar(centerX,"),
+            "Territory bar must start at centerX (same as round counter panel).");
+        Assert.IsFalse(source.Contains("centerX - 60") && source.Contains("DrawTerritoryBar"),
+            "Territory bar must NOT extend beyond round counter width.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayHUD_ShowsHumanReadableTitle()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayerHUD.cs"));
+
+        Assert.IsTrue(source.Contains("DisplayTitle"),
+            "Replay HUD must use DisplayTitle (human-readable) instead of FileName.");
+        Assert.IsFalse(source.Contains("player.FileName"),
+            "Replay HUD must NOT display raw JSON filename.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayHUD_NoPrevNextDescriptions()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayerHUD.cs"));
+
+        Assert.IsFalse(source.Contains("PreviousTurnDescription") || source.Contains("CurrentTurnDescription"),
+            "Replay HUD must NOT show Prev/Next turn descriptions (shown in turn log table instead).");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayPlayer_HasDisplayTitle()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        Assert.IsTrue(source.Contains("public string DisplayTitle"),
+            "ReplayPlayer must expose a DisplayTitle property for human-readable game info.");
+        Assert.IsTrue(source.Contains("ParseDateFromFileName"),
+            "DisplayTitle must parse date from filename into readable format.");
+    }
+
+    [UnityTest]
+    public IEnumerator NoTechnicalInfoInUI_ReplayHUD()
+    {
+        yield return null;
+
+        // Global rule: no filenames, paths, GUIDs in player-facing UI.
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayerHUD.cs"));
+
+        Assert.IsFalse(source.Contains(".jsonl"),
+            "Replay HUD must not display .jsonl file extension.");
+        Assert.IsFalse(source.Contains("player.FileName") && source.Contains("GUI.Label"),
+            "Replay HUD must not display raw filename in GUI labels.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Replay info, favorites, action formatting, turn marker ───────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator ReplayHeader_StoresGameModeAndHumanTeam()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameReplayLogger.cs"));
+
+        Assert.IsTrue(source.Contains("gameMode") && source.Contains("GameModeConfig.CurrentMode"),
+            "Replay header must include gameMode field.");
+        Assert.IsTrue(source.Contains("humanTeam") && source.Contains("GameModeConfig.HumanTeam"),
+            "Replay header must include humanTeam for HumanVsAI games.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayData_ParsesGameModeAndHumanTeam()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayData.cs"));
+
+        Assert.IsTrue(source.Contains("public string gameMode"),
+            "ReplayData.Header must have gameMode field.");
+        Assert.IsTrue(source.Contains("public string humanTeam"),
+            "ReplayData.Header must have humanTeam field.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayPlayer_FormatWinner_ShowsYouWinForHuman()
+    {
+        yield return null;
+
+        Assert.AreEqual("You win!", ReplayPlayer.FormatWinner("Robot", "Robot"));
+        Assert.AreEqual("AI wins", ReplayPlayer.FormatWinner("Mutant", "Robot"));
+        Assert.AreEqual("You win!", ReplayPlayer.FormatWinner("Mutant", "Mutant"));
+        Assert.AreEqual("Draw", ReplayPlayer.FormatWinner("None", "Robot"));
+        Assert.AreEqual("Robots win", ReplayPlayer.FormatWinner("Robot", ""));
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_HasFavoriteColumn()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("favorite") && source.Contains("SetFavorite"),
+            "ReplaysPanel must support favorite marking with persistence.");
+        Assert.IsTrue(source.Contains("showFavoritesOnly"),
+            "ReplaysPanel must have a filter toggle for favorites only.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_NoDeleteButton()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        // OnGUI section must not have a Delete button (destructive without confirmation).
+        Assert.IsFalse(source.Contains("\"Delete\"") && source.Contains("GUI.Button"),
+            "ReplaysPanel must NOT have a Delete button (destructive action without confirmation).");
+    }
+
+    [UnityTest]
+    public IEnumerator FormatAction_InsertSpaces()
+    {
+        yield return null;
+
+        Assert.AreEqual("Place Slime", GameManager.FormatAction("PlaceSlime"));
+        Assert.AreEqual("Build Wall", GameManager.FormatAction("BuildWall"));
+        Assert.AreEqual("Destroy Wall", GameManager.FormatAction("DestroyWall"));
+        Assert.AreEqual("Move", GameManager.FormatAction("Move"));
+        Assert.AreEqual("Attack", GameManager.FormatAction("Attack"));
+        Assert.AreEqual("Idle", GameManager.FormatAction("Idle"));
+        Assert.AreEqual("Capture", GameManager.FormatAction("Capture"));
+    }
+
+    [UnityTest]
+    public IEnumerator TurnLog_UsesFormatAction()
+    {
+        yield return null;
+
+        string hud = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+        Assert.IsTrue(hud.Contains("FormatAction("),
+            "GameManager.HUD turn log must use FormatAction for human-readable action names.");
+
+        string replay = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayerHUD.cs"));
+        Assert.IsTrue(replay.Contains("FormatAction("),
+            "ReplayPlayerHUD turn log must use FormatAction for human-readable action names.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayTurnLog_HasRowNumbers()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayerHUD.cs"));
+
+        Assert.IsTrue(source.Contains("rowNum") && source.Contains("colNum"),
+            "Replay turn log must display row numbers (1-10).");
+    }
+
+    [UnityTest]
+    public IEnumerator Replay_SetsIsMyTurnOnActiveUnit()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        Assert.IsTrue(source.Contains("unit.isMyTurn = true"),
+            "ReplayPlayer.ApplyTurn must set isMyTurn on the active unit for turn glow.");
+        Assert.IsTrue(source.Contains("u.isMyTurn = false"),
+            "ReplayPlayer.ApplyTurn must clear isMyTurn from all other units.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplaysPanel_UsesFormatWinner()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        Assert.IsTrue(source.Contains("ReplayPlayer.FormatWinner"),
+            "ReplaysPanel must use ReplayPlayer.FormatWinner for human-friendly result display.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Menu buttons, quit confirm, turn log, replay visuals, aura ──────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator MenuButtons_HaveHoverEffect()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/MainMenuSetup.cs"));
+
+        Assert.IsTrue(source.Contains("img.color = Color.white"),
+            "Button Image must be Color.white so Button.colors can tint it for hover.");
+        Assert.IsTrue(source.Contains("highlightedColor"),
+            "Button must have highlighted color set for hover feedback.");
+    }
+
+    [UnityTest]
+    public IEnumerator MenuButtons_RuntimeHoverFix()
+    {
+        // MainMenuController.Start must fix Image.color on all buttons at runtime
+        // so hover works even if the scene was built with old MainMenuSetup.
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/MainMenuController.cs"));
+
+        Assert.IsTrue(source.Contains("GetComponentsInChildren<") && source.Contains("Button"),
+            "MainMenuController.Start must find all Button components in children.");
+        Assert.IsTrue(source.Contains("img.color = Color.white"),
+            "MainMenuController.Start must set Image.color = white on all buttons for hover tinting.");
+    }
+
+    [UnityTest]
+    public IEnumerator QuitButton_HasConfirmation()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/MainMenuController.cs"));
+
+        Assert.IsTrue(source.Contains("showQuitConfirm"),
+            "QuitGame must show a confirmation modal, not quit immediately.");
+        Assert.IsTrue(source.Contains("DoQuit"),
+            "Actual quit must be in a separate DoQuit method, called only after confirmation.");
+        Assert.IsTrue(source.Contains("Cancel"),
+            "Quit confirmation must have a Cancel button.");
+    }
+
+    [UnityTest]
+    public IEnumerator TurnLog_FixedSize10Rows()
+    {
+        yield return null;
+
+        string hud = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+        Assert.IsTrue(hud.Contains("maxVisibleRows") && hud.Contains("10"),
+            "Game HUD turn log must have fixed size for 10 rows.");
+
+        string replay = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayerHUD.cs"));
+        Assert.IsTrue(replay.Contains("maxVisibleRows") && replay.Contains("10"),
+            "Replay HUD turn log must have fixed size for 10 rows.");
+    }
+
+    [UnityTest]
+    public IEnumerator TurnLog_RowsClickableJumpToTurn()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayerHUD.cs"));
+
+        // Turn log rows must be clickable buttons that jump to the corresponding turn.
+        Assert.IsTrue(source.Contains("GUI.Button") && source.Contains("JumpToTurn"),
+            "Turn log rows must be clickable and call JumpToTurn when clicked.");
+        Assert.IsTrue(source.Contains("turnLogRowBtnStyle"),
+            "Turn log rows must use a custom button style with hover highlight.");
+    }
+
+    [UnityTest]
+    public IEnumerator QuitModal_OpaqueOverlay()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/MainMenuController.cs"));
+
+        // Overlay must be opaque enough (>= 0.8 alpha) for readability.
+        Assert.IsTrue(source.Contains("0.85f"),
+            "Quit modal overlay must be dark enough (0.85 alpha) for text readability.");
+    }
+
+    [UnityTest]
+    public IEnumerator Replay_HasActionVisuals()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        Assert.IsTrue(source.Contains("TriggerReplayVisuals"),
+            "ReplayPlayer.ApplyTurn must call TriggerReplayVisuals for action effects.");
+        Assert.IsTrue(source.Contains("FlashSecondaryTile"),
+            "Attack turns must flash target tile in replay.");
+        Assert.IsTrue(source.Contains("ShowMoveArrow"),
+            "Move turns must show move arrow in replay.");
+        Assert.IsTrue(source.Contains("FlashTile"),
+            "Build turns must flash the built tile in replay.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayVisuals_ClearedOnNextTurn_NotTimer()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        // Visuals must persist until next turn, not fade on a timer.
+        Assert.IsTrue(source.Contains("ClearReplayVisuals"),
+            "ReplayPlayer must have ClearReplayVisuals method to clean up previous turn's effects.");
+        Assert.IsTrue(source.Contains("ClearReplayVisuals()") && source.Contains("TriggerReplayVisuals"),
+            "ClearReplayVisuals must be called at the start of TriggerReplayVisuals (next turn clears previous).");
+        Assert.IsFalse(source.Contains("MoveArrowDuration") || source.Contains("FlashDuration"),
+            "Replay visuals must NOT use timers — they persist until the next turn is applied.");
+        Assert.IsFalse(source.Contains("moveArrowTimer") || source.Contains("flashTimer"),
+            "Replay visuals must NOT use timer fields — cleared on next turn instead.");
+    }
+
+    [UnityTest]
+    public IEnumerator AdjacencyAura_LazyInitGrid()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/AdjacencyAura.cs"));
+
+        // Grid must be lazy-initialized in LateUpdate, not just Start().
+        // This ensures it works in replay mode where grid may not exist at Start time.
+        Assert.IsTrue(source.Contains("grid == null") && source.Contains("FindFirstObjectByType<HexGrid>"),
+            "AdjacencyAura must lazy-init grid in LateUpdate for replay compatibility.");
+        // No line should contain both "grid == null" and "enabled = false".
+        foreach (var line in source.Split('\n'))
+        {
+            Assert.IsFalse(line.Contains("grid == null") && line.Contains("enabled = false"),
+                "AdjacencyAura must NOT disable when grid is null — use lazy init. Offending line: " + line.Trim());
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator FavoritesStar_ClickableBeforeRowButton()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/ReplaysPanel.cs"));
+
+        // Star button must appear BEFORE row selection button in OnGUI
+        // so it receives clicks first (GUI draws and processes in order).
+        int starIdx = source.IndexOf("SetFavorite");
+        int rowIdx = source.IndexOf("selectedIndex = i");
+        Assert.Greater(rowIdx, starIdx,
+            "Star button must be drawn BEFORE row selection button in OnGUI (first drawn = first click).");
+    }
+
+    [UnityTest]
+    public IEnumerator AdjacencyAura_GeometryDashedRing()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/AdjacencyAura.cs"));
+
+        // Dashes are baked into geometry (separate arc segments with gaps), not texture.
+        Assert.IsTrue(source.Contains("CreateDashedRingMesh"),
+            "AdjacencyAura must build a ring mesh with geometry-baked dash segments.");
+        Assert.IsTrue(source.Contains("DashCount"),
+            "AdjacencyAura must define number of dashes around the perimeter.");
+        Assert.IsTrue(source.Contains("DashFillRatio"),
+            "AdjacencyAura must control dash/gap ratio.");
+        Assert.IsTrue(source.Contains("HasAdjacentAlly"),
+            "AdjacencyAura must check for adjacent allies before showing outline.");
+        Assert.IsFalse(source.Contains("_EmissionColor"),
+            "AdjacencyAura must NOT use emission (causes bloom).");
+    }
+
+    [UnityTest]
+    public IEnumerator AdjacencyAura_RotationAnimation()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/AdjacencyAura.cs"));
+
+        // Dashes flow around hex via Y-axis rotation (no shader trickery).
+        Assert.IsTrue(source.Contains("RotateSpeed"),
+            "AdjacencyAura must define rotation speed for flowing dash animation.");
+        Assert.IsTrue(source.Contains("transform.Rotate") && source.Contains("Vector3.up"),
+            "AdjacencyAura must rotate the outline around Y axis each frame.");
+    }
+
+    [UnityTest]
+    public IEnumerator TurnHighlight_NoEmission()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/UnitActionIndicator3D.cs"));
+
+        // Turn highlight uses brightness pulse via _BaseColor, NOT emission.
+        Assert.IsTrue(source.Contains("UpdateTurnHighlight"),
+            "UnitActionIndicator3D must have brightness-based turn highlight.");
+        Assert.IsFalse(source.Contains("_EmissionColor"),
+            "UnitActionIndicator3D must NOT use _EmissionColor (causes bloom).");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ── Project Tools, Play screen, Quit modal, arrow, attack flash ─────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator ProjectTools_HasOnlyEssentialSections()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+
+        // Kept sections.
+        Assert.IsTrue(source.Contains("DrawConfigSection()"), "Must have Configuration section.");
+        Assert.IsTrue(source.Contains("DrawTrainingSection()"), "Must have Training section.");
+        Assert.IsTrue(source.Contains("DrawLaunchSection()"), "Must have Launch section.");
+        Assert.IsTrue(source.Contains("DrawTestingSection()"), "Must have Testing section.");
+
+        // Removed redundant sections (handled by in-game menu).
+        Assert.IsFalse(source.Contains("DrawPlayVsAISection()"),
+            "Play vs AI section removed — use Main Menu instead.");
+        Assert.IsFalse(source.Contains("DrawReplaySection()"),
+            "Replay section removed — use Main Menu → Replays instead.");
+    }
+
+    [UnityTest]
+    public IEnumerator PlaySetupPanel_UsesOnGUI()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/PlaySetupPanel.cs"));
+
+        Assert.IsTrue(source.Contains("void OnGUI()"),
+            "PlaySetupPanel must use OnGUI for rendering (Canvas refs unreliable).");
+        Assert.IsTrue(source.Contains("DrawOutline"),
+            "Selected team card must have a visible outline for clear selection feedback.");
+    }
+
+    [UnityTest]
+    public IEnumerator QuitModal_BlocksCanvasClicks()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/MainMenuController.cs"));
+
+        Assert.IsTrue(source.Contains("GraphicRaycaster") && source.Contains("showQuitConfirm"),
+            "Quit modal must disable GraphicRaycaster to block Canvas button clicks.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayArrow_HasArrowHead()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        Assert.IsTrue(source.Contains("arrowHeadObj") && source.Contains("CreateArrowHeadMesh"),
+            "Replay move indicator must have a proper arrowhead, not just a line.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayArrow_UsesUnlitMaterial()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        // Arrow must use Unlit shader, not default Lit (Lit causes bloom).
+        Assert.IsTrue(source.Contains("arrowUnlitMaterial"),
+            "Replay arrow must use a shared Unlit material (not default Lit from CreatePrimitive).");
+        Assert.IsTrue(source.Contains("EnsureArrowMaterial"),
+            "Replay arrow must create an Unlit material via EnsureArrowMaterial.");
+        Assert.IsFalse(source.Contains(".material.color"),
+            "Replay arrow must NOT use .material.color (creates Lit material instances, causes bloom).");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayArrow_UsesPropertyBlock()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        // Arrow color must be set via MaterialPropertyBlock (zero allocation).
+        Assert.IsTrue(source.Contains("arrowMpb") && source.Contains("SetPropertyBlock"),
+            "Replay arrow must use MaterialPropertyBlock for team color (zero allocation).");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayAttack_FlashesAttackerAndTarget()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        // Attack must flash attacker hex (red) AND target hex (orange).
+        Assert.IsTrue(source.Contains("FlashTile") && source.Contains("0.9f, 0.15f, 0.1f"),
+            "Attack must flash attacker tile red.");
+        Assert.IsTrue(source.Contains("FlashSecondaryTile") && source.Contains("1f, 0.55f, 0.1f"),
+            "Attack must flash target tile orange.");
+    }
+
+    [UnityTest]
+    public IEnumerator ReplayAttack_PersistsUntilNextTurn()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        // Attack visuals must NOT use AttackEffects (timer-based).
+        Assert.IsFalse(source.Contains("TriggerCombatFlash"),
+            "Replay must NOT use AttackEffects.TriggerCombatFlash — it uses a timer. Use FlashTile instead.");
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

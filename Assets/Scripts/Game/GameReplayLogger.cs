@@ -24,10 +24,29 @@ public class GameReplayLogger
 
     // Write OUTSIDE Assets/ to avoid triggering Unity Asset Pipeline imports.
     // Path.GetFullPath("Replays") resolves to project root (working dir).
-    private static readonly string DefaultReplayDir = Path.GetFullPath("Replays");
+    private static readonly string RootReplayDir = Path.GetFullPath("Replays");
+
+    /// <summary>Root replay directory (no subdirectory).</summary>
+    public static string ReplayRootDir => RootReplayDir;
+
+    /// <summary>Subdirectory for training replays.</summary>
+    public static string TrainingReplayDir => Path.Combine(RootReplayDir, "Training");
+
+    /// <summary>Subdirectory for human vs AI replays.</summary>
+    public static string HumanVsAIReplayDir => Path.Combine(RootReplayDir, "HumanVsAI");
+
+    /// <summary>Returns the correct replay subdirectory for the current game mode.</summary>
+    public static string GetReplayDirForMode(GameMode mode)
+    {
+        return mode switch
+        {
+            GameMode.HumanVsAI => HumanVsAIReplayDir,
+            _ => TrainingReplayDir,
+        };
+    }
 
     /// <summary>Override in tests to redirect output to a temp directory.</summary>
-    protected virtual string GetReplayDir() => DefaultReplayDir;
+    protected virtual string GetReplayDir() => GetReplayDirForMode(GameModeConfig.CurrentMode);
 
     /// <summary>Start a new replay file. Call at game start (ResetGame).</summary>
     public void StartGame(int matchNum, GameConfig config, HexGrid grid)
@@ -70,6 +89,9 @@ public class GameReplayLogger
             sb.Append($",\"maxRounds\":{maxRounds}");
             sb.Append(string.Format(System.Globalization.CultureInfo.InvariantCulture,
                 ",\"winThreshold\":{0:F2}", winThreshold));
+            sb.Append($",\"gameMode\":\"{GameModeConfig.CurrentMode}\"");
+            if (GameModeConfig.CurrentMode == GameMode.HumanVsAI)
+                sb.Append($",\"humanTeam\":\"{GameModeConfig.HumanTeam}\"");
             sb.Append("}");
             writer.WriteLine(sb.ToString());
         }

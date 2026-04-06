@@ -319,13 +319,15 @@ public static class MainMenuSetup
         rt.sizeDelta = new Vector2(width, height);
 
         var img = go.AddComponent<Image>();
-        img.color = bgColor;
+        img.color = Color.white; // Let Button.colors handle tinting for proper hover feedback.
 
         var btn = go.AddComponent<Button>();
         var colors = btn.colors;
         colors.normalColor = bgColor;
         colors.highlightedColor = bgColor * 1.3f;
         colors.pressedColor = bgColor * 0.8f;
+        colors.selectedColor = bgColor;
+        colors.fadeDuration = 0.1f;
         btn.colors = colors;
 
         var textGo = new GameObject("Text");

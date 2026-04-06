@@ -18,7 +18,7 @@ public class ReplayPlayer : MonoBehaviour
 
     [Header("Playback")]
     public PlaybackState state = PlaybackState.Stopped;
-    public float turnDelay = 0.3f; // seconds between turns
+    public float turnDelay = 1.0f; // seconds between turns (default: 1 turn/sec)
     public int currentRound;
     public int currentTurnIndex;
 
@@ -43,6 +43,44 @@ public class ReplayPlayer : MonoBehaviour
     public string FileName => replayFileName;
     public int TotalRounds => replay?.maxRound ?? 0;
     public int TotalTurns => replay?.turns.Count ?? 0;
+
+    /// <summary>Human-readable title: "06.04 14:20 — You win! (20 rounds)".</summary>
+    public string DisplayTitle
+    {
+        get
+        {
+            string date = ParseDateFromFileName(replayFileName);
+            string winner = replay?.summary.winner ?? "";
+            int rounds = replay?.maxRound ?? 0;
+            string winText = FormatWinner(winner, replay?.header.humanTeam);
+            return $"{date} — {winText} ({rounds} rounds)";
+        }
+    }
+
+    /// <summary>Format winner as human-friendly: "You win!" / "AI wins" / "Draw".</summary>
+    public static string FormatWinner(string winner, string humanTeam)
+    {
+        if (string.IsNullOrEmpty(winner) || winner == "None") return "Draw";
+        if (!string.IsNullOrEmpty(humanTeam) && winner == humanTeam) return "You win!";
+        if (!string.IsNullOrEmpty(humanTeam)) return "AI wins";
+        return $"{winner}s win";
+    }
+
+    private static string ParseDateFromFileName(string fileName)
+    {
+        if (string.IsNullOrEmpty(fileName)) return "";
+        // Format: game_N_YYYYMMDD_HHMMSS.jsonl
+        string name = System.IO.Path.GetFileNameWithoutExtension(fileName);
+        var parts = name?.Split('_');
+        if (parts == null || parts.Length < 4) return "";
+        try
+        {
+            string d = parts[2]; // YYYYMMDD
+            string t = parts[3]; // HHMMSS
+            return $"{d.Substring(6, 2)}.{d.Substring(4, 2)}.{d.Substring(0, 4)} {t.Substring(0, 2)}:{t.Substring(2, 2)}";
+        }
+        catch { return fileName; }
+    }
 
     /// <summary>Current turn description for HUD display.</summary>
     public string CurrentTurnDescription
@@ -198,6 +236,9 @@ public class ReplayPlayer : MonoBehaviour
         foreach (var unit in unitFactory.AllUnits)
             unit.ResetUnit();
 
+        // Ensure normal speed for replay (may inherit timeScale=20 from Training).
+        Time.timeScale = 1f;
+
         state = PlaybackState.Paused;
         currentTurnIndex = 0;
         currentRound = 0;
@@ -220,15 +261,35 @@ public class ReplayPlayer : MonoBehaviour
         }
     }
 
+    private void LateUpdate()
+    {
+        // Pulse flashed tiles between base color and white for visibility.
+        float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6f);
+        PulseTile(flashedTile, flashedTileColor, pulse);
+        PulseTile(flashedSecondaryTile, flashedSecondaryColor, pulse);
+    }
+
+    private static void PulseTile(HexTileData tile, Color baseColor, float pulse)
+    {
+        if (tile == null) return;
+        var meshGen = tile.GetComponent<HexMeshGenerator>();
+        if (meshGen == null) return;
+        Color bright = Color.Lerp(baseColor, Color.white, pulse * 0.35f);
+        meshGen.SetColor(bright);
+    }
+
     // ── Playback controls ───────────────────────────────────────────────
 
     public void Play()
     {
-        if (state == PlaybackState.Finished)
-        {
-            // Restart from beginning if finished.
-            JumpToStart();
-        }
+        if (state == PlaybackState.Finished) return; // Use Restart() to replay from beginning.
+        state = PlaybackState.Playing;
+        nextTurnTime = Time.time;
+    }
+
+    public void Restart()
+    {
+        JumpToStart();
         state = PlaybackState.Playing;
         nextTurnTime = Time.time;
     }
@@ -373,11 +434,18 @@ public class ReplayPlayer : MonoBehaviour
     {
         currentRound = turn.round;
 
+        // Clear previous turn marker, set on current unit.
+        foreach (var u in unitFactory.AllUnits)
+            u.isMyTurn = false;
+
         // Update GameManager's round counter so HUD shows correct value.
         if (gm != null)
             gm.currentRound = turn.round;
 
         if (!unitMap.TryGetValue(turn.unitName, out var unit)) return;
+
+        // Mark this unit as active (for turn glow visual).
+        unit.isMyTurn = true;
 
         // If unit was dead and now appears with hp > 0, respawn it.
         if (!unit.isAlive && turn.energy > 0)
@@ -498,6 +566,191 @@ public class ReplayPlayer : MonoBehaviour
                 capTile.TileType = TileType.Empty;
             }
         }
+
+        // Trigger visual effects for replay.
+        TriggerReplayVisuals(unit, turn, coord);
+    }
+
+    private void TriggerReplayVisuals(UnitData unit, ReplayData.Turn turn, HexCoord coord)
+    {
+        // Clear previous turn's visuals before showing new ones.
+        ClearReplayVisuals();
+
+        // Attack: flash attacker hex red, target hex orange (persists until next turn).
+        if (turn.action == "Attack")
+        {
+            // Flash attacker tile red.
+            FlashTile(coord, new Color(0.9f, 0.15f, 0.1f));
+
+            // Flash attack target tile orange.
+            if (turn.hasAttackHex)
+            {
+                var targetCoord = new HexCoord(turn.attackHexQ, turn.attackHexR);
+                FlashSecondaryTile(targetCoord, new Color(1f, 0.55f, 0.1f));
+            }
+        }
+
+        // Move: show arrow from previous position to current.
+        if (turn.action == "Move" || turn.action == "Capture")
+        {
+            if (unit.moveFrom != unit.moveTo)
+                ShowMoveArrow(unit.moveFrom, unit.moveTo, unit.team);
+        }
+
+        // Build: flash the built tile with team color (persists until next turn).
+        if ((turn.action == "BuildWall" || turn.action == "PlaceSlime") && turn.hasBuilt)
+        {
+            var builtCoord = new HexCoord(turn.builtQ, turn.builtR);
+            FlashTile(builtCoord, unit.team == Team.Robot
+                ? new Color(0.4f, 0.6f, 1f) : new Color(0.4f, 1f, 0.4f));
+        }
+    }
+
+    // ── Replay visual helpers ───────────────────────────────────────────
+
+    private GameObject moveArrowObj;
+    private GameObject arrowHeadObj;
+    private static Material arrowUnlitMaterial;
+    private MaterialPropertyBlock arrowMpb;
+    private HexTileData flashedTile;
+    private Color flashedTileColor;
+    private HexTileData flashedSecondaryTile;
+    private Color flashedSecondaryColor;
+
+    private void ShowMoveArrow(HexCoord from, HexCoord to, Team team)
+    {
+        var fromWorld = grid.HexToWorld(from);
+        var toWorld = grid.HexToWorld(to);
+
+        if (moveArrowObj == null)
+        {
+            EnsureArrowMaterial();
+            if (arrowMpb == null) arrowMpb = new MaterialPropertyBlock();
+
+            // Shaft (thin cube).
+            moveArrowObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            moveArrowObj.name = "ReplayMoveArrow";
+            Object.Destroy(moveArrowObj.GetComponent<Collider>());
+            var shaftMr = moveArrowObj.GetComponent<MeshRenderer>();
+            shaftMr.sharedMaterial = arrowUnlitMaterial;
+            shaftMr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            // Arrowhead (cone approximation via flattened mesh).
+            arrowHeadObj = new GameObject("ArrowHead");
+            var mf = arrowHeadObj.AddComponent<MeshFilter>();
+            var mr = arrowHeadObj.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = arrowUnlitMaterial;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mf.mesh = CreateArrowHeadMesh();
+        }
+
+        Vector3 dir = toWorld - fromWorld;
+        float length = dir.magnitude;
+        Quaternion rot = Quaternion.LookRotation(dir);
+        float headLen = 0.15f;
+        float shaftLen = length - headLen;
+
+        // Shaft: from start to just before the arrowhead.
+        Vector3 shaftMid = fromWorld + dir.normalized * (shaftLen * 0.5f) + Vector3.up * 0.15f;
+        moveArrowObj.transform.position = shaftMid;
+        moveArrowObj.transform.localScale = new Vector3(0.05f, 0.02f, Mathf.Max(shaftLen, 0.01f));
+        moveArrowObj.transform.rotation = rot;
+        moveArrowObj.SetActive(true);
+
+        // Arrowhead: at the target end.
+        Vector3 headPos = toWorld - dir.normalized * (headLen * 0.3f) + Vector3.up * 0.15f;
+        arrowHeadObj.transform.position = headPos;
+        arrowHeadObj.transform.rotation = rot;
+        arrowHeadObj.transform.localScale = new Vector3(0.15f, 0.02f, headLen);
+        arrowHeadObj.SetActive(true);
+
+        Color arrowColor = team == Team.Robot ? new Color(0.3f, 0.55f, 1f) : new Color(0.3f, 0.9f, 0.3f);
+        arrowMpb.SetColor("_BaseColor", arrowColor);
+        moveArrowObj.GetComponent<MeshRenderer>().SetPropertyBlock(arrowMpb);
+        arrowHeadObj.GetComponent<MeshRenderer>().SetPropertyBlock(arrowMpb);
+    }
+
+    private void FlashTile(HexCoord coord, Color flashColor)
+    {
+        // Unflash previous.
+        if (flashedTile != null)
+        {
+            flashedTile.GetComponent<HexVisuals>()?.UpdateColor();
+            flashedTile = null;
+        }
+
+        var tile = grid.GetTile(coord);
+        if (tile == null) return;
+
+        flashedTile = tile;
+        flashedTileColor = flashColor;
+        var meshGen = tile.GetComponent<HexMeshGenerator>();
+        if (meshGen != null)
+            meshGen.SetColor(flashColor);
+    }
+
+    private void FlashSecondaryTile(HexCoord coord, Color flashColor)
+    {
+        if (flashedSecondaryTile != null)
+        {
+            flashedSecondaryTile.GetComponent<HexVisuals>()?.UpdateColor();
+            flashedSecondaryTile = null;
+        }
+
+        var tile = grid.GetTile(coord);
+        if (tile == null) return;
+
+        flashedSecondaryTile = tile;
+        flashedSecondaryColor = flashColor;
+        var meshGen = tile.GetComponent<HexMeshGenerator>();
+        if (meshGen != null)
+            meshGen.SetColor(flashColor);
+    }
+
+    private static void EnsureArrowMaterial()
+    {
+        if (arrowUnlitMaterial != null) return;
+        var shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader == null) shader = Shader.Find("Unlit/Color");
+        arrowUnlitMaterial = new Material(shader);
+        arrowUnlitMaterial.SetColor("_BaseColor", Color.white);
+    }
+
+    private static Mesh CreateArrowHeadMesh()
+    {
+        // Triangle pointing forward (+Z), flat on Y.
+        var verts = new Vector3[]
+        {
+            new Vector3(0, 0, 1),     // tip
+            new Vector3(-1, 0, 0),    // left base
+            new Vector3(1, 0, 0),     // right base
+        };
+        var tris = new int[] { 0, 2, 1, 0, 1, 2 }; // double-sided
+        var mesh = new Mesh { name = "ArrowHead" };
+        mesh.vertices = verts;
+        mesh.triangles = tris;
+        mesh.RecalculateNormals();
+        return mesh;
+    }
+
+    /// <summary>Clear all replay visual indicators (called at start of next turn).</summary>
+    private void ClearReplayVisuals()
+    {
+        if (moveArrowObj != null)
+            moveArrowObj.SetActive(false);
+        if (arrowHeadObj != null)
+            arrowHeadObj.SetActive(false);
+
+        if (flashedTile != null)
+        {
+            flashedTile.GetComponent<HexVisuals>()?.UpdateColor();
+            flashedTile = null;
+        }
+        if (flashedSecondaryTile != null)
+        {
+            flashedSecondaryTile.GetComponent<HexVisuals>()?.UpdateColor();
+            flashedSecondaryTile = null;
+        }
     }
 
     /// <summary>
@@ -580,5 +833,22 @@ public class ReplayPlayer : MonoBehaviour
             if (dr != null) dr.enabled = false;
             unit.isMyTurn = false;
         }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void CleanupStaticMaterials()
+    {
+        if (arrowUnlitMaterial != null)
+        {
+            Object.DestroyImmediate(arrowUnlitMaterial);
+            arrowUnlitMaterial = null;
+        }
+    }
+
+    public static Material[] GetStaticMaterials()
+    {
+        var mats = new[] { arrowUnlitMaterial };
+        arrowUnlitMaterial = null;
+        return mats;
     }
 }

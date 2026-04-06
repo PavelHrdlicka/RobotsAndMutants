@@ -42,7 +42,7 @@ public static class StrategyAnalyzer
     }
 
     private static readonly string ReplayDir =
-        Path.GetFullPath("Replays");
+        GameReplayLogger.TrainingReplayDir;
 
     /// <summary>Analyze the last N replay files.</summary>
     public static List<GameMetrics> AnalyzeLast(int count)

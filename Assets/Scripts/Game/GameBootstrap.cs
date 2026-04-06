@@ -21,11 +21,16 @@ public static class GameBootstrap
         // Only bootstrap game scenes, not MainMenu.
         if (scene.name == "MainMenu") return;
 
-        // If HexGrid already exists (set up by Editor tools), skip.
-        if (Object.FindFirstObjectByType<HexGrid>() != null) return;
+        // If HexGrid already exists (set up by Editor tools), skip grid creation.
+        if (Object.FindFirstObjectByType<HexGrid>() == null)
+        {
+            Debug.Log("[GameBootstrap] No HexGrid found — running runtime setup.");
+            SetupScene();
+        }
 
-        Debug.Log("[GameBootstrap] No HexGrid found — running runtime setup.");
-        SetupScene();
+        // Always ensure ReplayPlayer + HUD exist on the GameManager.
+        // They may be missing if scene was created by GameBootstrap (not HexGridSetup).
+        EnsureReplayComponents();
     }
 
     private static void SetupScene()
@@ -87,6 +92,22 @@ public static class GameBootstrap
         go.AddComponent<HexTileData>();
         go.SetActive(false);
         return go;
+    }
+
+    /// <summary>
+    /// Ensure ReplayPlayer + ReplayPlayerHUD exist on the GameManager GameObject.
+    /// Called on every scene load — these components must exist for "Watch Replay" to work
+    /// regardless of whether the scene was set up by Editor tools or GameBootstrap.
+    /// </summary>
+    private static void EnsureReplayComponents()
+    {
+        var gm = Object.FindFirstObjectByType<GameManager>();
+        if (gm == null) return;
+
+        if (gm.GetComponent<ReplayPlayer>() == null)
+            gm.gameObject.AddComponent<ReplayPlayer>();
+        if (gm.GetComponent<ReplayPlayerHUD>() == null)
+            gm.gameObject.AddComponent<ReplayPlayerHUD>();
     }
 
     private static void ConfigureCamera(int boardSide)

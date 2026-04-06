@@ -109,6 +109,10 @@ public class StaticResourceCleanupTests
 
             string className = classMatch.Groups[1].Value;
 
+            // Skip classes that handle their own cleanup via RuntimeInitializeOnLoadMethod.
+            if (source.Contains("RuntimeInitializeOnLoadMethod") && source.Contains("CleanupStaticMaterials"))
+                continue;
+
             // Must appear in cleanup source as "ClassName.GetStaticMaterials()".
             string expected = $"{className}.GetStaticMaterials()";
             if (!cleanupSource.Contains(expected))

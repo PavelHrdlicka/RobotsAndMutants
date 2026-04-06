@@ -270,20 +270,20 @@ public class SilentTrainingFlagTests
     public void LaunchHumanVsAI_SetsGameModeSessionState()
     {
         string source = System.IO.File.ReadAllText(
-            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/MainMenuController.cs"));
 
         Assert.IsTrue(source.Contains("SessionState.SetString(\"GameMode\", \"HumanVsAI\")"),
-            "LaunchHumanVsAI must set SessionState(\"GameMode\", \"HumanVsAI\").");
+            "MainMenuController must set SessionState(\"GameMode\", \"HumanVsAI\").");
     }
 
     [Test]
     public void DoLaunchReplay_SetsGameModeSessionState()
     {
         string source = System.IO.File.ReadAllText(
-            System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/MainMenuController.cs"));
 
         Assert.IsTrue(source.Contains("SessionState.SetString(\"GameMode\", \"Replay\")"),
-            "DoLaunchReplay must set SessionState(\"GameMode\", \"Replay\").");
+            "MainMenuController must set SessionState(\"GameMode\", \"Replay\").");
     }
 
     [Test]
@@ -301,6 +301,32 @@ public class SilentTrainingFlagTests
             "InitSessionState must have Training as default fallback.");
     }
 
+    // ── All Replay entry points must set SessionState ─────────────────
+
+    [Test]
+    public void WatchReplayHUD_SetsReplaySessionState()
+    {
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/GameManager.HUD.cs"));
+
+        Assert.IsTrue(source.Contains("SessionState.SetString(\"GameMode\", \"Replay\")"),
+            "GameManager.HUD Watch Replay must set SessionState(\"GameMode\", \"Replay\"). " +
+            "Without this, InitSessionState restores the previous mode after scene reload.");
+    }
+
+    // ── Replay mode must set timeScale = 1 ─────────────────────────────
+
+    [Test]
+    public void ReplayPlayer_SetsTimeScaleToOne()
+    {
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/ReplayPlayer.cs"));
+
+        Assert.IsTrue(source.Contains("Time.timeScale = 1f"),
+            "ReplayPlayer must explicitly set Time.timeScale = 1f to prevent inheriting " +
+            "Training mode's timeScale (20x). Without this, replays play 20x too fast.");
+    }
+
     // ── Every GameMode enum value has matching SessionState string ────
 
     [Test]
@@ -308,13 +334,17 @@ public class SilentTrainingFlagTests
     {
         string ptw = System.IO.File.ReadAllText(
             System.IO.Path.Combine(Application.dataPath, "Editor/ProjectToolsWindow.cs"));
+        string mmc = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Game/MainMenu/MainMenuController.cs"));
+        string combined = ptw + mmc;
 
         foreach (var mode in System.Enum.GetNames(typeof(GameMode)))
         {
             Assert.IsTrue(
-                ptw.Contains($"SessionState.SetString(\"GameMode\", \"{mode}\")"),
-                $"ProjectToolsWindow must have an entry point that sets GameMode to \"{mode}\". " +
-                "Every GameMode enum value must have a corresponding SessionState writer.");
+                combined.Contains($"SessionState.SetString(\"GameMode\", \"{mode}\")"),
+                $"Must have an entry point that sets GameMode to \"{mode}\". " +
+                "Every GameMode enum value must have a corresponding SessionState writer " +
+                "(in ProjectToolsWindow or MainMenuController).");
         }
     }
 }

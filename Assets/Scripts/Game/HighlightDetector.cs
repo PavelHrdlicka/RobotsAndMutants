@@ -71,10 +71,10 @@ public static class HighlightDetector
     /// <summary>Analyze all replay files and write highlights.json.</summary>
     public static string AnalyzeAndExport(int lastN = 0)
     {
-        string replayDir = Path.GetFullPath("Replays");
+        string replayDir = GameReplayLogger.TrainingReplayDir;
         if (!Directory.Exists(replayDir))
         {
-            Debug.LogWarning("[Highlights] No Replays directory found.");
+            Debug.LogWarning("[Highlights] No Training replays directory found.");
             return null;
         }
 

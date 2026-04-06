@@ -16,6 +16,8 @@ public static class ReplayData
         public int gridSize;
         public int maxRounds;
         public float winThreshold;
+        public string gameMode;   // "Training", "HumanVsAI"
+        public string humanTeam;  // "Robot" or "Mutant" (only for HumanVsAI)
     }
 
     public struct Turn
@@ -83,6 +85,8 @@ public static class ReplayData
                     gridSize = ExtractInt(line, "gridSize", 5),
                     maxRounds = ExtractInt(line, "maxRounds", 2000),
                     winThreshold = ExtractFloat(line, "winThreshold", 0.6f),
+                    gameMode = ExtractString(line, "gameMode"),
+                    humanTeam = ExtractString(line, "humanTeam"),
                 };
             }
             else if (type == "turn")

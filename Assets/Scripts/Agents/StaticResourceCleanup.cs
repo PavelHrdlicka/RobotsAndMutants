@@ -18,7 +18,8 @@ public static class StaticResourceCleanup
             UnitHealthBar3D.GetStaticMaterials(),
             RobotModelBuilder.GetStaticMaterials(),
             MutantModelBuilder.GetStaticMaterials(),
-            HexVisuals.GetStaticMaterials()
+            HexVisuals.GetStaticMaterials(),
+            AdjacencyAura.GetStaticMaterials()
         );
     }
 

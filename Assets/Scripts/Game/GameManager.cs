@@ -180,16 +180,29 @@ public partial class GameManager : MonoBehaviour
             var highlighterGo = new GameObject("HexHighlighter");
             var highlighter = highlighterGo.AddComponent<HexHighlighter>();
             highlighter.Initialize(grid, inputMgr);
+
+            // Human player always starts first.
+            startingTeam = GameModeConfig.HumanTeam;
+        }
+        // Replay mode: block game loop, let ReplayPlayer drive everything.
+        else if (GameModeConfig.CurrentMode == GameMode.Replay)
+        {
+            Time.timeScale = 1f;
+            gameOver = true;
+            autoRestart = false;
         }
 
         if (sessionStartTime == 0f)
             sessionStartTime = Time.realtimeSinceStartup;
 
-        // Start replay logging for the first game.
-        var cfg = GameConfig.Instance;
-        replayLogger.logEveryNthGame = cfg != null ? cfg.replayLogEveryNthGame : 1;
-        replayLogger.StartGame(matchCounter + 1, cfg, grid);
-        matchStartTime = Time.realtimeSinceStartup;
+        // Start replay logging for the first game (not in Replay mode — we're watching, not recording).
+        if (GameModeConfig.CurrentMode != GameMode.Replay)
+        {
+            var cfg = GameConfig.Instance;
+            replayLogger.logEveryNthGame = cfg != null ? cfg.replayLogEveryNthGame : 1;
+            replayLogger.StartGame(matchCounter + 1, cfg, grid);
+            matchStartTime = Time.realtimeSinceStartup;
+        }
 
         Debug.Log($"[GameManager] Ready. Mode: {GameModeConfig.CurrentMode}. {grid.ContestableTileCount} contestable tiles. Max rounds: {maxRounds}.");
     }
