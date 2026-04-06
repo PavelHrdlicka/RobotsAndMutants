@@ -111,9 +111,6 @@ public static class StrategyAnalyzer
         // Key: round, Value: list of (team, q, r).
         var robotPositions = new List<(int q, int r)>();
         var mutantPositions = new List<(int q, int r)>();
-        int positionSamples = 0;
-        float rDistSum = 0, mDistSum = 0;
-
         string[] lines = File.ReadAllLines(filePath);
         foreach (string line in lines)
         {
