@@ -48,6 +48,7 @@
 - [feedback_no_aftersceneload_for_transitions.md](feedback_no_aftersceneload_for_transitions.md) — AfterSceneLoad = jen 1×; pro scene transitions použít SceneManager.sceneLoaded
 - [feedback_shared_material_in_builders.md](feedback_shared_material_in_builders.md) — Model builders: static cached materiály + .sharedMaterial, nikdy per-unit kopie
 - [feedback_replay_start_in_all_modes.md](feedback_replay_start_in_all_modes.md) — replayLogger.StartGame() musí být v Start(), ne jen v ResetGame()
+- [feedback_new_input_system_only.md](feedback_new_input_system_only.md) — Pouze nový Input System (InputAction), starý Input API zakázán
 
 ## Project
 - [project_youtube_goal.md](project_youtube_goal.md) — Cíl: YouTube video ve stylu AI Warehouse / MrBeast (YOUTUBE-PLAN.md)

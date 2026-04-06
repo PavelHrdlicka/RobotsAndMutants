@@ -856,6 +856,94 @@ public class MainMenuTests
             "GameBootstrap.cs must exist for runtime scene setup from MainMenu.");
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // ── New Input System compliance ──────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    [UnityTest]
+    public IEnumerator HumanInputManager_UsesNewInputSystem()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/HumanInputManager.cs"));
+
+        Assert.IsTrue(source.Contains("using UnityEngine.InputSystem"),
+            "HumanInputManager must use UnityEngine.InputSystem (new Input System).");
+        Assert.IsTrue(source.Contains("InputAction"),
+            "HumanInputManager must use InputAction for input bindings.");
+    }
+
+    [UnityTest]
+    public IEnumerator HumanInputManager_DoesNotUseOldInput()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/HumanInputManager.cs"));
+
+        Assert.IsFalse(source.Contains("Input.GetKey"),
+            "Must not use old Input.GetKey — use InputAction.WasPressedThisFrame().");
+        Assert.IsFalse(source.Contains("Input.GetMouse"),
+            "Must not use old Input.GetMouseButton — use InputAction for mouse.");
+        Assert.IsFalse(source.Contains("Input.mousePosition"),
+            "Must not use old Input.mousePosition — use InputAction<Vector2>.");
+    }
+
+    [UnityTest]
+    public IEnumerator HumanInputManager_DisposesActions()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/HumanInputManager.cs"));
+
+        Assert.IsTrue(source.Contains("OnDestroy"),
+            "HumanInputManager must have OnDestroy to clean up InputActions.");
+        Assert.IsTrue(source.Contains("Dispose()"),
+            "OnDestroy must Dispose all InputActions.");
+    }
+
+    [UnityTest]
+    public IEnumerator NoOldInputAPI_InProjectScripts()
+    {
+        // Scan ALL script files for old Input API usage.
+        yield return null;
+
+        var violations = new System.Collections.Generic.List<string>();
+        string scriptsDir = System.IO.Path.Combine(Application.dataPath, "Scripts");
+
+        foreach (string file in System.IO.Directory.GetFiles(scriptsDir, "*.cs",
+            System.IO.SearchOption.AllDirectories))
+        {
+            string source = System.IO.File.ReadAllText(file);
+            string fileName = System.IO.Path.GetFileName(file);
+
+            if (System.Text.RegularExpressions.Regex.IsMatch(source,
+                @"\bInput\.(GetKey|GetMouse|mousePosition|GetAxis|GetButton)"))
+            {
+                violations.Add(fileName);
+            }
+        }
+
+        Assert.IsEmpty(violations,
+            $"Old Input API (Input.GetKey/GetMouse/mousePosition) found in: " +
+            $"{string.Join(", ", violations)}. Use new Input System (InputAction) instead.");
+    }
+
+    [UnityTest]
+    public IEnumerator AgentsAsmdef_ReferencesInputSystem()
+    {
+        yield return null;
+
+        string source = System.IO.File.ReadAllText(
+            System.IO.Path.Combine(Application.dataPath, "Scripts/Agents/Agents.asmdef"));
+
+        // Unity.InputSystem GUID: 75469ad4d38634e559750d17036d5f7c
+        Assert.IsTrue(source.Contains("75469ad4d38634e559750d17036d5f7c"),
+            "Agents.asmdef must reference Unity.InputSystem package.");
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private static void SetField(object obj, string fieldName, object value)
